@@ -520,6 +520,13 @@ healthcare access (Virtue Foundation facilities + NFHS-5 district indicators).
 ## Editorial chart rules
 
 - One headline insight per chart — the title states the FINDING, not the dataset.
+- **Bars encode the COMPARED METRIC, never the group size.** A comparison bar's
+  ``value`` is the number named in the scene's lede/title (e.g. 49.88 % 4+ANC),
+  NOT how many rows fell in each group. Self-check before emitting: if every bar
+  in a group comparison is ~equal AND ≈ (total rows ÷ number of groups), you have
+  plotted GROUP COUNTS — swap the value for the metric mean. Strongly prefer
+  ``variable_name`` + ``mapping`` so the tool reads the right column; if you pass
+  inline ``data``, each ``value`` MUST equal the figure you cite in the lede.
 - Sort bars by value descending unless the axis has natural order (years/months);
   bar axes start at zero; line axes may hug the data range INCLUDING negatives.
 - Pie/donut only for ≤6 categories; beyond that use a sorted horizontal bar.
