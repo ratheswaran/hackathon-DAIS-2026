@@ -1,0 +1,61 @@
+{
+  "probes": [
+    "What are an Afghan asylum seeker's chances of getting protection across EU countries? Which country is toughest?",
+    "Why is asylum outcome called a lottery? Explain what drives the gap between Germany and Sweden for the same nationality.",
+    "Build a 6-slide executive deck on the global displacement crisis.",
+    "Create an infographic showing who really bears the refugee burden \u2014 wealth or geography?",
+    "How many people are stuck waiting in the asylum backlog, and is it growing?"
+  ],
+  "results": [
+    {
+      "probe": 0,
+      "variant": "filewalk",
+      "latency_s": 169.5,
+      "trace_id": "tr-e930be947b6184689e3226f0366260c0",
+      "input_tokens": 372864,
+      "output_tokens": 2762,
+      "total_tokens": 375626,
+      "cache_read_input_tokens": 276608
+    },
+    {
+      "probe": 1,
+      "variant": "filewalk",
+      "latency_s": 146.7,
+      "trace_id": "tr-ea5a7d06150b8a0074e13e77bd3896a9",
+      "input_tokens": 567861,
+      "output_tokens": 5490,
+      "total_tokens": 573351,
+      "cache_read_input_tokens": 514816
+    },
+    {
+      "probe": 2,
+      "variant": "filewalk",
+      "latency_s": 110.7,
+      "trace_id": "tr-7bc494dbf0c73029025ae4684d70a799",
+      "input_tokens": 365752,
+      "output_tokens": 3522,
+      "total_tokens": 369274,
+      "cache_read_input_tokens": 263168
+    },
+    {
+      "probe": 3,
+      "variant": "filewalk",
+      "latency_s": 425.4,
+      "trace_id": "tr-3cca74952ee215f8ebe82df52d6a3718",
+      "input_tokens": 1506067,
+      "output_tokens": 19906,
+      "total_tokens": 1525973,
+      "cache_read_input_tokens": 1363584
+    },
+    {
+      "probe": 4,
+      "variant": "filewalk",
+      "latency_s": 125.2,
+      "trace_id": "tr-e7b3929d74ade55594eada7d48295037",
+      "input_tokens": 648877,
+      "output_tokens": 3088,
+      "total_tokens": 651965,
+      "cache_read_input_tokens": 582912
+    }
+  ]
+}

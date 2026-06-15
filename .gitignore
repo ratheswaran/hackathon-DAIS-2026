@@ -1,0 +1,27 @@
+# Secrets / local config (NEVER commit)
+**/workspace_config.yml
+**/.env
+**/*.env.local
+**/Neo4j-*.txt
+**/*-credentials*.txt
+
+# Dependencies / build artifacts
+**/node_modules/
+**/.venv*/
+**/dist/
+**/build/
+**/.turbo/
+**/.databricks/
+**/*.tsbuildinfo
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+
+# Data dumps / large artifacts
+**/data/
+**/*.parquet
+
+# OS / editor
+**/.DS_Store

@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+# importlib mode avoids the classic test-dir name-collision bug where
+# pytest adds test package dirs (e.g. tests/subagents/) to sys.path and
+# shadows real top-level packages of the same name (deep_agent_ra_v2/subagents/).
+addopts = "--import-mode=importlib"
+testpaths = ["tests"]
+# Put the v2 root on sys.path so test modules can do
+# `from subagents import ...` / `from tools import ...`, the same way
+# deploy_orchestrator_agent.py does via its Cell 5/6 sys.path shims.
+pythonpath = ["."]

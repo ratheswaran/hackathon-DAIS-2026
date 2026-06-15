@@ -1,0 +1,234 @@
+{
+  "label": "smoke2",
+  "ts": "2026-06-12 04:22:38",
+  "results": [
+    {
+      "id": "ctl-routing",
+      "category": "control",
+      "turns": [
+        {
+          "user": "Which Genie space covers asylum decisions, and what gotchas should I honor when computing first-instance recognition rates? Don't run any data queries \u2014 just tell me the plan.",
+          "latency_s": 35.7,
+          "answer": "**Genie space:** **UNHCR Asylum & Solutions**  \n- Covers asylum flow questions: applications, asylum decisions, durable-solution outcomes.  \n- Use it for decisions reached, recognition/protection/rejection rates, decision level, and procedure-type splits.\n\n**For first-instance recognition rates, honor these gotchas:**\n\n- **Use the first-instance code exactly:** `dec_level = 'FI'` \u2014 not `'F'`.\n- **For fair cross-country recognition comparisons, restrict to government procedures:** `procedure_type = 'G'`. UNHCR-led procedures (`'U'`) follow different processes and should not be mixed unless explicitly requested.\n- **Use persons, not cases, for the standard cohort:** `dec_pc = 'P'`.\n- **Use the substantive TRR denominator for first-instance recognition comparisons:**  \n  **TRR = (recognized + complementary protection) / (recognized + complementary protection + rejected)**  \n  In columns:  \n  `(dec_recognized + dec_other) / NULLIF(dec_recognized + dec_other + dec_rejected, 0)`\n- **Do not include closures in the TRR denominator.** `dec_closed` is administrative closure, not rejection.\n- **Do not compare decisions to same-year applications as if they are the same cohort.** Decisions in a year often relate to applications filed in earlier years.\n- **Always show numerator and denominator with the rate.** A high rate on 5 decisions is not comparable to a similar rate on 50,000 decisions.\n- **For origin/destination comparisons, exclude non-country origin codes** such as unknown/various/stateless placeholders.\n- **For \u201casylum lottery\u201d style European comparisons, use the explicit Europe destination allowlist** rather than a broad `countries.region = 'Europe'` filter.\n\n**Plan pattern:** query `workspace.hackathon.asylum_decisions`, filter to the relevant year/cohort, apply `dec_level='FI'`, `procedure_type='G'`, `dec_pc='P'`, aggregate recognized / complementary / rejected, then compute TRR with safe division and surface the counts alongside the percentage.",
+          "error": null
+        }
+      ],
+      "latency_s": 35.7,
+      "metrics": {
+        "llm_calls": 2,
+        "llm_errors": 0,
+        "input_tokens": 39297,
+        "output_tokens": 482,
+        "total_tokens": 39779,
+        "max_input_tokens_call": 20961,
+        "llm_time_s": 21.6,
+        "tool_time_s": 3.4,
+        "tool_call_count": 1
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 7.82,
+          "n_messages": 2,
+          "input_chars": 42653,
+          "input_tokens": 18336,
+          "output_tokens": 40,
+          "total_tokens": 18376,
+          "cache_read": 16000
+        },
+        {
+          "duration_s": 13.75,
+          "n_messages": 4,
+          "input_chars": 52602,
+          "input_tokens": 20961,
+          "output_tokens": 442,
+          "total_tokens": 21403,
+          "cache_read": 16000
+        }
+      ],
+      "tool_calls_detail": [
+        {
+          "name": "find_skill",
+          "duration_s": 3.39,
+          "output_chars": 9949
+        }
+      ],
+      "tool_sequence": [
+        "find_skill"
+      ],
+      "orchestrator_tool_calls": [
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"Which Genie space covers asylum decisions, and gotchas for computing first-instance recognition rates; no data query, just plan\"}"
+        }
+      ],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_call:find_skill",
+            "pass": true,
+            "detail": "sequence=['find_skill']",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:ask_genie_space",
+            "pass": true,
+            "detail": "sequence=['find_skill']",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:run_spark_sql",
+            "pass": true,
+            "detail": "sequence=['find_skill']",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The answer names a plausible asylum Genie space and includes multiple required real gotchas, including dec_level='FI' not 'F', TRR over recognized plus protection over recognized/protection/rejected rather than dec_total, and the Europe allow-list.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "39779 vs 60000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "35.7 vs 120",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "2 vs 4",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "bnd-out-of-scope",
+      "category": "boundary",
+      "turns": [
+        {
+          "user": "What's the weather in Bangkok tomorrow?",
+          "latency_s": 11.0,
+          "answer": "I don\u2019t have live weather access in this environment, so I can\u2019t reliably give tomorrow\u2019s Bangkok forecast.\n\nFor the most accurate forecast for **Bangkok tomorrow, 13 June 2026**, check a live source such as:\n- Thai Meteorological Department\n- Google Weather\n- Weather.com\n- AccuWeather\n\nBangkok in mid-June is typically hot, humid, and often has afternoon or evening thunderstorms, but please verify with a live forecast before planning.",
+          "error": null
+        }
+      ],
+      "latency_s": 11.0,
+      "metrics": {
+        "llm_calls": 1,
+        "llm_errors": 0,
+        "input_tokens": 18310,
+        "output_tokens": 158,
+        "total_tokens": 18468,
+        "max_input_tokens_call": 18310,
+        "llm_time_s": 10.7,
+        "tool_time_s": 0,
+        "tool_call_count": 0
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 10.67,
+          "n_messages": 2,
+          "input_chars": 42517,
+          "input_tokens": 18310,
+          "output_tokens": 158,
+          "total_tokens": 18468,
+          "cache_read": 16000
+        }
+      ],
+      "tool_calls_detail": [],
+      "tool_sequence": [],
+      "orchestrator_tool_calls": [],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": false,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:ask_genie_space",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:run_spark_sql",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:compose_infographic",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:compose_deck",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": false,
+            "detail": "The agent did not decline on the grounds that weather is outside its refugee/displacement analytics scope or state what refugee-data help it can provide.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "18468 vs 30000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "11.0 vs 60",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "1 vs 3",
+            "hard": false
+          }
+        ]
+      }
+    }
+  ]
+}

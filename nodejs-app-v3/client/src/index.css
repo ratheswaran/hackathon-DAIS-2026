@@ -1,0 +1,693 @@
+/* ============================================================
+   Async agent chat — dark-warm clay design system
+   Implementation of "Inferred Design v2" against the Tailwind v4 stack.
+   Light = mirror of dark (warm cream surfaces, same clay accent).
+   ============================================================ */
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark, .dark *));
+
+/* ------------------------------------------------------------
+   Tokens — dark canvas (default)
+   ------------------------------------------------------------ */
+:root {
+  /* Surfaces & foregrounds */
+  --bg-canvas: #1a1a19;
+  --bg-elev-1: #232220;
+  --bg-elev-2: #2a2a27;
+  --bg-elev-3: #34332f;
+  --bg-sidebar: #15140f;
+  --border-1: #2c2b28;
+  --border-2: #3a3935;
+  --fg-1: #f0eee6;
+  --fg-2: #b7b5ad;
+  --fg-3: #87867f;
+  --fg-4: #5d5c57;
+
+  /* Accents */
+  --clay: #d97757;
+  --clay-soft: #e08566;
+  --clay-dim: #6b3c2b;
+  --olive: #788c5d;
+  --olive-soft: #8fa173;
+  --link: #cdb8a2;
+  --danger: #c8624a;
+
+  /* Editorial accent (artifact panel) */
+  --editorial-bg: #0f0f0f;
+  --editorial-fg: #f5f1eb;
+  --editorial-chart-bg: #141414;
+
+  /* Type */
+  --t-xs: 11px;
+  --t-sm: 12.5px;
+  --t-md: 14px;
+  --t-lg: 16px;
+  --t-xl: 20px;
+  --t-2xl: 28px;
+  --t-3xl: 40px;
+
+  --font-standard: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Inter", "Segoe UI", Roboto, Helvetica Neue, Arial, sans-serif;
+  --font-standard-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas,
+    "Source Code Pro", monospace;
+  --font-editorial: "EB Garamond", "Tiempos Headline", Georgia, serif;
+
+  /* Radius */
+  --r-pill: 999px;
+  --r-card: 12px;
+  --r-row: 8px;
+  --r-tight: 6px;
+
+  /* Motion */
+  --ease-snap: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-emphasised: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasised-decel: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-emphasised-accel: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --d-fast: 120ms;
+  --d-med: 240ms;
+  --d-slow: 420ms;
+
+  --shadow-elev: 0 1px 0 rgba(0, 0, 0, 0.3), 0 20px 40px -20px rgba(0, 0, 0, 0.5);
+
+  /* ----- Tailwind semantic mapping (dark canvas) ----- */
+  --background: var(--bg-canvas);
+  --foreground: var(--fg-1);
+  --card: var(--bg-elev-1);
+  --card-foreground: var(--fg-1);
+  --popover: var(--bg-elev-2);
+  --popover-foreground: var(--fg-1);
+  --tooltip: var(--bg-elev-3);
+  --tooltip-foreground: var(--fg-1);
+
+  --primary: var(--clay);
+  --primary-foreground: #ffffff;
+
+  --secondary: var(--bg-elev-1);
+  --secondary-foreground: var(--fg-1);
+
+  --muted: var(--bg-elev-1);
+  --muted-foreground: var(--fg-3);
+
+  --accent: var(--bg-elev-2);
+  --accent-foreground: var(--fg-1);
+
+  --destructive: var(--danger);
+  --destructive-foreground: #ffffff;
+
+  --border: var(--border-1);
+  --input: var(--border-1);
+  --ring: var(--clay);
+
+  --warning: var(--clay);
+  --success: var(--olive);
+
+  --border-danger: rgba(200, 98, 74, 0.35);
+  --border-warning: rgba(217, 119, 87, 0.35);
+  --border-success: rgba(120, 140, 93, 0.35);
+  --background-danger: rgba(200, 98, 74, 0.08);
+  --background-warning: rgba(217, 119, 87, 0.08);
+  --background-success: rgba(120, 140, 93, 0.08);
+
+  --chart-1: var(--clay);
+  --chart-2: var(--olive);
+  --chart-3: var(--link);
+  --chart-4: #c9a978;
+  --chart-5: #9bb88a;
+
+  --sidebar-background: var(--bg-sidebar);
+  --sidebar-foreground: var(--fg-2);
+  --sidebar-primary: var(--clay);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--bg-elev-1);
+  --sidebar-accent-foreground: var(--fg-1);
+  --sidebar-border: var(--border-1);
+  --sidebar-ring: var(--clay);
+
+  --action-default-background-hover: rgba(217, 119, 87, 0.08);
+  --action-default-background-press: rgba(217, 119, 87, 0.16);
+  --action-primary-background-hover: var(--clay-soft);
+  --action-primary-background-press: var(--clay-dim);
+  --action-tertiary-background-hover: rgba(217, 119, 87, 0.08);
+  --action-tertiary-background-press: rgba(217, 119, 87, 0.16);
+  --action-danger-primary-background-hover: #d8745d;
+  --action-danger-primary-background-press: #b24d3a;
+
+  --radius: 0.5rem;
+
+  --shimmer-text-duration: 1s;
+  --shimmer-text-ease: linear;
+  --shimmer-text-gradient-low: var(--fg-3);
+  --shimmer-text-gradient-high: var(--fg-1);
+}
+
+/* ------------------------------------------------------------
+   Tokens — light canvas (mirror of dark, warm cream surfaces)
+   ------------------------------------------------------------ */
+.light {
+  /* Surfaces & foregrounds */
+  --bg-canvas: #f8f5ee;
+  --bg-elev-1: #f1ede3;
+  --bg-elev-2: #e9e3d4;
+  --bg-elev-3: #ddd5c2;
+  --bg-sidebar: #f1ede3;
+  --border-1: #e3dccb;
+  --border-2: #cdc4ad;
+  --fg-1: #1f1d18;
+  --fg-2: #4d4a40;
+  --fg-3: #76725f;
+  --fg-4: #a39c84;
+
+  /* Accents — same clay, slightly deeper for AA contrast on cream */
+  --clay: #b35a39;
+  --clay-soft: #c46e4d;
+  --clay-dim: #f0d9cb;
+  --olive: #5e6f44;
+  --olive-soft: #7a8c5b;
+  --link: #7d6953;
+  --danger: #a83f24;
+
+  --editorial-bg: #faf6ec;
+  --editorial-fg: #1f1d18;
+  --editorial-chart-bg: #f1ede3;
+
+  --shadow-elev: 0 1px 2px rgba(31, 29, 24, 0.04), 0 12px 28px -16px rgba(31, 29, 24, 0.18);
+
+  --background: var(--bg-canvas);
+  --foreground: var(--fg-1);
+  --card: var(--bg-elev-1);
+  --card-foreground: var(--fg-1);
+  --popover: var(--bg-elev-1);
+  --popover-foreground: var(--fg-1);
+  --tooltip: var(--fg-1);
+  --tooltip-foreground: var(--bg-canvas);
+
+  --primary: var(--clay);
+  --primary-foreground: #ffffff;
+  --secondary: var(--bg-elev-1);
+  --secondary-foreground: var(--fg-1);
+  --muted: var(--bg-elev-2);
+  --muted-foreground: var(--fg-3);
+  --accent: var(--bg-elev-2);
+  --accent-foreground: var(--fg-1);
+  --destructive: var(--danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--border-1);
+  --input: var(--border-1);
+  --ring: var(--clay);
+  --warning: var(--clay);
+  --success: var(--olive);
+
+  --border-danger: rgba(168, 63, 36, 0.2);
+  --border-warning: rgba(179, 90, 57, 0.2);
+  --border-success: rgba(94, 111, 68, 0.2);
+  --background-danger: rgba(168, 63, 36, 0.06);
+  --background-warning: rgba(179, 90, 57, 0.06);
+  --background-success: rgba(94, 111, 68, 0.06);
+
+  --chart-1: var(--clay);
+  --chart-2: var(--olive);
+  --chart-3: var(--link);
+  --chart-4: #b08940;
+  --chart-5: #6a8a4f;
+
+  --sidebar-background: var(--bg-sidebar);
+  --sidebar-foreground: var(--fg-2);
+  --sidebar-primary: var(--clay);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--bg-elev-2);
+  --sidebar-accent-foreground: var(--fg-1);
+  --sidebar-border: var(--border-1);
+  --sidebar-ring: var(--clay);
+}
+
+/* Backwards-compat — the old codebase ships with `.dark` toggling.
+   Our default IS dark, so .dark just locks the dark tokens (no-op),
+   while .light flips to the cream palette. */
+.dark {
+  /* No-op: defaults are already dark. Defined so `.dark` selectors elsewhere
+     don't break, and so explicit `.dark` on <html> stays valid. */
+}
+
+/* ------------------------------------------------------------
+   Tailwind theme registration
+   ------------------------------------------------------------ */
+@theme {
+  --font-sans: var(--font-standard);
+  --font-mono: var(--font-standard-mono);
+  --font-serif: var(--font-editorial);
+
+  --breakpoint-toast-mobile: 600px;
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-tooltip: var(--tooltip);
+  --color-tooltip-foreground: var(--tooltip-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-clay: var(--clay);
+  --color-clay-soft: var(--clay-soft);
+  --color-clay-dim: var(--clay-dim);
+  --color-olive: var(--olive);
+  --color-olive-soft: var(--olive-soft);
+  --color-link: var(--link);
+
+  --color-fg-1: var(--fg-1);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-fg-4: var(--fg-4);
+  --color-bg-canvas: var(--bg-canvas);
+  --color-bg-elev-1: var(--bg-elev-1);
+  --color-bg-elev-2: var(--bg-elev-2);
+  --color-bg-elev-3: var(--bg-elev-3);
+  --color-border-1: var(--border-1);
+  --color-border-2: var(--border-2);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-action-default-background-hover: var(--action-default-background-hover);
+  --color-action-default-background-press: var(--action-default-background-press);
+  --color-action-primary-background-hover: var(--action-primary-background-hover);
+  --color-action-primary-background-press: var(--action-primary-background-press);
+  --color-action-tertiary-background-hover: var(--action-tertiary-background-hover);
+  --color-action-tertiary-background-press: var(--action-tertiary-background-press);
+  --color-action-danger-primary-background-hover: var(
+    --action-danger-primary-background-hover
+  );
+  --color-action-danger-primary-background-press: var(
+    --action-danger-primary-background-press
+  );
+
+  --animate-shimmer-text: shimmer-text 1.5s linear infinite;
+  --animate-sparkle-pulse: sparkle-pulse 1.6s ease-in-out infinite;
+  --animate-dotted-spin: dotted-spin 1.4s linear infinite;
+  --animate-slide-up-in: slide-up-in 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ------------------------------------------------------------
+   Base
+   ------------------------------------------------------------ */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentcolor);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-standard);
+    font-size: 13px; /* drop chat baseline (was --t-md 14px). h5 still uses --t-md. */
+    line-height: 1.55;
+    overflow-x: hidden;
+    position: relative;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  h1 { font-size: var(--t-3xl); line-height: 1.1; font-weight: 520; letter-spacing: -0.02em; }
+  h2 { font-size: var(--t-2xl); line-height: 1.2; font-weight: 520; letter-spacing: -0.015em; }
+  h3 { font-size: var(--t-xl); line-height: 1.3; font-weight: 520; }
+  h4 { font-size: var(--t-lg); line-height: 1.45; font-weight: 520; }
+  h5 { font-size: var(--t-md); line-height: 1.5; font-weight: 520; }
+  h6 { font-size: var(--t-xs); line-height: 1.4; font-weight: 520; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-3); }
+
+  html {
+    overflow-x: hidden;
+  }
+
+  a {
+    color: var(--clay);
+    text-decoration: none;
+  }
+  a:hover {
+    color: var(--clay-soft);
+  }
+
+  code,
+  kbd {
+    font-family: var(--font-standard-mono);
+    font-size: 0.92em;
+    background: var(--bg-elev-2);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    color: var(--fg-1);
+  }
+}
+
+/* ------------------------------------------------------------
+   Utilities
+   ------------------------------------------------------------ */
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@utility -webkit-overflow-scrolling-touch {
+  -webkit-overflow-scrolling: touch;
+}
+
+@utility touch-pan-y {
+  touch-action: pan-y;
+}
+
+@utility overscroll-behavior-contain {
+  overscroll-behavior: contain;
+}
+
+@utility font-editorial {
+  font-family: var(--font-editorial);
+}
+
+@layer utilities {
+  /* Gradient avatar (clay) */
+  .bg-clay-gradient {
+    background: linear-gradient(135deg, var(--clay) 0%, #a04835 100%);
+  }
+
+  /* Sparkle ticker glyph */
+  .text-clay { color: var(--clay); }
+  .text-olive { color: var(--olive); }
+
+  /* Editorial accent for artifact prose */
+  .prose-editorial {
+    font-family: var(--font-editorial);
+    color: var(--editorial-fg);
+  }
+}
+
+/* ------------------------------------------------------------
+   Skeleton + scrollbar
+   ------------------------------------------------------------ */
+.skeleton * {
+  pointer-events: none !important;
+}
+
+.skeleton *[class^="text-"] {
+  color: transparent;
+  @apply rounded-md bg-foreground/20 select-none animate-pulse;
+}
+
+.skeleton .skeleton-bg {
+  @apply bg-foreground/10;
+}
+
+.skeleton .skeleton-div {
+  @apply bg-foreground/20 animate-pulse;
+}
+
+.ProseMirror {
+  outline: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-2);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-4);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-2) transparent;
+}
+
+/* ------------------------------------------------------------
+   Keyframes
+   ------------------------------------------------------------ */
+@keyframes shimmer-text {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: -100% 50%;
+  }
+}
+
+@keyframes sparkle-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08) rotate(15deg);
+  }
+}
+
+@keyframes sparkler-twinkle {
+  0%,
+  100% {
+    transform: scale(0.78) rotate(0deg);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.12) rotate(45deg);
+    opacity: 1;
+  }
+}
+
+@keyframes dotted-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- Inferred Design v2 glyph upgrades ---- */
+/* Concave 4-point sparkle, mask-on-currentColor so .spark inherits any
+   text color and animates as a single unit. Sized in em → scales with
+   font-size, matching the design package. Replaces the ✦ unicode glyph;
+   set `text-indent:-9999em` so the ✦ child text is invisible. */
+.spark {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  color: var(--clay);
+  vertical-align: -0.12em;
+  text-indent: -9999em;
+  overflow: hidden;
+  -webkit-mask: url("data:image/svg+xml;utf8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M12%201%20C%2012.6%209.2%2014.8%2010.8%2023%2012%20C%2014.8%2013.2%2012.6%2014.8%2012%2023%20C%2011.4%2014.8%209.2%2013.2%201%2012%20C%209.2%2010.8%2011.4%209.2%2012%201%20Z'%20fill='black'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml;utf8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M12%201%20C%2012.6%209.2%2014.8%2010.8%2023%2012%20C%2014.8%2013.2%2012.6%2014.8%2012%2023%20C%2011.4%2014.8%209.2%2013.2%201%2012%20C%209.2%2010.8%2011.4%209.2%2012%201%20Z'%20fill='black'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  animation: sparkle-pulse 1.6s ease-in-out infinite;
+}
+
+/* Lottie brand glyphs — the animated replacements for `.spark`.
+   Default (comet glyph): recolored WHITE via currentColor overrides on both
+   fills and strokes (user call 2026-06-11: white, not clay).
+   `--native` (thinking cubes): keeps its baked colors — white cubes with dark
+   outlines, already made for dark UIs; we only thicken the outlines slightly
+   so they survive 14-18px rendering (canvas is 256px). */
+.lottie-spark {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.18em;
+  color: #fff;
+  flex-shrink: 0;
+}
+.lottie-spark:not(.lottie-spark--native) svg [fill] {
+  fill: currentColor;
+}
+.lottie-spark:not(.lottie-spark--native) svg [stroke] {
+  stroke: currentColor;
+}
+.lottie-spark--native svg [stroke] {
+  stroke-width: 6px;
+}
+
+/* Shimmering status text (shadcn shimmering-text style) — a soft highlight
+   sweeps across the label while the agent is thinking/working. Muted base,
+   white crest; reduced-motion falls back to plain muted text. */
+.shimmer-text {
+  background-image: linear-gradient(
+    100deg,
+    var(--fg-3) 0%,
+    var(--fg-3) 38%,
+    #fff 50%,
+    var(--fg-3) 62%,
+    var(--fg-3) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer-sweep 2.2s linear infinite;
+}
+@keyframes shimmer-sweep {
+  from {
+    background-position: 125% 0;
+  }
+  to {
+    background-position: -125% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text {
+    animation: none;
+    background: none;
+    color: var(--fg-2);
+    -webkit-text-fill-color: var(--fg-2);
+  }
+}
+
+/* "Claude sparkler" — used wherever a working indicator was a dashed spinner.
+   Same 4-point star drawn as proper SVG (so it renders crisp on any DPI).
+   Pair with the inline <svg> from `tool-row.tsx` / `artifact-dock.tsx`. */
+.sparkler {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--clay);
+  flex-shrink: 0;
+}
+.sparkler svg {
+  width: 100%;
+  height: 100%;
+  animation: sparkler-twinkle 1.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes slide-up-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-collapse-out {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+@keyframes chip-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.84);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes section-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Editorial / artifact panel scoped reset for embedded artifacts */
+.artifact-body {
+  font-family: var(--font-editorial);
+  background: var(--editorial-bg);
+  color: var(--editorial-fg);
+}
+
+/* Reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

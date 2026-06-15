@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<!--
+  RA flagship scrollytelling scaffold for compose_story.
+  COPY THIS, fill DATA in run_python_code, pass as compose_story(template_html=…, data=…).
+  Contract: ONE quoted token "__DATA__" (const DATA) + optional "__PALETTE__" (const P).
+  No figure is hand-typed — every number comes from DATA.
+
+  ⚡ THE MOTION IS SCROLL-DRIVEN. The sticky chart is a STATE MACHINE: it renders
+  step 0 on load (complete chart + a gentle entrance), then RE-RENDERS with a d3
+  transition every time a new prose step scrolls into view. That swap — the
+  highlight moving, a series being emphasised, more data revealed, an annotation
+  appearing — IS the animation. A static sticky chart is a bug, not a style.
+  All motion is guarded by prefers-reduced-motion, so PNG/PDF exports stay static.
+
+  DATA shape this scaffold expects (adapt freely; add your own render fns):
+    {
+      kicker, title, lede,
+      bigstat: { value, label, sub },
+      chapters: [
+        { num, h2, thesis, fig_title,
+          render: "line" | "bars",            // which sticky chart this chapter draws
+          series?: [{name, points:[{x,y}]}],  // for render:"line"
+          rows?:   [{label, value, value_fmt?}], // for render:"bars"
+          y_format?: "num"|"pct",
+          steps: [
+            { prose,                            // the scroll-step text
+              view?: {                          // OPTIONAL per-step chart state (the swap):
+                highlight?: "Sweden" | ["Germany","Sweden"],  // which row(s)/series to accent
+                reveal?: 8,                     // show only first N rows/series (build-up)
+                annotate?: { at: "Sweden"|2023, text: "…" }    // transient callout for this step
+              } }
+          ] }
+      ],
+      outro: { quote, attrib },
+      methodology: { source, period, definitions, controls, limitations, ai }
+    }
+  If a step omits `view`, the engine still animates: it walks the highlight down
+  the rows/series as you scroll. Provide `view` to choreograph deliberately.
+-->
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNHCR data story</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<style>
+  :root{--paper:#FAF6EE;--oat:#F5EFE3;--ink:#1F1B16;--slate:#3A3A40;--mute:#9CA0A3;--grey:#C7C2B6;
+    --hair:rgba(58,58,64,.12);--signal:#254BB2;--amber:#DF9B44;--cyan:#2695AC;--magenta:#913F82;--alarm:#A6402E;
+    --serif:"Source Serif 4",Georgia,serif;--sans:"Manrope",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .skip-nav{position:absolute;left:-9999px}.skip-nav:focus{left:16px;top:16px;background:#fff;padding:8px;z-index:9}
+  .hero{max-width:1040px;margin:0 auto;padding:14vh 6vw 6vh}
+  .kicker{font-family:var(--mono);font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--signal);margin-bottom:1.2rem}
+  h1{font-family:var(--serif);font-weight:700;font-size:clamp(2.4rem,6vw,4.4rem);line-height:1.04;letter-spacing:-.02em;margin-bottom:1.4rem;max-width:16ch}
+  .lede{font-family:var(--serif);font-size:clamp(1.15rem,1.8vw,1.5rem);color:var(--slate);max-width:60ch}
+  .bigstat{max-width:1040px;margin:2vh auto 8vh;padding:0 6vw;display:grid;grid-template-columns:auto 1fr;gap:2rem;align-items:end}
+  .bigstat .n{font-family:var(--serif);font-weight:700;font-size:clamp(3.5rem,11vw,7rem);color:var(--signal);line-height:.9;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .bigstat .l{font-size:1.05rem;color:var(--slate);max-width:34ch}.bigstat .l b{color:var(--ink)}
+  .chapter{max-width:1320px;margin:0 auto;padding:6vh 4vw 2vh}
+  .ch-head{max-width:60ch;margin-bottom:2vh}
+  .ch-num{font-family:var(--mono);font-size:.78rem;letter-spacing:.14em;color:var(--amber);text-transform:uppercase}
+  .ch-head h2{font-family:var(--serif);font-weight:600;font-size:clamp(1.6rem,3vw,2.4rem);line-height:1.1;margin:.4rem 0 .6rem}
+  .ch-head .thesis{font-size:1.05rem;color:var(--slate)}
+  .scrolly{display:grid;grid-template-columns:1fr 1.35fr;gap:4rem;position:relative}
+  .steps{display:flex;flex-direction:column;gap:60vh;padding:30vh 0}
+  .step{font-family:var(--serif);font-size:1.15rem;color:var(--slate);opacity:.32;transition:opacity .3s,color .3s}
+  .step.active{opacity:1;color:var(--ink)}
+  .sticky{position:sticky;top:0;height:100vh;display:flex;align-items:center}
+  .figure{width:100%;background:#fff;border:1px solid var(--hair);border-radius:12px;padding:22px 20px 18px;box-shadow:0 14px 42px rgba(31,27,22,.05)}
+  .fig-title{font-family:var(--mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-bottom:10px}
+  .figure svg{width:100%;height:auto;display:block;overflow:visible}
+  .axis text{font-family:var(--mono);font-size:12px;fill:var(--mute)}.axis line,.axis path{stroke:var(--hair)}
+  .clabel{font-family:var(--sans);font-size:13px;font-weight:600}.annot{font-family:var(--serif);font-style:italic;font-size:14px;fill:var(--slate)}
+  .outro{max-width:880px;margin:6vh auto;padding:0 6vw}
+  .outro blockquote{font-family:var(--serif);font-weight:600;font-size:clamp(1.5rem,3vw,2.2rem);line-height:1.25;border-left:4px solid var(--signal);padding-left:1.4rem}
+  .outro .attrib{font-size:.95rem;color:var(--mute);margin-top:1rem}
+  .methodology{max-width:880px;margin:4vh auto 12vh;padding:1.8rem;background:var(--oat);border-radius:10px;font-size:.9rem;color:var(--slate)}
+  .methodology h3{font-family:var(--mono);font-size:.74rem;text-transform:uppercase;letter-spacing:.1em;color:var(--signal);margin-bottom:.9rem}
+  .methodology dt{font-weight:700;color:var(--ink);margin-top:.6rem}
+  /* opacity-only entrance for non-chart text blocks (CSS auto-runs → screenshot-safe) */
+  @keyframes fxIn{from{opacity:0}to{opacity:1}} .fx{animation:fxIn .6s ease both}
+  @media(max-width:860px){.scrolly{grid-template-columns:1fr}.sticky{position:relative;height:auto}.steps{gap:4vh;padding:2vh 0}.step{opacity:1;color:var(--ink)}}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.step{opacity:1}}
+</style></head>
+<body>
+<a href="#main" class="skip-nav">Skip to content</a>
+<main id="main">
+  <header class="hero"><p class="kicker fx" id="kicker"></p><h1 class="fx" id="title"></h1><p class="lede fx" id="lede"></p></header>
+  <section class="bigstat"><div class="n fx" id="bs-n"></div><div class="l fx" id="bs-l"></div></section>
+  <div id="chapters"></div>
+  <section class="outro"><blockquote id="outro-q"></blockquote><p class="attrib" id="outro-a"></p></section>
+  <aside class="methodology"><h3>How we did this</h3><dl id="method"></dl></aside>
+</main>
+<script>
+'use strict';
+const DATA = "__DATA__";
+const P = "__PALETTE__";          // injected by compose_story; fallback below if run standalone
+const PAL = (typeof P==='object'&&P.signal)?P:{paper:'#FAF6EE',oat:'#F5EFE3',ink:'#1F1B16',slate:'#3A3A40',mute:'#9CA0A3',grey:'#C7C2B6',signal:'#254BB2',amber:'#DF9B44',cyan:'#2695AC',magenta:'#913F82',alarm:'#A6402E'};
+const RM = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const fmt=v=>{const a=Math.abs(v);if(a>=1e9)return (v/1e9).toFixed(2)+'B';if(a>=1e6)return (v/1e6).toFixed(2)+'M';if(a>=1e5)return Math.round(v/1e3)+'K';if(a>=1e3)return d3.format(',')(Math.round(v));return d3.format('.0f')(v);};
+const pctTick=d=>d+'%';
+// transition helper: a real d3 transition live, a no-op pass-through under reduced motion
+const T=(sel,ms)=>RM?sel:sel.transition().duration(ms||620).ease(d3.easeCubicInOut);
+const asArr=v=>v==null?[]:(Array.isArray(v)?v:[v]);
+
+// ---------- header / bigstat ----------
+document.title=DATA.title||'UNHCR data story';
+const set=(id,t)=>{const e=document.getElementById(id);if(e)e.textContent=t||'';};
+set('kicker',DATA.kicker);set('title',DATA.title);set('lede',DATA.lede);
+if(DATA.bigstat){set('bs-n',DATA.bigstat.value);const l=document.getElementById('bs-l');l.innerHTML='';l.append(document.createTextNode(DATA.bigstat.label||''));if(DATA.bigstat.sub){const s=document.createElement('div');s.style.marginTop='.5rem';s.style.color='var(--mute)';s.textContent=DATA.bigstat.sub;l.appendChild(s);}}
+
+// ======================================================================
+// STICKY-CHART RENDERERS — each is (svg, ch, ci, si): it draws the chart in
+// the state for step `si`. Called once on load (si=0) and again on every step
+// change. Build geometry once (enter), then TRANSITION on later calls — that
+// interpolated swap is the motion. Add your own renderers (rank/odds/heatmap/…)
+// the same way: stable keyed selections + T(sel) for the per-step change.
+// ======================================================================
+function stepView(ch,si){return (ch.steps&&ch.steps[si]&&ch.steps[si].view)||{};}
+
+function renderBars(svg, ch, ci, si){
+  const rows=ch.rows||[];
+  const W=760,rh=44,m={top:14,right:96,bottom:20,left:200},
+        H=Math.max(180,m.top+m.bottom+rh*rows.length),iw=W-m.left-m.right,ih=H-m.top-m.bottom;
+  let g=svg.select('g.plot');const first=g.empty();
+  if(first){svg.attr('viewBox',`0 0 ${W} ${H}`).attr('preserveAspectRatio','xMidYMid meet');
+    g=svg.append('g').attr('class','plot').attr('transform',`translate(${m.left},${m.top})`);
+    g.append('g').attr('class','axis ax-y');g.append('g').attr('class','annot-layer');}
+  const x=d3.scaleLinear().domain([0,d3.max(rows,r=>r.value)*1.12]).range([0,iw]);
+  const y=d3.scaleBand().domain(rows.map(r=>r.label)).range([0,ih]).padding(.22);
+  g.select('g.ax-y').call(d3.axisLeft(y).tickSize(0)).call(s=>s.select('.domain').remove())
+    .selectAll('text').style('font-family','var(--sans)').style('fill',PAL.ink).style('font-size','13px');
+  const v=stepView(ch,si);
+  const reveal=v.reveal!=null?v.reveal:rows.length;
+  const hl=v.highlight!=null?asArr(v.highlight):(rows[Math.min(si,rows.length-1)]?[rows[Math.min(si,rows.length-1)].label]:[]);
+  const fillFor=d=>hl.includes(d.label)?PAL.signal:PAL.grey;
+  const opFor=(d,i)=>i>=reveal?0:(hl.length?(hl.includes(d.label)?1:.5):.85);
+  const bars=g.selectAll('rect.bar').data(rows,d=>d.label);
+  bars.enter().append('rect').attr('class','bar').attr('x',0).attr('rx',2)
+      .attr('y',d=>y(d.label)).attr('height',y.bandwidth()).attr('fill',PAL.grey)
+      .attr('width',first&&!RM?0:d=>x(d.value)).attr('opacity',0)
+    .merge(bars).attr('y',d=>y(d.label)).attr('height',y.bandwidth())
+    .call(s=>T(s,first?900:560).attr('width',d=>x(d.value)).attr('fill',fillFor).attr('opacity',opFor));
+  const labs=g.selectAll('text.vlab').data(rows,d=>d.label);
+  labs.enter().append('text').attr('class','vlab clabel').style('font-family','var(--mono)').style('font-weight',400)
+      .attr('x',d=>x(d.value)+6).attr('y',d=>y(d.label)+y.bandwidth()/2+4).attr('opacity',0)
+    .merge(labs).text(d=>d.value_fmt||fmt(d.value))
+    .call(s=>T(s,first?900:560).attr('x',d=>x(d.value)+6).attr('y',d=>y(d.label)+y.bandwidth()/2+4)
+      .attr('opacity',(d,i)=>i>=reveal?0:1).style('fill',d=>hl.includes(d.label)?PAL.signal:PAL.mute));
+  drawAnnot(g,ch,si,key=>{const r=rows.find(rr=>rr.label===key);const yy=(r?y(r.label):0)+y.bandwidth()/2;return {x:r?Math.min(x(r.value)+72,iw-130):8,y:yy+4};});
+}
+
+function renderLine(svg, ch, ci, si){
+  const W=760,H=460,m={top:24,right:140,bottom:46,left:64},iw=W-m.left-m.right,ih=H-m.top-m.bottom;
+  let g=svg.select('g.plot');const first=g.empty();const cid='rev'+ci;
+  if(first){svg.attr('viewBox',`0 0 ${W} ${H}`).attr('preserveAspectRatio','xMidYMid meet');
+    g=svg.append('g').attr('class','plot').attr('transform',`translate(${m.left},${m.top})`);
+    g.append('g').attr('class','axis ax-x');g.append('g').attr('class','axis ax-y');
+    svg.append('defs').append('clipPath').attr('id',cid).append('rect')
+      .attr('class','revrect').attr('x',-2).attr('y',-24).attr('height',ih+48).attr('width',RM?iw+2:0);
+    g.append('g').attr('class','lines').attr('clip-path',`url(#${cid})`);
+    if(!RM)svg.select('.revrect').transition().duration(1100).ease(d3.easeCubicOut).attr('width',iw+2);}
+  const lines=g.select('g.lines');
+  const all=ch.series.flatMap(s=>s.points),isPct=ch.y_format==='pct';
+  const x=d3.scaleLinear().domain(d3.extent(all,p=>p.x)).range([0,iw]);
+  const y=d3.scaleLinear().domain([0,d3.max(all,p=>p.y)*1.08]).range([ih,0]).nice();
+  g.select('g.ax-x').attr('transform',`translate(0,${ih})`).call(d3.axisBottom(x).ticks(7).tickFormat(d3.format('d')));
+  g.select('g.ax-y').call(d3.axisLeft(y).ticks(5).tickFormat(isPct?pctTick:fmt));
+  const ln=d3.line().x(p=>x(p.x)).y(p=>y(p.y)).curve(d3.curveMonotoneX);
+  const v=stepView(ch,si);
+  const reveal=v.reveal!=null?v.reveal:ch.series.length;
+  const emph=v.highlight!=null?asArr(v.highlight):(ch.series[Math.min(si,ch.series.length-1)]?[ch.series[Math.min(si,ch.series.length-1)].name]:[]);
+  const colFor=s=>emph.includes(s.name)?PAL.signal:PAL.grey;
+  const opFor=(s,i)=>i>=reveal?0:(emph.length?(emph.includes(s.name)?1:.42):.8);
+  const paths=lines.selectAll('path.ln').data(ch.series,s=>s.name);
+  paths.enter().append('path').attr('class','ln').attr('fill','none').attr('stroke',PAL.grey).attr('stroke-width',2).attr('opacity',0).attr('d',s=>ln(s.points))
+    .merge(paths).attr('d',s=>ln(s.points))
+    .call(s=>T(s,560).attr('stroke',colFor).attr('stroke-width',d=>emph.includes(d.name)?2.8:1.7).attr('opacity',opFor));
+  const labs=lines.selectAll('text.ln-lab').data(ch.series,s=>s.name);
+  labs.enter().append('text').attr('class','ln-lab clabel').attr('opacity',0)
+      .attr('x',s=>x(s.points[s.points.length-1].x)+8).attr('y',s=>y(s.points[s.points.length-1].y)+4)
+    .merge(labs).text(s=>s.name)
+    .call(s=>T(s,560).attr('x',d=>x(d.points[d.points.length-1].x)+8).attr('y',d=>y(d.points[d.points.length-1].y)+4)
+      .attr('fill',colFor).attr('opacity',opFor));
+  drawAnnot(g,ch,si,key=>{for(const s of ch.series){const p=s.points.find(pt=>pt.x===key);if(p)return {x:x(p.x),y:y(p.y)-16};}return {x:iw*0.5,y:0};});
+}
+
+// transient per-step annotation: a small italic note that fades in for the active
+// step and out when you leave it. `place(at)` returns {x,y} in plot coords.
+function drawAnnot(g,ch,si,place){
+  let layer=g.select('g.annot-layer');if(layer.empty())layer=g.append('g').attr('class','annot-layer');
+  const v=stepView(ch,si),a=v.annotate;
+  const data=a&&a.text?[a]:[];
+  const sel=layer.selectAll('text.annot').data(data,d=>d.text);
+  sel.exit().call(s=>T(s,300).attr('opacity',0).remove());
+  sel.enter().append('text').attr('class','annot fx').attr('opacity',0)
+     .each(function(d){const pos=place(d.at);d3.select(this).attr('x',pos.x).attr('y',pos.y);})
+     .text(d=>d.text).call(s=>T(s,420).attr('opacity',1));
+}
+
+const RENDER={line:renderLine,bars:renderBars};
+
+// ---------- build chapters, render step 0, wire scroll → chart-swap ----------
+const host=document.getElementById('chapters');
+const CH=[];
+(DATA.chapters||[]).forEach((ch,ci)=>{
+  const sec=document.createElement('section');sec.className='chapter';
+  sec.innerHTML=`<div class="ch-head"><p class="ch-num"></p><h2></h2><p class="thesis"></p></div>
+    <div class="scrolly"><div class="steps"></div><div class="sticky"><div class="figure"><div class="fig-title"></div><svg></svg></div></div></div>`;
+  sec.querySelector('.ch-num').textContent=ch.num||('Chapter '+(ci+1));
+  sec.querySelector('h2').textContent=ch.h2||'';sec.querySelector('.thesis').textContent=ch.thesis||'';
+  sec.querySelector('.fig-title').textContent=ch.fig_title||'';
+  const stepsHost=sec.querySelector('.steps');
+  (ch.steps||[{prose:''}]).forEach((st,si)=>{const p=document.createElement('p');p.className='step';p.dataset.ci=ci;p.dataset.si=si;p.textContent=(typeof st==='string'?st:st.prose)||'';stepsHost.appendChild(p);});
+  host.appendChild(sec);
+  const svg=d3.select(sec).select('svg');const fn=RENDER[ch.render]||renderLine;
+  CH[ci]={svg,ch,fn};
+  fn(svg,ch,ci,0);   // step-0 = complete chart + entrance (geometry final; only opacity/clip animate)
+});
+
+let activeKey=null;
+const obs=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  e.target.classList.add('active');
+  const ci=+e.target.dataset.ci,si=+e.target.dataset.si,key=ci+':'+si;
+  if(key!==activeKey&&CH[ci]){activeKey=key;CH[ci].fn(CH[ci].svg,CH[ci].ch,ci,si);}   // ← the swap
+}});},{rootMargin:'-45% 0px -45% 0px'});
+document.querySelectorAll('.step').forEach(s=>obs.observe(s));
+
+// ---------- outro + methodology ----------
+if(DATA.outro){set('outro-q',DATA.outro.quote);set('outro-a',DATA.outro.attrib);}
+const mEl=document.getElementById('method'),M=DATA.methodology||{};
+[['Source',M.source],['Period',M.period],['Definitions',M.definitions],['Controls',M.controls],['Limitations',M.limitations],['AI',M.ai]].forEach(([k,val])=>{if(val){const dt=document.createElement('dt');dt.textContent=k;const dd=document.createElement('dd');dd.textContent=val;mEl.appendChild(dt);mEl.appendChild(dd);}});
+</script>
+</body></html>

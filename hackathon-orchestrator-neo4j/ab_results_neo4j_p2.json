@@ -1,0 +1,21 @@
+{
+  "probes": [
+    "What are an Afghan asylum seeker's chances of getting protection across EU countries? Which country is toughest?",
+    "Why is asylum outcome called a lottery? Explain what drives the gap between Germany and Sweden for the same nationality.",
+    "Build a 6-slide executive deck on the global displacement crisis.",
+    "Create an infographic showing who really bears the refugee burden \u2014 wealth or geography?",
+    "How many people are stuck waiting in the asylum backlog, and is it growing?"
+  ],
+  "results": [
+    {
+      "probe": 2,
+      "variant": "neo4j",
+      "latency_s": 164.6,
+      "trace_id": "tr-3e0dbd7d62be4c054720e45fb628f21d",
+      "input_tokens": 292414,
+      "output_tokens": 3509,
+      "total_tokens": 295923,
+      "cache_read_input_tokens": 242560
+    }
+  ]
+}

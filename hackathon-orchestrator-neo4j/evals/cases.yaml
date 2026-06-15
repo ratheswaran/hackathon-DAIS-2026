@@ -1,0 +1,196 @@
+# Eval suite — hackathon-orchestrator-neo4j
+#
+# Structure follows the Anthropic "Prompting Playbook" (Code with Claude):
+#   control   — unambiguous, should ALWAYS pass; regression canaries
+#   edge      — known hot spots (the 5 A/B probes + the vague-query mandate)
+#   boundary  — capability limits: out-of-scope decline, data-coverage honesty
+#   multiturn — follow-through + context-compounding cost
+#
+# Grader vocabulary (graders.py):
+#   must_call / must_not_call      — tool names, hard
+#   genie_space_prefix             — ask_genie_space space_id arg must start with this, hard
+#   max_genie_calls                — hard cap on ask_genie_space invocations
+#   expect_url                     — final answer must contain an artifact URL, hard
+#   judge                          — LLM-judge rubric over the final answer, hard
+#   budgets: {total_tokens, latency_s, llm_calls}  — soft until baselined; the
+#       optimisation loop drives these down. Values below = ~baseline-informed caps.
+
+- id: ctl-capability
+  category: control
+  turns:
+    - "In two or three sentences: what kinds of questions can you answer and what deliverables can you produce?"
+  graders:
+    must_not_call: [ask_genie_space, run_spark_sql]
+    judge: >
+      The answer briefly describes refugee/asylum data analysis capabilities
+      and names at least two deliverable types (e.g. charts/infographics,
+      decks/presentations, documents, notebooks, scrollytelling stories).
+      It does NOT run queries or dump internal tool names verbatim as a list
+      of function identifiers.
+    budgets: {total_tokens: 40000, latency_s: 90, llm_calls: 3}
+
+- id: ctl-routing
+  category: control
+  turns:
+    - "Which Genie space covers asylum decisions, and what gotchas should I honor when computing first-instance recognition rates? Don't run any data queries — just tell me the plan."
+  graders:
+    must_call: [find_skill]
+    must_not_call: [ask_genie_space, run_spark_sql]
+    judge: >
+      The answer names the asylum Genie space (an id starting 01f14e102f is a
+      strong pass signal), and states at least two real gotchas, which should
+      include: first-instance decisions filter dec_level = 'FI' (NOT 'F'),
+      and/or using the recognition-rate cohort (TRR over FI decisions) rather
+      than recognitions divided by dec_total, and/or the Europe allow-list for
+      fair cross-country comparison. Inventing space ids or gotchas = fail.
+    budgets: {total_tokens: 60000, latency_s: 120, llm_calls: 4}
+
+- id: ctl-simple-data
+  category: control
+  turns:
+    - "How many refugees were there worldwide at the end of 2024? Give me the headline number."
+  graders:
+    must_call: [find_skill, ask_genie_space]
+    genie_space_prefix: "01f14e1030"
+    max_genie_calls: 2
+    judge: >
+      The answer states a single clear global refugee headline figure for
+      end-2024 in the tens of millions (UNHCR-scale, e.g. ~31-44M refugees
+      depending on mandate definition, or names the figure it uses and its
+      definition). It does not hedge with "I couldn't retrieve data" and does
+      not fabricate precision beyond the data.
+    budgets: {total_tokens: 250000, latency_s: 240, llm_calls: 10}
+
+- id: edge-afghan-protection
+  category: edge
+  turns:
+    - "What are an Afghan asylum seeker's chances of getting protection across EU countries? Which country is toughest?"
+  graders:
+    must_call: [find_skill, ask_genie_space]
+    genie_space_prefix: "01f14e102f"
+    judge: >
+      The answer compares Afghan protection/recognition rates across several
+      named European countries with concrete percentages, names a toughest
+      country, and the methodology is sound: rates computed over first-instance
+      decisions (dec_level='FI') or explicitly-described cohort, not
+      applications. A pass requires at least 3 countries with numbers and an
+      explicit toughest-country call.
+    budgets: {total_tokens: 250000, latency_s: 300, llm_calls: 12}
+
+- id: edge-lottery-why
+  category: edge
+  turns:
+    - "Why is asylum outcome called a lottery? Explain what drives the gap between Germany and Sweden for the same nationality."
+  graders:
+    must_call: [find_skill]
+    judge: >
+      The answer explains the asylum-lottery concept (same nationality, very
+      different recognition odds depending on receiving country) and gives a
+      Germany-vs-Sweden contrast with at least one quantitative anchor (e.g.
+      odds ratio or percentage-point gap). It attributes the gap to
+      country-level adjudication/policy differences, not applicant merit.
+    budgets: {total_tokens: 300000, latency_s: 300, llm_calls: 12}
+
+- id: edge-backlog
+  category: edge
+  turns:
+    - "How many people are stuck waiting in the asylum backlog, and is it growing?"
+  graders:
+    must_call: [find_skill]
+    judge: >
+      The answer gives a pending/backlog headline (order ~8M globally, e.g.
+      8.3-8.4M as of end-2024) and a clear growth verdict (growing — with
+      applications outpacing decisions since ~2021), ideally with a brief
+      trend. Wrong order of magnitude or no growth verdict = fail.
+    budgets: {total_tokens: 200000, latency_s: 240, llm_calls: 10}
+
+- id: edge-deck
+  category: edge
+  turns:
+    - "Build a 6-slide executive deck on the global displacement crisis."
+  graders:
+    must_call: [find_skill, compose_deck]
+    expect_url: true
+    expect_artifact_tool: compose_deck
+    judge: >
+      The answer confirms a deck was produced and includes at least one link
+      to the artifact (pptx and/or preview). The described deck has roughly 6
+      slides with an executive narrative (cover, key stats, trend, closing).
+      A failed render, missing link, or an answer that only describes what it
+      WOULD do = fail.
+    budgets: {total_tokens: 320000, latency_s: 360, llm_calls: 14}
+
+- id: edge-infographic
+  category: edge
+  turns:
+    - "Create an infographic showing who really bears the refugee burden — wealth or geography?"
+  graders:
+    must_call: [find_skill]
+    expect_artifact_tool: compose_infographic
+    judge: >
+      A rendered infographic exists (the agent confirms it by title — links are
+      NOT required; the app auto-opens the artifact) and the answer frames the
+      burden question (low/middle-income and neighbouring countries host most
+      refugees vs. wealthy countries' share, or GDP-vs-hosting contrast) with
+      at least one concrete number. An answer that only describes what it
+      WOULD build = fail.
+    budgets: {total_tokens: 500000, latency_s: 480, llm_calls: 16}
+
+- id: edge-vague
+  category: edge
+  turns:
+    - "Show me something interesting about refugee data."
+  graders:
+    must_call: [find_skill]
+    judge: >
+      The agent turned a vague request into a concrete, surprising insight
+      grounded in the data (e.g. the asylum lottery, the burden paradox, the
+      backlog explosion) — with at least one number — OR presented a short
+      menu of 2-4 concrete analyses it can run and led with one. Generic
+      filler with no data grounding = fail.
+    budgets: {total_tokens: 250000, latency_s: 300, llm_calls: 12}
+
+- id: bnd-out-of-scope
+  category: boundary
+  turns:
+    - "What's the weather in Bangkok tomorrow?"
+  graders:
+    must_not_call: [ask_genie_space, run_spark_sql, compose_infographic, compose_deck]
+    judge: >
+      The agent politely declines (weather is outside its refugee/displacement
+      analytics scope), briefly says what it CAN help with, and does not run
+      any data tools or fabricate a forecast.
+    budgets: {total_tokens: 30000, latency_s: 60, llm_calls: 3}
+
+- id: bnd-data-coverage
+  category: boundary
+  turns:
+    - "What were global asylum approval rates in 2025 and 2026?"
+  graders:
+    judge: >
+      The agent states its dataset coverage ends at 2024 (UNHCR Refugee Data
+      Finder) and does NOT fabricate 2025/2026 figures. Offering the 2024 (or
+      latest-available) figure as the closest answer is a pass. Producing
+      invented 2025/2026 rates = fail.
+    budgets: {total_tokens: 120000, latency_s: 180, llm_calls: 8}
+
+- id: mt-followthrough
+  category: multiturn
+  turns:
+    - "Which 5 countries hosted the most refugees in 2024?"
+    - "Now show that as a chart."
+  graders:
+    must_call: [ask_genie_space]
+    genie_space_prefix: "01f14e1030"
+    expect_artifact_tool: compose_infographic
+    judge: >
+      Turn 1 names the top refugee-hosting countries for 2024 with figures —
+      expect the likes of Iran, Türkiye, Germany, Uganda, Pakistan (refugees
+      under UNHCR mandate; Colombia's hosted Venezuelans are a separate
+      category and need NOT appear). Judge consistency with the agent's own
+      retrieved data, not against a fixed country list. Turn 2 composes a
+      chart of THAT same top-5 data — honoring the established filter rather
+      than re-deriving something else. The agent confirming the chart by
+      title is a pass; a pasted link is NOT required (the app auto-opens
+      artifacts).
+    budgets: {total_tokens: 350000, latency_s: 420, llm_calls: 16}

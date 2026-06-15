@@ -1,0 +1,120 @@
+# Workspace Configuration — HACKATHON-TEST profile (Neo4j knowledge-graph fork)
+# Source workspace: dbc-7837e492-bc52 (Free Edition AWS us-east-2, ra2724@ic.ac.uk)
+# PARALLEL to hackathon-orchestrator: new serving endpoint + new Apps URL, same
+# workspace. The ONLY functional difference is that the filesystem skills folder
+# is replaced by a Neo4j llm-wiki knowledge graph (find_skill tool).
+# GITIGNORED (carries creds). See workspace_config.example.yml for the template.
+
+databricks:
+  host: "dbc-7837e492-bc52.cloud.databricks.com"
+  token: "dapiXXXXXXXX_REPLACE_ME"
+  workspace_url: "https://dbc-7837e492-bc52.cloud.databricks.com"
+
+compute:
+  sql_warehouse_id: "bd20d57b1bc41d49"
+  sql_warehouse_http_path: "/sql/1.0/warehouses/bd20d57b1bc41d49"
+  cluster_id: ""  # Free Edition uses serverless; no all-purpose cluster needed
+
+unity_catalog:
+  catalog: "workspace"
+  schema: "hackathon"
+  ai_ops_schema: "ai_ops"
+  volume_name: "datasets"
+
+tables:
+  population: "population"
+  demographics: "demographics"
+  solutions: "solutions"
+  idmc: "idmc"
+  asylum_applications: "asylum_applications"
+  asylum_decisions: "asylum_decisions"
+  countries: "countries"
+  years: "years"
+  checkpoints: "lg_checkpoints"
+  writes: "lg_writes"
+  audit_log: "agent_fs_log"
+
+agent:
+  volume_path: "/Volumes/workspace/ai_ops/agent_scratch"
+  scratch_schema: "workspace.ai_ops"
+  audit_log_table: "workspace.ai_ops.agent_fs_log"
+  checkpoints_table: "workspace.ai_ops.lg_checkpoints"
+  writes_table: "workspace.ai_ops.lg_writes"
+  episodic_memory_table: "workspace.ai_ops.deep_agent_episodic_memory_all"
+
+serving:
+  # NEW endpoint — parallel to agents_workspace-hackathon-orchestrator_agent_v3.
+  endpoint_name: "agents_workspace-hackathon-orchestrator_agent_neo4j"
+  # gpt-5-external-provider routes to gpt-5.5 (external_model.name = gpt-5.5).
+  llm_endpoint_name: "gpt-5-external-provider"
+  subagent_llm_endpoint_name: "gpt-5-external-provider"
+  llm_endpoint_name_light: "gpt-5-external-provider"
+  workload_size: "Small"
+  scale_to_zero: true
+
+mlflow:
+  experiment_name: "/Shared/workspace.hackathon.orchestrator_agent_neo4j_traces"
+  uc_model_name: "workspace.hackathon.orchestrator_agent_neo4j"
+
+workspace:
+  user_path: "/Workspace/Users/ra2724@ic.ac.uk"
+  notebook_dir: "hackathon/deep-agent-neo4j"
+  genie_parent_folder: "/Workspace/Users/ra2724@ic.ac.uk/hackathon"
+
+lakebase:
+  url: "postgresql://chatbot_svc:REPLACE_LAKEBASE_PASSWORD@ep-crimson-dew-d8kmdlbq.database.us-east-2.cloud.databricks.com:5432/databricks_postgres?sslmode=require"
+  regional_gateway: "ep-crimson-dew-d8kmdlbq.database.us-east-2.cloud.databricks.com"
+  fallback_ip: "18.97.131.208"
+  scratch_schema: "ai_chatbot"
+  data_schemas: ["unhcr"]
+
+secrets:
+  scope_name: "agent-secrets"
+  lakebase_username_key: "lakebase-username"
+  lakebase_password_key: "lakebase-password"
+
+# Neo4j llm-wiki knowledge graph (find_skill). Credentials are read at runtime
+# from the `agent-secrets` secret scope as {{secrets/agent-secrets/neo4j-*}}
+# (run setup_neo4j_secrets.sh once — SAP GraphRAG pattern). For a quick
+# Free-Edition dry-run set inject_plaintext: false   # set true only for a quick dry-run
+# endpoint env vars instead (like LAKEBASE_URL above).
+neo4j:
+  uri: "neo4j+s://2a3edbfb.databases.neo4j.io"
+  user: "2a3edbfb"
+  password: "REPLACE_NEO4J_PASSWORD"
+  database: "2a3edbfb"
+  embed_endpoint: "databricks-gte-large-en"
+  result_k: 8
+  render_graph: true
+  inject_plaintext: false   # set true only for a quick dry-run
+
+app:
+  name: "neo4j-skills-agent"
+
+genie:
+  timeout_seconds: 600
+
+vector_search:
+  cache_enabled: false
+  cache_endpoint: ""
+  cache_index: ""
+  embedding_endpoint: "databricks-gte-large-en"
+  cache_similarity_threshold: 0.85
+  cache_ttl_hours: 168
+  episodic_enabled: false
+  episodic_endpoint: ""
+  episodic_index: ""
+  episodic_score_threshold: 0.5
+  episodic_num_results: 3
+
+user_prefs:
+  enabled: true
+  num_results: 3
+
+eval:
+  job_name: ""
+  iterations_dev: 1
+  iterations_prod: 3
+  endpoint_ready_timeout_seconds: 2400
+  job_timeout_seconds: 3600
+  poll_interval_seconds: 30

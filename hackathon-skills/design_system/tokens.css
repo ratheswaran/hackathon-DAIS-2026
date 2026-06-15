@@ -1,0 +1,92 @@
+/* ============================================================================
+ * Resonance Analytics — Data-Story Design Tokens  (RECONCILED RA-EDITORIAL)
+ * ----------------------------------------------------------------------------
+ * SINGLE SOURCE OF TRUTH for the D3 infographic / data-story palette + type.
+ * The compose_infographic renderer (Python) and every D3 template MUST mirror
+ * these exact hexes. Two mirrors are kept in sync below: a JS object and a
+ * Python dict — copy them verbatim; do not invent new colours per chart.
+ *
+ * Brand reconciliation (decided 2026-05-31): the deck/PPTX brand is RA cobalt
+ * "Signal" #254BB2. The data-stories adopt that cobalt as the PRIMARY data
+ * accent but keep the warm-neutral EDITORIAL canvas (oat/ivory + ink) that the
+ * grave subject (forced displacement) calls for. One token set, used everywhere.
+ * Earlier "editorial clay #B26A4A" and "pure cobalt-on-white" palettes are
+ * SUPERSEDED — do not use clay/olive as accents.
+ * ============================================================================ */
+
+:root {
+  /* — Canvas + neutrals — */
+  --paper:  #FAF6EE;            /* page background (warm ivory) */
+  --oat:    #F5EFE3;            /* card / panel / sticky-frame background */
+  --ink:    #1F1B16;            /* body text + headlines */
+  --slate:  #3A3A40;            /* secondary text, axis lines, lede */
+  --mute:   #9CA0A3;            /* ticks, captions, de-emphasised labels */
+  --grey:   #C7C2B6;            /* NEUTRAL series — every line/bar NOT highlighted */
+  --hair:   rgba(58, 58, 64, .12);   /* hairline rules / borders */
+
+  /* — Accents (RA brand, in series-priority order) — */
+  --signal:     #254BB2;        /* cobalt — PRIMARY series / lead line / the entity the sentence names */
+  --signal-dim: #5B79C9;        /* lighter cobalt — fills, hover, secondary state of the primary */
+  --amber:      #DF9B44;        /* secondary series / second highlight */
+  --cyan:       #2695AC;        /* tertiary series */
+  --magenta:    #913F82;        /* 4th series */
+  --alarm:      #A6402E;        /* negative deltas, suppression flags — USE SPARINGLY */
+
+  /* — Dark poster surface (ink backgrounds: covers, section dividers) — */
+  --ink-bg:       #14110D;      /* near-black warm */
+  --on-ink:       #F5EFE3;      /* text on dark */
+  --on-ink-mute:  #B8B2A6;      /* muted text on dark */
+  --on-ink-accent:#DF9B44;      /* eyebrows/accents on dark go AMBER (cobalt is low-contrast on ink) */
+
+  /* — Typography — */
+  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;       /* DISPLAY: hero, section + chart titles, stat callouts, pull-quotes, KPI values */
+  --sans:  "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;/* body, UI, axis labels, eyebrows, legends */
+  --mono:  "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;/* numbers in stats, captions, methodology */
+
+  /* — Type scale (fluid-ish, px) — */
+  --fs-eyebrow: 11px;   /* uppercase, .12em tracking */
+  --fs-caption: 12px;
+  --fs-axis:    12px;
+  --fs-body:    16px;
+  --fs-lede:    19px;
+  --fs-h2:      26px;
+  --fs-h1:      40px;   /* hero serif */
+  --fs-stat:    64px;   /* big count-up / KPI */
+
+  /* — Rhythm — */
+  --maxw:   1040px;     /* readable column for standalone infographics */
+  --maxw-wide: 1320px;  /* scrollytelling 2-column shell */
+  --radius: 10px;
+  --pad:    32px;
+}
+
+/* ============================================================================
+ * MIRRORS — copy verbatim. Keep these in lock-step with the :root values above.
+ * ----------------------------------------------------------------------------
+ * JS (for D3 templates — paste as the PALETTE object):
+ *
+ *   const PALETTE = {
+ *     paper:"#FAF6EE", oat:"#F5EFE3", ink:"#1F1B16", slate:"#3A3A40",
+ *     mute:"#9CA0A3", grey:"#C7C2B6", hair:"rgba(58,58,64,.12)",
+ *     signal:"#254BB2", signalDim:"#5B79C9", amber:"#DF9B44", cyan:"#2695AC",
+ *     magenta:"#913F82", alarm:"#A6402E",
+ *     inkBg:"#14110D", onInk:"#F5EFE3", onInkMute:"#B8B2A6", onInkAccent:"#DF9B44",
+ *   };
+ *   // Multi-series visual priority (highlight-by-colour: most series `grey`,
+ *   // only the named entity gets an accent, in this order):
+ *   const SERIES = ["#254BB2","#DF9B44","#2695AC","#913F82","#3A3A40","#9CA0A3"];
+ *   const FONT = { serif:'"Source Serif 4",Georgia,serif',
+ *                  sans:'"Manrope",system-ui,sans-serif',
+ *                  mono:'"JetBrains Mono",ui-monospace,monospace' };
+ *
+ * Python (for compose_infographic.py — paste as _PALETTE / _SERIES):
+ *
+ *   _PALETTE = {
+ *       "paper":"#FAF6EE","oat":"#F5EFE3","ink":"#1F1B16","slate":"#3A3A40",
+ *       "mute":"#9CA0A3","grey":"#C7C2B6","hair":"rgba(58,58,64,.12)",
+ *       "signal":"#254BB2","signal_dim":"#5B79C9","amber":"#DF9B44","cyan":"#2695AC",
+ *       "magenta":"#913F82","alarm":"#A6402E",
+ *       "ink_bg":"#14110D","on_ink":"#F5EFE3","on_ink_mute":"#B8B2A6","on_ink_accent":"#DF9B44",
+ *   }
+ *   _SERIES = ["#254BB2","#DF9B44","#2695AC","#913F82","#3A3A40","#9CA0A3"]
+ * ============================================================================ */
