@@ -32,6 +32,11 @@ Data injection — the validated ``"__DATA__"`` idiom:
       • inline ``data`` on the scene → the agent passes a precomputed slice
         (used for statistics SQL can't do: Gini value, OLS fit, logistic
         odds-ratios + CIs).
+    A comparison bar's ``value`` is ALWAYS the metric being compared (the % or
+    figure in the scene's lede) — NEVER the group size / row count. If every
+    bar in a group comparison comes out ~equal and ≈ (rows ÷ groups), the
+    value column is the group COUNT, not the metric: fix it. Prefer
+    ``variable_name`` + ``mapping`` so the tool reads the metric column.
 
 Palette + type — the reconciled RA-editorial token set, mirrored verbatim
 from ``skills/design_system/tokens.css`` (oat/ivory canvas, cobalt primary,
@@ -724,7 +729,7 @@ RENDERERS.bubble_scatter = function(root, d, P, H, scene){
       note: o&&o.note,
     })).filter(p=>p.gdp>0 && p.per1000>0 && p.hosted>0);
   const W=880, Hh=560, m={top:14,right:154,bottom:54,left:62};
-  const svg=H.svg(root,W,Hh,scene.title||'GDP per capita versus refugees hosted per 1,000 residents');
+  const svg=H.svg(root,W,Hh,scene.title||'Bubble comparison');
   const iw=W-m.left-m.right, ih=Hh-m.top-m.bottom;
   const g=svg.append('g').attr('transform',`translate(${m.left},${m.top})`);
   if(!pts.length){ g.append('text').attr('class','clabel').attr('x',iw/2).attr('y',ih/2).attr('text-anchor','middle').attr('fill',P.mute).text('No data'); return; }
@@ -783,7 +788,7 @@ RENDERERS.bubble_scatter = function(root, d, P, H, scene){
     .text((d.x_label||'GDP per capita, US$ (log scale)')+' →');
   g.append('text').attr('class','axis-title').attr('transform','rotate(-90)')
     .attr('x',-ih/2).attr('y',-44).attr('text-anchor','middle')
-    .text('← '+(d.y_label||'refugees hosted per 1,000 residents (log)'));
+    .text('← '+(d.y_label||'y value (log)'));
 
   // r / R² finding as an italic-serif inline annotation (reference voices this as a finding)
   if(d.r!=null || d.r2!=null){
@@ -2004,7 +2009,7 @@ def build_compose_infographic_tool(*, workspace_client: Any, variable_store_cls:
         kicker: Annotated[str, "Short eyebrow above the title (e.g. 'India · Healthcare access')."] = "",
         stats: Annotated[list, "Optional hero stat cards: list of {value, label}. Lead with the reframe number."] = None,
         methodology: Annotated[str, "Methodology paragraph (period, definitions, controls, limitations). Builds trust."] = "",
-        source_note: Annotated[str, "Source footer. Defaults to the UNHCR CC-BY-4.0 line."] = "",
+        source_note: Annotated[str, "Source footer. Defaults to the Virtue Foundation India healthcare dataset line."] = "",
         # ── legacy single-template params (back-compat; hidden from the model) ──
         template: Annotated[str, "Legacy — unused; prefer `scenes`."] = "auto",
         label_col: Annotated[str, "Legacy — unused."] = "",
