@@ -1,0 +1,204 @@
+"""Compact reference payload builder for tool returns (plan group A1).
+
+Shrinks tool-call results to <=500 tokens by returning variable names +
+schema + tiny previews instead of raw data. Downstream tools like
+``ask_genie_space``, ``run_spark_sql`` and ``query_stored_dfs`` call
+``_compact_ref`` after storing their DataFrame to the VariableStore, so
+the LLM sees a compact pass-by-reference payload instead of 100+ rows of
+markdown. This is the core of the ST Phase 1 context-bloat fix.
+
+Spec: ``deep_agent_ra_v2/plans/functional-dancing-tiger.md`` A1 (ST §3).
+
+Return shape (success)::
+
+    {
+        "status": "ok",
+        "variable_name": str,
+        "source": str,
+        "sql": str | None,
+        "description": str,
+        "schema": list[{"name": str, "dtype": str}],
+        "row_count": int,
+        "preview_rows": list[dict],
+        "columns": list[str],
+    }
+
+Return shape (error)::
+
+    {
+        "status": "error",
+        "error_type": str,
+        "message": str,
+        "sql": str | None,
+    }
+
+Token budget: ``estimate_tokens(payload) <= 500``. The helper truncates
+SQL, description, preview rows, and column lists to hit the budget. If
+the budget can't be met after all truncations, ``preview_rows`` is
+progressively trimmed to zero before ``columns`` and ``schema`` start
+shrinking.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+from typing import Any
+
+import pandas as pd
+
+# ~4 characters per token is the classic tiktoken-free heuristic for BPE
+# tokenizers. Good enough for a guardrail assertion with ~20% headroom;
+# we don't pull in tiktoken just to count tokens for a helper return.
+_CHARS_PER_TOKEN = 4
+# Budget history: 500 → 20_000 (2026-05, stop 3-row truncation triggering
+# row hallucination) → 4_000 (2026-06-12 eval round). 20k let one Genie
+# result park up to ~20k tokens in the message history for EVERY later
+# LLM call in the loop. 4k still carries a typical full analytic result
+# (~150 rows of normal width) without truncation; bigger results keep the
+# correct row_count signal and the prompts route the model to
+# query_stored_dfs for the rest instead of transcribing.
+_TOKEN_BUDGET = 4_000
+_CHAR_BUDGET = _TOKEN_BUDGET * _CHARS_PER_TOKEN  # 16 000 chars
+
+_MAX_SQL_CHARS = 400
+_MAX_DESCRIPTION_CHARS = 160
+_MAX_ERROR_MESSAGE_CHARS = 320
+_MAX_PREVIEW_COLS = 12
+_MAX_CELL_CHARS = 60
+
+
+def estimate_tokens(payload: dict[str, Any]) -> int:
+    """Rough char/4 token estimate for the JSON-serialized payload."""
+    return math.ceil(len(json.dumps(payload, default=str)) / _CHARS_PER_TOKEN)
+
+
+def _truncate(s: str | None, n: int) -> str | None:
+    if s is None:
+        return None
+    if len(s) <= n:
+        return s
+    return s[: max(0, n - 1)] + "\u2026"
+
+
+def _stringify_cell(v: Any) -> Any:
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        # Preserve NaN/Inf as None — PostgresStore JSON and downstream
+        # json.dumps both choke on them.
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            return None
+        return v
+    return _truncate(str(v), _MAX_CELL_CHARS)
+
+
+def _build_schema(df: pd.DataFrame, max_cols: int) -> list[dict[str, str]]:
+    cols = list(df.columns)[:max_cols]
+    return [{"name": str(c), "dtype": str(df.dtypes[c])} for c in cols]
+
+
+def _build_preview(
+    df: pd.DataFrame, n_rows: int, max_cols: int
+) -> list[dict[str, Any]]:
+    if n_rows <= 0 or df.empty:
+        return []
+    sub = df.iloc[:n_rows, :max_cols]
+    rows: list[dict[str, Any]] = []
+    for _, row in sub.iterrows():
+        rows.append({str(k): _stringify_cell(v) for k, v in row.items()})
+    return rows
+
+
+def _auto_description(
+    var_name: str, source: str, row_count: int, col_count: int
+) -> str:
+    return f"{source} result '{var_name}': {row_count} rows x {col_count} cols"
+
+
+def _compact_ref(
+    var_name: str,
+    source: str,
+    sql: str | None,
+    df: pd.DataFrame,
+    *,
+    max_preview_rows: int = 500,
+    description: str | None = None,
+    was_overwritten: bool = False,
+) -> dict[str, Any]:
+    """Build a compact reference payload for a stored DataFrame.
+
+    Caller is expected to first ``VariableStore.store(var_name, df, ...)``
+    and then pass the same DataFrame here. The returned dict is safe to
+    ``json.dumps`` and return from a LangChain tool.
+
+    Args:
+        var_name: The VariableStore key the DataFrame is stored under.
+        source: Origin tool label (e.g. "genie", "spark_sql",
+            "python_code", "query_stored_dfs").
+        sql: Raw SQL that produced the DataFrame. May be ``None`` (Genie
+            hides the SQL unless explicitly exposed).
+        df: The pandas DataFrame (already stored).
+        max_preview_rows: Starting target for preview row count. Shrinks
+            to fit the token budget.
+        description: Optional human-written description. Autogenerated
+            from ``(source, var_name, shape)`` if omitted.
+
+    Returns:
+        A dict in the A1 success shape, always <= 500 estimated tokens.
+    """
+    row_count = int(len(df))
+    col_count = int(df.shape[1])
+    all_columns = [str(c) for c in df.columns]
+
+    desc = (
+        description
+        if description is not None
+        else _auto_description(var_name, source, row_count, col_count)
+    )
+
+    payload: dict[str, Any] = {
+        "status": "ok",
+        "variable_name": str(var_name),
+        "source": str(source),
+        "sql": _truncate(sql, _MAX_SQL_CHARS),
+        "description": _truncate(desc, _MAX_DESCRIPTION_CHARS),
+        "schema": _build_schema(df, _MAX_PREVIEW_COLS),
+        "row_count": row_count,
+        "preview_rows": _build_preview(df, max_preview_rows, _MAX_PREVIEW_COLS),
+        "columns": all_columns,
+    }
+    if was_overwritten:
+        payload["was_overwritten"] = True
+
+    # Budget enforcement ladder: preserve schema (most useful to the LLM)
+    # as long as possible by trimming preview rows and full column list
+    # first. Only trim schema as a last resort.
+    while estimate_tokens(payload) > _TOKEN_BUDGET and payload["preview_rows"]:
+        payload["preview_rows"] = payload["preview_rows"][:-1]
+
+    while estimate_tokens(payload) > _TOKEN_BUDGET and len(payload["columns"]) > 1:
+        # Halve-then-trim is much faster than pop-one when the full column
+        # list is huge (200+ cols with long names).
+        payload["columns"] = payload["columns"][: max(1, len(payload["columns"]) // 2)]
+
+    while estimate_tokens(payload) > _TOKEN_BUDGET and len(payload["schema"]) > 1:
+        payload["schema"] = payload["schema"][: max(1, len(payload["schema"]) // 2)]
+
+    return payload
+
+
+def _compact_error(
+    error_type: str,
+    message: str,
+    sql: str | None = None,
+) -> dict[str, Any]:
+    """Build an error payload in the A1 error shape."""
+    return {
+        "status": "error",
+        "error_type": str(error_type),
+        "message": _truncate(str(message), _MAX_ERROR_MESSAGE_CHARS),
+        "sql": _truncate(sql, _MAX_SQL_CHARS),
+    }

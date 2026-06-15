@@ -1,0 +1,2394 @@
+{
+  "label": "optimised-r2",
+  "ts": "2026-06-12 14:08:57",
+  "results": [
+    {
+      "id": "ctl-capability",
+      "category": "control",
+      "turns": [
+        {
+          "user": "In two or three sentences: what kinds of questions can you answer and what deliverables can you produce?",
+          "latency_s": 12.2,
+          "answer": "I can answer forced-displacement analytics questions using UNHCR-aligned data through 2024: refugee and asylum-seeker stocks, asylum applications and decisions, internal displacement, demographics, host/origin comparisons, trends, recognition rates, and durable solutions. I can produce concise answers, ranked tables, charts/infographics, multi-panel data stories, statistical analyses, notebooks, CSV/Excel/Word/PDF documents, and PowerPoint-style briefing decks.",
+          "error": null
+        }
+      ],
+      "latency_s": 12.2,
+      "metrics": {
+        "llm_calls": 1,
+        "llm_errors": 0,
+        "input_tokens": 12476,
+        "output_tokens": 95,
+        "total_tokens": 12571,
+        "max_input_tokens_call": 12476,
+        "llm_time_s": 4.2,
+        "tool_time_s": 0,
+        "tool_call_count": 0
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 4.25,
+          "n_messages": 2,
+          "input_chars": 26949,
+          "input_tokens": 12476,
+          "output_tokens": 95,
+          "total_tokens": 12571,
+          "cache_read": 0
+        }
+      ],
+      "tool_calls_detail": [],
+      "tool_sequence": [],
+      "orchestrator_tool_calls": [],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:ask_genie_space",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:run_spark_sql",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The answer briefly describes refugee/asylum analytics capabilities and lists multiple deliverable types without running queries or exposing internal tool identifiers.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "12571 vs 40000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "12.2 vs 90",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "1 vs 3",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "ctl-routing",
+      "category": "control",
+      "turns": [
+        {
+          "user": "Which Genie space covers asylum decisions, and what gotchas should I honor when computing first-instance recognition rates? Don't run any data queries \u2014 just tell me the plan.",
+          "latency_s": 16.1,
+          "answer": "**Genie space:** **UNHCR Asylum & Solutions** \u2014 covers asylum flow questions including applications, asylum decisions, recognition/protection/rejection rates, procedure type, decision level, and durable solutions.  \n**Space ID:** `01f14e102f8b1f9fa46a17785a02fc4c`\n\nFor **first-instance recognition rates**, honor these gotchas:\n\n- **Filter first instance correctly:** use `dec_level = 'FI'` \u2014 two letters. Do **not** use `'F'`, which returns no first-instance rows.\n- **Use the right procedure scope for fair comparisons:** for cross-country recognition-rate comparisons, use `procedure_type = 'G'` for government-led RSD. UNHCR-led RSD is `procedure_type = 'U'` and should be separated when relevant.\n- **Use persons, not cases, for fair-comparison cohorts:** apply `dec_pc = 'P'` where the analysis is about people/person-level comparability.\n- **Use the right denominator for TRR:** for first-instance \u201casylum recognition\u201d in the fair-comparison sense, compute  \n  **TRR = (recognized + complementary protection) / (recognized + complementary protection + rejected)**  \n  i.e. `(dec_recognized + dec_other) / (dec_recognized + dec_other + dec_rejected)`.\n- **Do not treat closures as rejections:** `dec_closed` reflects administrative closures or withdrawn/obsolete claims. Exclude closures from the TRR denominator.\n- **Do not mix applications and decisions:** recognition rates are based on **decisions reached in the year**, not applications filed in that year.\n- **Always show volumes beside rates:** report recognized/protected/rejected counts as well as the rate, because a high rate from a tiny denominator can be misleading.\n- **For Europe \u201casylum lottery\u201d style comparisons:** use the explicit Europe destination allow-list, not simply `countries.region = 'Europe'`, plus filters `dec_level='FI'`, `procedure_type='G'`, `dec_pc='P'`, and valid origin ISO codes.",
+          "error": null
+        }
+      ],
+      "latency_s": 16.1,
+      "metrics": {
+        "llm_calls": 2,
+        "llm_errors": 0,
+        "input_tokens": 26796,
+        "output_tokens": 476,
+        "total_tokens": 27272,
+        "max_input_tokens_call": 14308,
+        "llm_time_s": 12.0,
+        "tool_time_s": 2.9,
+        "tool_call_count": 1
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 3.23,
+          "n_messages": 2,
+          "input_chars": 27020,
+          "input_tokens": 12488,
+          "output_tokens": 36,
+          "total_tokens": 12524,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 8.76,
+          "n_messages": 4,
+          "input_chars": 34025,
+          "input_tokens": 14308,
+          "output_tokens": 440,
+          "total_tokens": 14748,
+          "cache_read": 12416
+        }
+      ],
+      "tool_calls_detail": [
+        {
+          "name": "find_skill",
+          "duration_s": 2.86,
+          "output_chars": 7005,
+          "output_head": "# Plan for: 'genie space covering asylum decisions and gotchas for computing first-instance recognition rates; no data query'\n_traversed the skills knowledge graph \u2014 68 nodes, 87 relations, 2 round-trips, 1660.6ms_\n**Best match:** R-asylum-trr-definition (Rule) \u00b7 dec_level (Column) \u00b7 R12 (Rule)\n\n## "
+        }
+      ],
+      "tool_sequence": [
+        "find_skill"
+      ],
+      "orchestrator_tool_calls": [
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"genie space covering asylum decisions and gotchas for computing first-instance recognition rates; no data query\"}"
+        }
+      ],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_call:find_skill",
+            "pass": true,
+            "detail": "sequence=['find_skill']",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:ask_genie_space",
+            "pass": true,
+            "detail": "sequence=['find_skill']",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:run_spark_sql",
+            "pass": true,
+            "detail": "sequence=['find_skill']",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The answer names the asylum Genie space with an id starting 01f14e102f and includes multiple required real gotchas including dec_level='FI', TRR over FI decisions, and the Europe allow-list.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "27272 vs 60000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "16.1 vs 120",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "2 vs 4",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "ctl-simple-data",
+      "category": "control",
+      "turns": [
+        {
+          "user": "How many refugees were there worldwide at the end of 2024? Give me the headline number.",
+          "latency_s": 71.5,
+          "answer": "**Headline number:** **30.73 million refugees worldwide** at the end of 2024.\n\n- This is the UNHCR year-end stock of refugees, not annual flows.\n- It excludes internally displaced self-loop records and non-country/unknown origin records.",
+          "error": null
+        }
+      ],
+      "latency_s": 71.5,
+      "metrics": {
+        "llm_calls": 5,
+        "llm_errors": 0,
+        "input_tokens": 73410,
+        "output_tokens": 897,
+        "total_tokens": 74307,
+        "max_input_tokens_call": 15698,
+        "llm_time_s": 23.4,
+        "tool_time_s": 45.2,
+        "tool_call_count": 7
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 6.01,
+          "n_messages": 2,
+          "input_chars": 26932,
+          "input_tokens": 12475,
+          "output_tokens": 270,
+          "total_tokens": 12745,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 4.22,
+          "n_messages": 5,
+          "input_chars": 34310,
+          "input_tokens": 14571,
+          "output_tokens": 211,
+          "total_tokens": 14782,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 6.7,
+          "n_messages": 8,
+          "input_chars": 35321,
+          "input_tokens": 15101,
+          "output_tokens": 297,
+          "total_tokens": 15398,
+          "cache_read": 14464
+        },
+        {
+          "duration_s": 2.9,
+          "n_messages": 11,
+          "input_chars": 35857,
+          "input_tokens": 15565,
+          "output_tokens": 62,
+          "total_tokens": 15627,
+          "cache_read": 14976
+        },
+        {
+          "duration_s": 3.54,
+          "n_messages": 13,
+          "input_chars": 36124,
+          "input_tokens": 15698,
+          "output_tokens": 57,
+          "total_tokens": 15755,
+          "cache_read": 15488
+        }
+      ],
+      "tool_calls_detail": [
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 621,
+          "output_head": "Command(update={'todos': [{'content': 'Find the metric definition and routed data source', 'status': 'in_progress'}, {'content': 'Retrieve the end-2024 worldwide refugee total', 'status': 'pending'}, {'content': 'Compose a simple headline visual', 'status': 'pending'}], 'messages': [ToolMessage(cont"
+        },
+        {
+          "name": "find_skill",
+          "duration_s": 2.05,
+          "output_chars": 7113,
+          "output_head": "# Plan for: 'genie space + sql for worldwide total refugees at end of 2024 from population stocks and how to chart headline number'\n_traversed the skills knowledge graph \u2014 102 nodes, 138 relations, 2 round-trips, 1120.8ms_\n**Best match:** How many refugees / displaced are there? (Question) \u00b7 How man"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 625,
+          "output_head": "Command(update={'todos': [{'content': 'Find the metric definition and routed data source', 'status': 'completed'}, {'content': 'Retrieve the end-2024 worldwide refugee total', 'status': 'in_progress'}, {'content': 'Compose a simple headline visual', 'status': 'pending'}], 'messages': [ToolMessage(co"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 42.54,
+          "output_chars": 744,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"using_the_unhcr_d91666\", \"source\": \"genie:01f14e10308617a4b984e3668e6471be\", \"sql\": \"SELECT 2024 AS year, SUM(`refugees`) AS total_refugees\\nFROM `workspace`.`hackathon`.`population`\\nWHERE `year` = 2024\\n  AND `coo_iso` NOT IN ('UNK','Various','-','STA','XXA','XXX"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 629,
+          "output_head": "Command(update={'todos': [{'content': 'Find the metric definition and routed data source', 'status': 'completed'}, {'content': 'Retrieve the end-2024 worldwide refugee total', 'status': 'completed'}, {'content': 'Compose a simple headline visual', 'status': 'in_progress'}], 'messages': [ToolMessage("
+        },
+        {
+          "name": "compose_infographic",
+          "duration_s": 0.57,
+          "output_chars": 267,
+          "output_head": "{\"status\":\"ok\",\"infographic_id\":\"infographic_6be16ad2243d\",\"title\":\"30.73 million refugees worldwide at end-2024\",\"scene_count\":1,\"scene_types\":[\"stat\"],\"url\":\"https://pudding-chatbot-7474656877852004.aws.databricksapps.com/api/infographics/infographic_6be16ad2243d\"}"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 625,
+          "output_head": "Command(update={'todos': [{'content': 'Find the metric definition and routed data source', 'status': 'completed'}, {'content': 'Retrieve the end-2024 worldwide refugee total', 'status': 'completed'}, {'content': 'Compose a simple headline visual', 'status': 'completed'}], 'messages': [ToolMessage(co"
+        }
+      ],
+      "tool_sequence": [
+        "write_todos",
+        "find_skill",
+        "write_todos",
+        "ask_genie_space",
+        "write_todos",
+        "compose_infographic",
+        "write_todos"
+      ],
+      "orchestrator_tool_calls": [
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the metric definition and routed data source\", \"status\": \"in_progress\"}, {\"content\": \"Retrieve the end-2024 worldwide refugee total\", \"status\": \"pending\"}, {\"content\": \"Compose a simple headline visual\", \"status\": \"pending\"}]}"
+        },
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"genie space + sql for worldwide total refugees at end of 2024 from population stocks and how to chart headline number\"}"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the metric definition and routed data source\", \"status\": \"completed\"}, {\"content\": \"Retrieve the end-2024 worldwide refugee total\", \"status\": \"in_progress\"}, {\"content\": \"Compose a simple headline visual\", \"status\": \"pending\"}]}"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e10308617a4b984e3668e6471be\", \"question\": \"Using the UNHCR population stock table, what was the worldwide total number of refugees at end-2024? Sum the refugees column for year 2024 across all origin-asylum pairs, excluding non-country/unknown origins (coo_iso NOT IN ('UNK','Vario\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the metric definition and routed data source\", \"status\": \"completed\"}, {\"content\": \"Retrieve the end-2024 worldwide refugee total\", \"status\": \"completed\"}, {\"content\": \"Compose a simple headline visual\", \"status\": \"in_progress\"}]}"
+        },
+        {
+          "name": "compose_infographic",
+          "args": "{\"title\": \"30.73 million refugees worldwide at end-2024\", \"kicker\": \"UNHCR \\u00b7 Year-end population stocks\", \"lede\": \"At the end of 2024, the global refugee population stood at 30.73 million people.\", \"stats\": [{\"value\": \"30.73M\", \"label\": \"refugees worldwide, end-2024\"}], \"scenes\": [{\"type\": \"sta\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the metric definition and routed data source\", \"status\": \"completed\"}, {\"content\": \"Retrieve the end-2024 worldwide refugee total\", \"status\": \"completed\"}, {\"content\": \"Compose a simple headline visual\", \"status\": \"completed\"}]}"
+        }
+      ],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_call:find_skill",
+            "pass": true,
+            "detail": "sequence=['write_todos', 'find_skill', 'write_todos', 'ask_genie_space', 'write_todos', 'compose_infographic', 'write_todos']",
+            "hard": true
+          },
+          {
+            "name": "must_call:ask_genie_space",
+            "pass": true,
+            "detail": "sequence=['write_todos', 'find_skill', 'write_todos', 'ask_genie_space', 'write_todos', 'compose_infographic', 'write_todos']",
+            "hard": true
+          },
+          {
+            "name": "genie_space",
+            "pass": true,
+            "detail": "ids=['01f14e10308617a4b984e3668e6471be']",
+            "hard": true
+          },
+          {
+            "name": "max_genie_calls",
+            "pass": true,
+            "detail": "n=1",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The answer gives a single clear end-2024 global refugee headline figure in the expected UNHCR-scale range and states the definition used without hedging.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "74307 vs 250000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "71.5 vs 240",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "5 vs 10",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "edge-afghan-protection",
+      "category": "edge",
+      "turns": [
+        {
+          "user": "What are an Afghan asylum seeker's chances of getting protection across EU countries? Which country is toughest?",
+          "latency_s": 91.5,
+          "answer": "I built an infographic, *Belgium was the toughest European destination for Afghan asylum protection in 2024*.\n\n- **Belgium was toughest** among destinations with at least 300 substantive first-instance decisions: **1,945 protected out of 4,890 substantive decisions**, a **39.8%** protection rate.\n- Afghan applicants\u2019 chances varied sharply by destination: **Belgium 39.8%**, **UK 59.0%**, **Ireland 62.3%**, **France 67.7%**, compared with **Germany 93.0%**, **Switzerland 99.2%**, and **Greece 99.7%**.\n- Methodologically, this uses **first-instance, government-led, persons** decisions only, and the protection rate excludes closures: **recognised refugee status + complementary protection \u00f7 substantive decisions**.",
+          "error": null
+        }
+      ],
+      "latency_s": 91.5,
+      "metrics": {
+        "llm_calls": 8,
+        "llm_errors": 0,
+        "input_tokens": 138807,
+        "output_tokens": 2318,
+        "total_tokens": 141125,
+        "max_input_tokens_call": 20597,
+        "llm_time_s": 48.6,
+        "tool_time_s": 36.1,
+        "tool_call_count": 13
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 7.33,
+          "n_messages": 2,
+          "input_chars": 26957,
+          "input_tokens": 12475,
+          "output_tokens": 261,
+          "total_tokens": 12736,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 5.83,
+          "n_messages": 5,
+          "input_chars": 34196,
+          "input_tokens": 14640,
+          "output_tokens": 352,
+          "total_tokens": 14992,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 3.42,
+          "n_messages": 8,
+          "input_chars": 34711,
+          "input_tokens": 15139,
+          "output_tokens": 175,
+          "total_tokens": 15314,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 4.71,
+          "n_messages": 11,
+          "input_chars": 41991,
+          "input_tokens": 17319,
+          "output_tokens": 371,
+          "total_tokens": 17690,
+          "cache_read": 14976
+        },
+        {
+          "duration_s": 4.42,
+          "n_messages": 14,
+          "input_chars": 44681,
+          "input_tokens": 18521,
+          "output_tokens": 282,
+          "total_tokens": 18803,
+          "cache_read": 16000
+        },
+        {
+          "duration_s": 8.04,
+          "n_messages": 17,
+          "input_chars": 47397,
+          "input_tokens": 19738,
+          "output_tokens": 420,
+          "total_tokens": 20158,
+          "cache_read": 16000
+        },
+        {
+          "duration_s": 2.77,
+          "n_messages": 20,
+          "input_chars": 48192,
+          "input_tokens": 20378,
+          "output_tokens": 101,
+          "total_tokens": 20479,
+          "cache_read": 0
+        },
+        {
+          "duration_s": 12.04,
+          "n_messages": 22,
+          "input_chars": 48674,
+          "input_tokens": 20597,
+          "output_tokens": 356,
+          "total_tokens": 20953,
+          "cache_read": 20096
+        }
+      ],
+      "tool_calls_detail": [
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 853,
+          "output_head": "Command(update={'todos': [{'content': 'Find the asylum-decision metric, EU scope, and chart recipe', 'status': 'in_progress'}, {'content': 'Query 2024 Afghan asylum protection outcomes across EU countries', 'status': 'pending'}, {'content': 'Rank countries and identify the toughest protection rate',"
+        },
+        {
+          "name": "find_skill",
+          "duration_s": 2.14,
+          "output_chars": 6858,
+          "output_head": "# Plan for: 'genie space + sql for Afghan asylum seekers chances of getting protection across EU countries in latest available year, toughest country, and how to chart it'\n_traversed the skills knowledge graph \u2014 40 nodes, 50 relations, 2 round-trips, 1089.7ms_\n**Best match:** the asylum lottery (Fin"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 857,
+          "output_head": "Command(update={'todos': [{'content': 'Find the asylum-decision metric, EU scope, and chart recipe', 'status': 'completed'}, {'content': 'Query 2024 Afghan asylum protection outcomes across EU countries', 'status': 'in_progress'}, {'content': 'Rank countries and identify the toughest protection rate"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 0.14,
+          "output_chars": 132,
+          "output_head": "{\"status\": \"error\", \"error_type\": \"genie_error\", \"message\": \"Space with id 01f025415f201311be8a83f13e824ba9 not found\", \"sql\": null}"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 843,
+          "output_head": "Command(update={'todos': [{'content': 'Find the asylum-decision metric, EU scope, and chart recipe', 'status': 'completed'}, {'content': 'Resolve the routed asylum Genie space and rerun the query', 'status': 'in_progress'}, {'content': 'Rank countries and identify the toughest protection rate', 'sta"
+        },
+        {
+          "name": "find_skill",
+          "duration_s": 1.89,
+          "output_chars": 6904,
+          "output_head": "# Plan for: 'exact Genie space_id for asylum_decisions and SQL for Afghan TRR by European destination in 2024 first instance government persons'\n_traversed the skills knowledge graph \u2014 83 nodes, 127 relations, 2 round-trips, 976.2ms_\n**Best match:** asylum_decisions (Table) \u00b7 R14 (Rule) \u00b7 asylum_app"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 1051,
+          "output_head": "Command(update={'todos': [{'content': 'Find the asylum-decision metric, EU scope, and chart recipe', 'status': 'completed'}, {'content': 'Resolve the routed asylum Genie space and rerun the query', 'status': 'completed'}, {'content': 'Query 2024 Afghan asylum protection outcomes across EU countries'"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 28.3,
+          "output_chars": 2210,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"for_afghan_asylum_6a6f15\", \"source\": \"genie:01f14e102f8b1f9fa46a17785a02fc4c\", \"sql\": \"SELECT\\n  c.name AS destination,\\n  SUM(ad.dec_recognized + ad.dec_other) AS protected,\\n  SUM(ad.dec_recognized + ad.dec_other + ad.dec_rejected) AS substantive,\\n  try_divide(S"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 1055,
+          "output_head": "Command(update={'todos': [{'content': 'Find the asylum-decision metric, EU scope, and chart recipe', 'status': 'completed'}, {'content': 'Resolve the routed asylum Genie space and rerun the query', 'status': 'completed'}, {'content': 'Query 2024 Afghan asylum protection outcomes across EU countries'"
+        },
+        {
+          "name": "query_stored_dfs",
+          "duration_s": 2.13,
+          "output_chars": 2234,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"afghan_trr_europe_2024_ranked\", \"source\": \"query_stored_dfs\", \"sql\": \"WITH typed AS (\\n  SELECT\\n    destination,\\n    CAST(protected AS DOUBLE) AS protected,\\n    CAST(substantive AS DOUBLE) AS substantive,\\n    CAST(trr_pct AS DOUBLE) AS trr_pct\\n  FROM for_afgha"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 1059,
+          "output_head": "Command(update={'todos': [{'content': 'Find the asylum-decision metric, EU scope, and chart recipe', 'status': 'completed'}, {'content': 'Resolve the routed asylum Genie space and rerun the query', 'status': 'completed'}, {'content': 'Query 2024 Afghan asylum protection outcomes across EU countries'"
+        },
+        {
+          "name": "compose_infographic",
+          "duration_s": 1.52,
+          "output_chars": 311,
+          "output_head": "{\"status\":\"ok\",\"infographic_id\":\"infographic_8e573811dd3b\",\"title\":\"Belgium was the toughest European destination for Afghan asylum protection in 2024\",\"scene_count\":1,\"scene_types\":[\"ranked_bar\"],\"url\":\"https://pudding-chatbot-7474656877852004.aws.databricksapps.com/api/infographics/infographic_8e5"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 1055,
+          "output_head": "Command(update={'todos': [{'content': 'Find the asylum-decision metric, EU scope, and chart recipe', 'status': 'completed'}, {'content': 'Resolve the routed asylum Genie space and rerun the query', 'status': 'completed'}, {'content': 'Query 2024 Afghan asylum protection outcomes across EU countries'"
+        }
+      ],
+      "tool_sequence": [
+        "write_todos",
+        "find_skill",
+        "write_todos",
+        "ask_genie_space",
+        "write_todos",
+        "find_skill",
+        "write_todos",
+        "ask_genie_space",
+        "write_todos",
+        "query_stored_dfs",
+        "write_todos",
+        "compose_infographic",
+        "write_todos"
+      ],
+      "orchestrator_tool_calls": [
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the asylum-decision metric, EU scope, and chart recipe\", \"status\": \"in_progress\"}, {\"content\": \"Query 2024 Afghan asylum protection outcomes across EU countries\", \"status\": \"pending\"}, {\"content\": \"Rank countries and identify the toughest protection rate\", \"status\": \"pen\u2026"
+        },
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"genie space + sql for Afghan asylum seekers chances of getting protection across EU countries in latest available year, toughest country, and how to chart it\"}"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the asylum-decision metric, EU scope, and chart recipe\", \"status\": \"completed\"}, {\"content\": \"Query 2024 Afghan asylum protection outcomes across EU countries\", \"status\": \"in_progress\"}, {\"content\": \"Rank countries and identify the toughest protection rate\", \"status\": \"p\u2026"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f025415f201311be8a83f13e824ba9\", \"question\": \"For Afghan asylum seekers (coo_iso = 'AFG'), calculate the latest available 2024 first-instance government-led persons total recognition rate by European destination country using asylum_decisions. Use only destinations in this allow-list\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the asylum-decision metric, EU scope, and chart recipe\", \"status\": \"completed\"}, {\"content\": \"Resolve the routed asylum Genie space and rerun the query\", \"status\": \"in_progress\"}, {\"content\": \"Rank countries and identify the toughest protection rate\", \"status\": \"pending\"\u2026"
+        },
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"exact Genie space_id for asylum_decisions and SQL for Afghan TRR by European destination in 2024 first instance government persons\"}"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the asylum-decision metric, EU scope, and chart recipe\", \"status\": \"completed\"}, {\"content\": \"Resolve the routed asylum Genie space and rerun the query\", \"status\": \"completed\"}, {\"content\": \"Query 2024 Afghan asylum protection outcomes across EU countries\", \"status\": \"in\u2026"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e102f8b1f9fa46a17785a02fc4c\", \"question\": \"For Afghan asylum seekers (coo_iso = 'AFG'), calculate 2024 first-instance government-led persons total recognition rate by European destination country using asylum_decisions. Use only destinations in this allow-list: AUT, BEL, BGR, HRV,\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the asylum-decision metric, EU scope, and chart recipe\", \"status\": \"completed\"}, {\"content\": \"Resolve the routed asylum Genie space and rerun the query\", \"status\": \"completed\"}, {\"content\": \"Query 2024 Afghan asylum protection outcomes across EU countries\", \"status\": \"co\u2026"
+        },
+        {
+          "name": "query_stored_dfs",
+          "args": "{\"sql\": \"WITH typed AS (\\n  SELECT\\n    destination,\\n    CAST(protected AS DOUBLE) AS protected,\\n    CAST(substantive AS DOUBLE) AS substantive,\\n    CAST(trr_pct AS DOUBLE) AS trr_pct\\n  FROM for_afghan_asylum_6a6f15\\n), ranked AS (\\n  SELECT\\n    destination,\\n    protected,\\n    substantive,\\n \u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the asylum-decision metric, EU scope, and chart recipe\", \"status\": \"completed\"}, {\"content\": \"Resolve the routed asylum Genie space and rerun the query\", \"status\": \"completed\"}, {\"content\": \"Query 2024 Afghan asylum protection outcomes across EU countries\", \"status\": \"co\u2026"
+        },
+        {
+          "name": "compose_infographic",
+          "args": "{\"title\": \"Belgium was the toughest European destination for Afghan asylum protection in 2024\", \"kicker\": \"UNHCR \\u00b7 Afghan asylum decisions\", \"lede\": \"Among European destinations with at least 300 substantive first-instance decisions, protection chances for Afghans ranged from 39.8% in Belgium t\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the asylum-decision metric, EU scope, and chart recipe\", \"status\": \"completed\"}, {\"content\": \"Resolve the routed asylum Genie space and rerun the query\", \"status\": \"completed\"}, {\"content\": \"Query 2024 Afghan asylum protection outcomes across EU countries\", \"status\": \"co\u2026"
+        }
+      ],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_call:find_skill",
+            "pass": true,
+            "detail": "sequence=['write_todos', 'find_skill', 'write_todos', 'ask_genie_space', 'write_todos', 'find_skill', 'write_todos', 'ask_genie_space', 'write_todos', 'query_stored_dfs', 'write_todos', 'compose_infographic', 'write_todos']",
+            "hard": true
+          },
+          {
+            "name": "must_call:ask_genie_space",
+            "pass": true,
+            "detail": "sequence=['write_todos', 'find_skill', 'write_todos', 'ask_genie_space', 'write_todos', 'find_skill', 'write_todos', 'ask_genie_space', 'write_todos', 'query_stored_dfs', 'write_todos', 'compose_infographic', 'write_todos']",
+            "hard": true
+          },
+          {
+            "name": "genie_space",
+            "pass": true,
+            "detail": "ids=['01f025415f201311be8a83f13e824ba9', '01f14e102f8b1f9fa46a17785a02fc4c']",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The answer gives concrete protection-rate percentages for several named European countries, explicitly identifies Belgium as toughest, and describes a sound first-instance substantive-decision methodology rather than using applications.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "141125 vs 250000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "91.5 vs 300",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "8 vs 12",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "edge-lottery-why",
+      "category": "edge",
+      "turns": [
+        {
+          "user": "Why is asylum outcome called a lottery? Explain what drives the gap between Germany and Sweden for the same nationality.",
+          "latency_s": 71.8,
+          "answer": "I built an infographic, *Germany\u2019s protection rates exceed Sweden\u2019s for major shared origins in 2023*.\n\n- The \u201clottery\u201d label comes from like-for-like comparisons: the same nationality, same year, first-instance government decisions, and the same outcome definition can produce sharply different protection rates depending on destination country.\n- In 2023, the largest Germany\u2013Sweden gaps among shared high-volume origins were Afghanistan (**98.6%** Germany vs **71.2%** Sweden; **27.4 percentage points**), Iran (**42.7%** vs **21.7%**; **21.0 points**), and Syria (**100.0%** vs **80.0%**; **20.0 points**).\n- What drives the gap is not just \u201cmerit of the claim\u201d: it reflects national asylum practice\u2014country-of-origin guidance, evidentiary thresholds, interpretation of subsidiary protection, appeal/administrative conventions, and case mix within a nationality. The comparison controls the biggest confounder, nationality, but not individual claimant profiles.",
+          "error": null
+        }
+      ],
+      "latency_s": 71.8,
+      "metrics": {
+        "llm_calls": 5,
+        "llm_errors": 0,
+        "input_tokens": 76561,
+        "output_tokens": 1318,
+        "total_tokens": 77879,
+        "max_input_tokens_call": 16784,
+        "llm_time_s": 28.4,
+        "tool_time_s": 39.4,
+        "tool_call_count": 7
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 5.69,
+          "n_messages": 2,
+          "input_chars": 26965,
+          "input_tokens": 12477,
+          "output_tokens": 275,
+          "total_tokens": 12752,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 6.06,
+          "n_messages": 5,
+          "input_chars": 34021,
+          "input_tokens": 14645,
+          "output_tokens": 329,
+          "total_tokens": 14974,
+          "cache_read": 11904
+        },
+        {
+          "duration_s": 7.51,
+          "n_messages": 8,
+          "input_chars": 37255,
+          "input_tokens": 16028,
+          "output_tokens": 416,
+          "total_tokens": 16444,
+          "cache_read": 11904
+        },
+        {
+          "duration_s": 2.89,
+          "n_messages": 11,
+          "input_chars": 37891,
+          "input_tokens": 16627,
+          "output_tokens": 74,
+          "total_tokens": 16701,
+          "cache_read": 11904
+        },
+        {
+          "duration_s": 6.29,
+          "n_messages": 13,
+          "input_chars": 38213,
+          "input_tokens": 16784,
+          "output_tokens": 224,
+          "total_tokens": 17008,
+          "cache_read": 16512
+        }
+      ],
+      "tool_calls_detail": [
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 731,
+          "output_head": "Command(update={'todos': [{'content': 'Find the asylum-outcomes method, scope, and chart recipe', 'status': 'in_progress'}, {'content': 'Retrieve Germany\u2013Sweden first-instance outcome gaps for shared nationalities', 'status': 'pending'}, {'content': 'Visualize the largest gaps and synthesize drivers"
+        },
+        {
+          "name": "find_skill",
+          "duration_s": 2.14,
+          "output_chars": 6736,
+          "output_head": "# Plan for: 'why asylum outcome is called a lottery; Germany vs Sweden asylum recognition/protection rate gap for the same nationality; genie space + sql + chart recipe'\n_traversed the skills knowledge graph \u2014 34 nodes, 43 relations, 2 round-trips, 1058.4ms_\n**Best match:** the asylum lottery (Findi"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 735,
+          "output_head": "Command(update={'todos': [{'content': 'Find the asylum-outcomes method, scope, and chart recipe', 'status': 'completed'}, {'content': 'Retrieve Germany\u2013Sweden first-instance outcome gaps for shared nationalities', 'status': 'in_progress'}, {'content': 'Visualize the largest gaps and synthesize drive"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 35.34,
+          "output_chars": 2912,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"for_asylum_compare_c15a92\", \"source\": \"genie:01f14e102f8b1f9fa46a17785a02fc4c\", \"sql\": \"WITH filtered AS (\\n  SELECT \\n    ad.coo_iso,\\n    ad.coa_iso,\\n    SUM(ad.dec_recognized) AS recognized,\\n    SUM(ad.dec_other) AS other_protected,\\n    SUM(ad.dec_rejected) A"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 739,
+          "output_head": "Command(update={'todos': [{'content': 'Find the asylum-outcomes method, scope, and chart recipe', 'status': 'completed'}, {'content': 'Retrieve Germany\u2013Sweden first-instance outcome gaps for shared nationalities', 'status': 'completed'}, {'content': 'Visualize the largest gaps and synthesize drivers"
+        },
+        {
+          "name": "compose_infographic",
+          "duration_s": 1.94,
+          "output_chars": 312,
+          "output_head": "{\"status\":\"ok\",\"infographic_id\":\"infographic_bfd75fb6c785\",\"title\":\"Germany\\u2019s protection rates exceed Sweden\\u2019s for major shared origins in 2023\",\"scene_count\":1,\"scene_types\":[\"dumbbell\"],\"url\":\"https://pudding-chatbot-7474656877852004.aws.databricksapps.com/api/infographics/infographic_bf"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 735,
+          "output_head": "Command(update={'todos': [{'content': 'Find the asylum-outcomes method, scope, and chart recipe', 'status': 'completed'}, {'content': 'Retrieve Germany\u2013Sweden first-instance outcome gaps for shared nationalities', 'status': 'completed'}, {'content': 'Visualize the largest gaps and synthesize drivers"
+        }
+      ],
+      "tool_sequence": [
+        "write_todos",
+        "find_skill",
+        "write_todos",
+        "ask_genie_space",
+        "write_todos",
+        "compose_infographic",
+        "write_todos"
+      ],
+      "orchestrator_tool_calls": [
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the asylum-outcomes method, scope, and chart recipe\", \"status\": \"in_progress\"}, {\"content\": \"Retrieve Germany\\u2013Sweden first-instance outcome gaps for shared nationalities\", \"status\": \"pending\"}, {\"content\": \"Visualize the largest gaps and synthesize drivers\", \"status\u2026"
+        },
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"why asylum outcome is called a lottery; Germany vs Sweden asylum recognition/protection rate gap for the same nationality; genie space + sql + chart recipe\"}"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the asylum-outcomes method, scope, and chart recipe\", \"status\": \"completed\"}, {\"content\": \"Retrieve Germany\\u2013Sweden first-instance outcome gaps for shared nationalities\", \"status\": \"in_progress\"}, {\"content\": \"Visualize the largest gaps and synthesize drivers\", \"stat\u2026"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e102f8b1f9fa46a17785a02fc4c\", \"question\": \"For 2023 asylum decisions, compare Germany and Sweden for the same nationalities. Use first-instance decisions only (dec_level = 'FI'), government-led RSD only (procedure_type = 'G'), persons only (dec_pc = 'P'), and compute Total Recogni\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the asylum-outcomes method, scope, and chart recipe\", \"status\": \"completed\"}, {\"content\": \"Retrieve Germany\\u2013Sweden first-instance outcome gaps for shared nationalities\", \"status\": \"completed\"}, {\"content\": \"Visualize the largest gaps and synthesize drivers\", \"status\u2026"
+        },
+        {
+          "name": "compose_infographic",
+          "args": "{\"title\": \"Germany\\u2019s protection rates exceed Sweden\\u2019s for major shared origins in 2023\", \"kicker\": \"UNHCR \\u00b7 Asylum decisions\", \"lede\": \"For nationalities with substantial decision volumes in both countries, Germany\\u2019s first-instance total recognition rates were consistently higher\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the asylum-outcomes method, scope, and chart recipe\", \"status\": \"completed\"}, {\"content\": \"Retrieve Germany\\u2013Sweden first-instance outcome gaps for shared nationalities\", \"status\": \"completed\"}, {\"content\": \"Visualize the largest gaps and synthesize drivers\", \"status\u2026"
+        }
+      ],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_call:find_skill",
+            "pass": true,
+            "detail": "sequence=['write_todos', 'find_skill', 'write_todos', 'ask_genie_space', 'write_todos', 'compose_infographic', 'write_todos']",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The answer clearly defines the asylum-lottery concept, provides Germany\u2013Sweden quantitative contrasts for the same nationalities, and attributes the gaps primarily to national adjudication and policy differences rather than applicant merit.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "77879 vs 300000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "71.8 vs 300",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "5 vs 12",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "edge-backlog",
+      "category": "edge",
+      "turns": [
+        {
+          "user": "How many people are stuck waiting in the asylum backlog, and is it growing?",
+          "latency_s": 54.2,
+          "answer": "I built an infographic, *8.29M people were waiting for asylum decisions at end-2024*.\n\n- **8.29M people** were in the asylum backlog at end-2024, using end-year asylum-seeker stock as the proxy for people awaiting a decision.\n- Yes \u2014 it is **growing fast**: the backlog rose by **1.53M people in 2024**, after a **1.37M** increase in 2023.\n- The flow pressure is still positive: in 2024 there were **3.40M applications** versus **2.14M decisions**, a gap of **1.26M** more applications than decisions. Decisions and applications are not the same-year cohort, but the persistent gap helps explain the rising stock.",
+          "error": null
+        }
+      ],
+      "latency_s": 54.2,
+      "metrics": {
+        "llm_calls": 5,
+        "llm_errors": 0,
+        "input_tokens": 80268,
+        "output_tokens": 1500,
+        "total_tokens": 81768,
+        "max_input_tokens_call": 18838,
+        "llm_time_s": 26.6,
+        "tool_time_s": 40.1,
+        "tool_call_count": 9
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 4.05,
+          "n_messages": 2,
+          "input_chars": 26920,
+          "input_tokens": 12471,
+          "output_tokens": 183,
+          "total_tokens": 12654,
+          "cache_read": 11904
+        },
+        {
+          "duration_s": 5.77,
+          "n_messages": 5,
+          "input_chars": 34098,
+          "input_tokens": 14533,
+          "output_tokens": 362,
+          "total_tokens": 14895,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 4.54,
+          "n_messages": 9,
+          "input_chars": 38600,
+          "input_tokens": 16203,
+          "output_tokens": 348,
+          "total_tokens": 16551,
+          "cache_read": 14464
+        },
+        {
+          "duration_s": 7.66,
+          "n_messages": 12,
+          "input_chars": 43377,
+          "input_tokens": 18223,
+          "output_tokens": 442,
+          "total_tokens": 18665,
+          "cache_read": 16000
+        },
+        {
+          "duration_s": 4.57,
+          "n_messages": 15,
+          "input_chars": 43951,
+          "input_tokens": 18838,
+          "output_tokens": 165,
+          "total_tokens": 19003,
+          "cache_read": 16000
+        }
+      ],
+      "tool_calls_detail": [
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 635,
+          "output_head": "Command(update={'todos': [{'content': 'Find the right backlog metric and query pattern', 'status': 'in_progress'}, {'content': 'Retrieve latest asylum backlog trend', 'status': 'pending'}, {'content': 'Build a visual and summarize whether it is growing', 'status': 'pending'}], 'messages': [ToolMessa"
+        },
+        {
+          "name": "find_skill",
+          "duration_s": 1.69,
+          "output_chars": 6906,
+          "output_head": "# Plan for: 'asylum backlog people waiting pending asylum claims trend latest year how many and is it growing genie space sql chart'\n_traversed the skills knowledge graph \u2014 29 nodes, 31 relations, 2 round-trips, 724.6ms_\n**Best match:** The asylum waiting room (8.35M pending, 2024) (Finding) \u00b7 How m"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 639,
+          "output_head": "Command(update={'todos': [{'content': 'Find the right backlog metric and query pattern', 'status': 'completed'}, {'content': 'Retrieve latest asylum backlog trend', 'status': 'in_progress'}, {'content': 'Build a visual and summarize whether it is growing', 'status': 'pending'}], 'messages': [ToolMes"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 15.0,
+          "output_chars": 2694,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"for_each_year_116a3e\", \"source\": \"genie:01f14e102f8b1f9fa46a17785a02fc4c\", \"sql\": \"WITH app AS (\\n  SELECT year, SUM(applied) AS applications\\n  FROM workspace.hackathon.asylum_applications\\n  WHERE year BETWEEN 2010 AND 2024\\n    AND coo_iso NOT IN ('UNK', 'Variou"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 19.72,
+          "output_chars": 1534,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"for_each_year_33c156\", \"source\": \"genie:01f14e10308617a4b984e3668e6471be\", \"sql\": \"SELECT\\n  year,\\n  SUM(asylum_seekers) AS total_asylum_seekers\\nFROM workspace.hackathon.population\\nWHERE year BETWEEN 2010 AND 2024\\n  AND coo_iso NOT IN ('UNK', 'Various', '-')\\n "
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 643,
+          "output_head": "Command(update={'todos': [{'content': 'Find the right backlog metric and query pattern', 'status': 'completed'}, {'content': 'Retrieve latest asylum backlog trend', 'status': 'completed'}, {'content': 'Build a visual and summarize whether it is growing', 'status': 'in_progress'}], 'messages': [ToolM"
+        },
+        {
+          "name": "query_stored_dfs",
+          "duration_s": 2.18,
+          "output_chars": 4501,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"asylum_backlog_trend_2010_2024\", \"source\": \"query_stored_dfs\", \"sql\": \"WITH s AS (\\n  SELECT CAST(year AS INTEGER) AS year, CAST(total_asylum_seekers AS DOUBLE) AS pending_asylum_seekers\\n  FROM for_each_year_33c156\\n),\\nf AS (\\n  SELECT CAST(year AS INTEGER) AS ye"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 639,
+          "output_head": "Command(update={'todos': [{'content': 'Find the right backlog metric and query pattern', 'status': 'completed'}, {'content': 'Retrieve latest asylum backlog trend', 'status': 'completed'}, {'content': 'Build a visual and summarize whether it is growing', 'status': 'completed'}], 'messages': [ToolMes"
+        },
+        {
+          "name": "compose_infographic",
+          "duration_s": 1.49,
+          "output_chars": 300,
+          "output_head": "{\"status\":\"ok\",\"infographic_id\":\"infographic_0eb067809ab4\",\"title\":\"8.29M people were waiting for asylum decisions at end-2024\",\"scene_count\":2,\"scene_types\":[\"line_multi\",\"line_multi\"],\"url\":\"https://pudding-chatbot-7474656877852004.aws.databricksapps.com/api/infographics/infographic_0eb067809ab4\"}"
+        }
+      ],
+      "tool_sequence": [
+        "write_todos",
+        "find_skill",
+        "write_todos",
+        "ask_genie_space",
+        "ask_genie_space",
+        "write_todos",
+        "query_stored_dfs",
+        "write_todos",
+        "compose_infographic"
+      ],
+      "orchestrator_tool_calls": [
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the right backlog metric and query pattern\", \"status\": \"in_progress\"}, {\"content\": \"Retrieve latest asylum backlog trend\", \"status\": \"pending\"}, {\"content\": \"Build a visual and summarize whether it is growing\", \"status\": \"pending\"}]}"
+        },
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"asylum backlog people waiting pending asylum claims trend latest year how many and is it growing genie space sql chart\"}"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the right backlog metric and query pattern\", \"status\": \"completed\"}, {\"content\": \"Retrieve latest asylum backlog trend\", \"status\": \"in_progress\"}, {\"content\": \"Build a visual and summarize whether it is growing\", \"status\": \"pending\"}]}"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e10308617a4b984e3668e6471be\", \"question\": \"For each year from 2010 to 2024, what is the global end-year stock of asylum seekers waiting for a decision? Sum population.asylum_seekers globally, exclude unknown or sentinel country codes if applicable, and return year and total asylum\u2026"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e102f8b1f9fa46a17785a02fc4c\", \"question\": \"For each year from 2010 to 2024 globally, what are total asylum applications filed and total asylum decisions reached? Sum asylum_applications.applied and asylum_decisions.dec_total by year, exclude unknown or sentinel origin/destination \u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the right backlog metric and query pattern\", \"status\": \"completed\"}, {\"content\": \"Retrieve latest asylum backlog trend\", \"status\": \"completed\"}, {\"content\": \"Build a visual and summarize whether it is growing\", \"status\": \"in_progress\"}]}"
+        },
+        {
+          "name": "query_stored_dfs",
+          "args": "{\"sql\": \"WITH s AS (\\n  SELECT CAST(year AS INTEGER) AS year, CAST(total_asylum_seekers AS DOUBLE) AS pending_asylum_seekers\\n  FROM for_each_year_33c156\\n),\\nf AS (\\n  SELECT CAST(year AS INTEGER) AS year,\\n         CAST(applications AS DOUBLE) AS applications,\\n         CAST(decisions AS DOUBLE) A\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the right backlog metric and query pattern\", \"status\": \"completed\"}, {\"content\": \"Retrieve latest asylum backlog trend\", \"status\": \"completed\"}, {\"content\": \"Build a visual and summarize whether it is growing\", \"status\": \"completed\"}]}"
+        },
+        {
+          "name": "compose_infographic",
+          "args": "{\"title\": \"8.29M people were waiting for asylum decisions at end-2024\", \"kicker\": \"UNHCR \\u00b7 Asylum backlog\", \"lede\": \"The global asylum waiting room has expanded sharply since 2010, with the largest annual increases coming in 2023 and 2024.\", \"variable_name\": \"asylum_backlog_trend_2010_2024\", \"s\u2026"
+        }
+      ],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_call:find_skill",
+            "pass": true,
+            "detail": "sequence=['write_todos', 'find_skill', 'write_todos', 'ask_genie_space', 'ask_genie_space', 'write_todos', 'query_stored_dfs', 'write_todos', 'compose_infographic']",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The answer gives an end-2024 global backlog headline of 8.29M and clearly states it is growing, with applications outpacing decisions and recent trend figures.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "81768 vs 200000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "54.2 vs 240",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "5 vs 10",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "edge-deck",
+      "category": "edge",
+      "turns": [
+        {
+          "user": "Build a 6-slide executive deck on the global displacement crisis.",
+          "latency_s": 93.3,
+          "answer": "Built the 6-slide executive deck, **Global Displacement Crisis, 2024**.\n\n- [Preview the deck](https://pudding-chatbot-7474656877852004.aws.databricksapps.com/api/decks/deck_09075bf83c2f)\n- [Download the PowerPoint](https://pudding-chatbot-7474656877852004.aws.databricksapps.com/api/decks/deck_09075bf83c2f.pptx)\n\nKey takeaways:\n- Global forced displacement reached **110.8M people** at end-2024, **4.1\u00d7** the 2010 level.\n- **IDPs are the largest component**: **68.1M people**, or **61.5%** of the total.\n- **Sudan became the largest displacement origin** in 2024, with **14.34M** forcibly displaced people, ahead of Syria at **13.53M**.",
+          "error": null
+        }
+      ],
+      "latency_s": 93.3,
+      "metrics": {
+        "llm_calls": 7,
+        "llm_errors": 0,
+        "input_tokens": 134183,
+        "output_tokens": 3603,
+        "total_tokens": 137786,
+        "max_input_tokens_call": 25421,
+        "llm_time_s": 53.5,
+        "tool_time_s": 79.1,
+        "tool_call_count": 14
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 3.44,
+          "n_messages": 2,
+          "input_chars": 26910,
+          "input_tokens": 12468,
+          "output_tokens": 136,
+          "total_tokens": 12604,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 4.48,
+          "n_messages": 5,
+          "input_chars": 34889,
+          "input_tokens": 14799,
+          "output_tokens": 224,
+          "total_tokens": 15023,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 3.29,
+          "n_messages": 8,
+          "input_chars": 42581,
+          "input_tokens": 17073,
+          "output_tokens": 70,
+          "total_tokens": 17143,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 5.88,
+          "n_messages": 10,
+          "input_chars": 49548,
+          "input_tokens": 18908,
+          "output_tokens": 457,
+          "total_tokens": 19365,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 7.98,
+          "n_messages": 15,
+          "input_chars": 58191,
+          "input_tokens": 22390,
+          "output_tokens": 596,
+          "total_tokens": 22986,
+          "cache_read": 16000
+        },
+        {
+          "duration_s": 24.81,
+          "n_messages": 18,
+          "input_chars": 59191,
+          "input_tokens": 23124,
+          "output_tokens": 1916,
+          "total_tokens": 25040,
+          "cache_read": 20096
+        },
+        {
+          "duration_s": 3.64,
+          "n_messages": 22,
+          "input_chars": 61795,
+          "input_tokens": 25421,
+          "output_tokens": 204,
+          "total_tokens": 25625,
+          "cache_read": 20096
+        }
+      ],
+      "tool_calls_detail": [
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 727,
+          "output_head": "Command(update={'todos': [{'content': 'Find the deck recipe, data scope, Genie space, and required metrics', 'status': 'in_progress'}, {'content': 'Retrieve the latest global displacement indicators', 'status': 'pending'}, {'content': 'Assemble a 6-slide executive deck with charts and key messages',"
+        },
+        {
+          "name": "find_skill",
+          "duration_s": 2.08,
+          "output_chars": 7661,
+          "output_head": "# Plan for: '6-slide executive PowerPoint deck on the global displacement crisis: Genie space, SQL for latest global displacement indicators, metrics, gotchas, and compose_deck slide spec'\n_traversed the skills knowledge graph \u2014 68 nodes, 71 relations, 3 round-trips, 1438.4ms_\n**Best match:** unhcr_"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 731,
+          "output_head": "Command(update={'todos': [{'content': 'Find the deck recipe, data scope, Genie space, and required metrics', 'status': 'completed'}, {'content': 'Retrieve the latest global displacement indicators', 'status': 'in_progress'}, {'content': 'Assemble a 6-slide executive deck with charts and key messages"
+        },
+        {
+          "name": "find_skill",
+          "duration_s": 1.65,
+          "output_chars": 7372,
+          "output_head": "# Plan for: 'exact Genie space_id and SQL patterns for 2024 global forced displacement: trend by category, top origin countries, top host/asylum countries, durable solutions for executive deck'\n_traversed the skills knowledge graph \u2014 80 nodes, 85 relations, 3 round-trips, 629.4ms_\n**Best match:** co"
+        },
+        {
+          "name": "find_skill",
+          "duration_s": 2.04,
+          "output_chars": 6967,
+          "output_head": "# Plan for: 'exact Genie Space ID for unhcr-population stocks domain, population table global displacement trend by category'\n_traversed the skills knowledge graph \u2014 121 nodes, 166 relations, 2 round-trips, 1073.9ms_\n**Best match:** population (Table) \u00b7 unhcr_displacement (Domain) \u00b7 idmc (Table)\n\n##"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 731,
+          "output_head": "Command(update={'todos': [{'content': 'Find the deck recipe, data scope, Genie space, and required metrics', 'status': 'completed'}, {'content': 'Retrieve the latest global displacement indicators', 'status': 'in_progress'}, {'content': 'Assemble a 6-slide executive deck with charts and key messages"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 20.39,
+          "output_chars": 1863,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"for_using_the_b0005c\", \"source\": \"genie:01f14e10308617a4b984e3668e6471be\", \"sql\": \"WITH ranked_origins AS (\\n  SELECT\\n    c.name AS origin_country,\\n    c.iso AS origin_iso3,\\n    SUM(p.refugees + p.asylum_seekers + p.idps + p.ooc) AS forcibly_displaced,\\n    RANK"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 20.94,
+          "output_chars": 4587,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"using_the_population_c64c99\", \"source\": \"genie:01f14e10308617a4b984e3668e6471be\", \"sql\": \"SELECT year, SUM(refugees) AS refugees, SUM(asylum_seekers) AS asylum_seekers, SUM(idps) AS idps, SUM(ooc) AS ooc, SUM(refugees + asylum_seekers + idps + ooc) AS forcibly_disp"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 26.18,
+          "output_chars": 1873,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"for_using_the_79cec8\", \"source\": \"genie:01f14e10308617a4b984e3668e6471be\", \"sql\": \"SELECT\\n  c.name AS host_country,\\n  c.iso AS host_iso3,\\n  SUM(p.refugees + p.asylum_seekers + p.ooc) AS total_displaced_hosted\\nFROM workspace.hackathon.population p\\nJOIN workspac"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 735,
+          "output_head": "Command(update={'todos': [{'content': 'Find the deck recipe, data scope, Genie space, and required metrics', 'status': 'completed'}, {'content': 'Retrieve the latest global displacement indicators', 'status': 'completed'}, {'content': 'Assemble a 6-slide executive deck with charts and key messages',"
+        },
+        {
+          "name": "query_stored_dfs",
+          "duration_s": 1.43,
+          "output_chars": 678,
+          "output_head": "{\"status\": \"error\", \"error_type\": \"duckdb_error\", \"message\": \"Catalog Error: Scalar Function with name try_divide does not exist!\\nDid you mean \\\"divide\\\"?\\n\\nLINE 19:   TRY_DIVIDE(latest.forcibly_displaced, base.forcibly_displaced...\\n           ^\", \"sql\": \"WITH t AS (\\n  SELECT\\n    CAST(year AS I"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 731,
+          "output_head": "Command(update={'todos': [{'content': 'Find the deck recipe, data scope, Genie space, and required metrics', 'status': 'completed'}, {'content': 'Retrieve the latest global displacement indicators', 'status': 'completed'}, {'content': 'Assemble a 6-slide executive deck with charts and key messages',"
+        },
+        {
+          "name": "compose_deck",
+          "duration_s": 1.91,
+          "output_chars": 504,
+          "output_head": "{\"status\":\"ok\",\"document_id\":\"deck_09075bf83c2f\",\"title\":\"Global Displacement Crisis, 2024\",\"slide_count\":6,\"volumes_path\":\"/Volumes/workspace/ai_ops/agent_scratch/documents/deck_09075bf83c2f__Global_Displacement_Crisis_2024.{pptx,html,json}\",\"size_bytes\":{\"pptx\":1090215,\"html\":27977},\"preview_url\":"
+        },
+        {
+          "name": "query_stored_dfs",
+          "duration_s": 2.45,
+          "output_chars": 1780,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"global_displacement_2024_kpis\", \"source\": \"query_stored_dfs\", \"sql\": \"WITH t AS (\\n  SELECT\\n    CAST(year AS INTEGER) AS year,\\n    CAST(refugees AS DOUBLE) AS refugees,\\n    CAST(asylum_seekers AS DOUBLE) AS asylum_seekers,\\n    CAST(idps AS DOUBLE) AS idps,\\n   "
+        }
+      ],
+      "tool_sequence": [
+        "write_todos",
+        "find_skill",
+        "write_todos",
+        "find_skill",
+        "find_skill",
+        "write_todos",
+        "ask_genie_space",
+        "ask_genie_space",
+        "ask_genie_space",
+        "write_todos",
+        "query_stored_dfs",
+        "write_todos",
+        "compose_deck",
+        "query_stored_dfs"
+      ],
+      "orchestrator_tool_calls": [
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the deck recipe, data scope, Genie space, and required metrics\", \"status\": \"in_progress\"}, {\"content\": \"Retrieve the latest global displacement indicators\", \"status\": \"pending\"}, {\"content\": \"Assemble a 6-slide executive deck with charts and key messages\", \"status\": \"pen\u2026"
+        },
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"6-slide executive PowerPoint deck on the global displacement crisis: Genie space, SQL for latest global displacement indicators, metrics, gotchas, and compose_deck slide spec\"}"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the deck recipe, data scope, Genie space, and required metrics\", \"status\": \"completed\"}, {\"content\": \"Retrieve the latest global displacement indicators\", \"status\": \"in_progress\"}, {\"content\": \"Assemble a 6-slide executive deck with charts and key messages\", \"status\": \"p\u2026"
+        },
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"exact Genie space_id and SQL patterns for 2024 global forced displacement: trend by category, top origin countries, top host/asylum countries, durable solutions for executive deck\"}"
+        },
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"exact Genie Space ID for unhcr-population stocks domain, population table global displacement trend by category\"}"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e10308617a4b984e3668e6471be\", \"question\": \"Using the population table, return the global annual trend from 2000 through 2024 by year with sums of refugees, asylum_seekers, idps, ooc, and forcibly_displaced defined as refugees + asylum_seekers + idps + ooc. Exclude invalid origin c\u2026"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e10308617a4b984e3668e6471be\", \"question\": \"For 2024, using the population table and countries reference, return the top 10 countries of origin by total forcibly displaced people, where forcibly_displaced is refugees + asylum_seekers + idps + ooc summed by origin. Exclude invalid o\u2026"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e10308617a4b984e3668e6471be\", \"question\": \"For 2024, using the population table and countries reference, return the top 10 host/asylum countries by total displaced people hosted, summed as refugees + asylum_seekers + ooc by country of asylum, excluding IDPs to avoid counting inter\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the deck recipe, data scope, Genie space, and required metrics\", \"status\": \"completed\"}, {\"content\": \"Retrieve the latest global displacement indicators\", \"status\": \"in_progress\"}, {\"content\": \"Assemble a 6-slide executive deck with charts and key messages\", \"status\": \"p\u2026"
+        },
+        {
+          "name": "query_stored_dfs",
+          "args": "{\"sql\": \"WITH t AS (\\n  SELECT\\n    CAST(year AS INTEGER) AS year,\\n    CAST(refugees AS DOUBLE) AS refugees,\\n    CAST(asylum_seekers AS DOUBLE) AS asylum_seekers,\\n    CAST(idps AS DOUBLE) AS idps,\\n    CAST(ooc AS DOUBLE) AS ooc,\\n    CAST(forcibly_displaced AS DOUBLE) AS forcibly_displaced\\n  FR\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the deck recipe, data scope, Genie space, and required metrics\", \"status\": \"completed\"}, {\"content\": \"Retrieve the latest global displacement indicators\", \"status\": \"completed\"}, {\"content\": \"Assemble a 6-slide executive deck with charts and key messages\", \"status\": \"in_\u2026"
+        },
+        {
+          "name": "query_stored_dfs",
+          "args": "{\"sql\": \"WITH t AS (\\n  SELECT\\n    CAST(year AS INTEGER) AS year,\\n    CAST(refugees AS DOUBLE) AS refugees,\\n    CAST(asylum_seekers AS DOUBLE) AS asylum_seekers,\\n    CAST(idps AS DOUBLE) AS idps,\\n    CAST(ooc AS DOUBLE) AS ooc,\\n    CAST(forcibly_displaced AS DOUBLE) AS forcibly_displaced\\n  FR\u2026"
+        },
+        {
+          "name": "compose_deck",
+          "args": "{\"title\": \"Global Displacement Crisis, 2024\", \"deck_spec\": [{\"type\": \"cover\", \"bg\": \"ink\", \"eyebrow\": \"UNHCR \\u00b7 Forced displacement\", \"title\": \"Global Displacement Crisis\", \"lede\": \"End-2024 stocks show a system under sustained pressure: 110.8M people forcibly displaced worldwide.\"}, {\"type\": \"s\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the deck recipe, data scope, Genie space, and required metrics\", \"status\": \"completed\"}, {\"content\": \"Retrieve the latest global displacement indicators\", \"status\": \"completed\"}, {\"content\": \"Assemble a 6-slide executive deck with charts and key messages\", \"status\": \"com\u2026"
+        }
+      ],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_call:find_skill",
+            "pass": true,
+            "detail": "sequence=['write_todos', 'find_skill', 'write_todos', 'find_skill', 'find_skill', 'write_todos', 'ask_genie_space', 'ask_genie_space', 'ask_genie_space', 'write_todos', 'query_stored_dfs', 'write_todos', 'compose_deck', 'query_stored_dfs']",
+            "hard": true
+          },
+          {
+            "name": "must_call:compose_deck",
+            "pass": true,
+            "detail": "sequence=['write_todos', 'find_skill', 'write_todos', 'find_skill', 'find_skill', 'write_todos', 'ask_genie_space', 'ask_genie_space', 'ask_genie_space', 'write_todos', 'query_stored_dfs', 'write_todos', 'compose_deck', 'query_stored_dfs']",
+            "hard": true
+          },
+          {
+            "name": "artifact_url",
+            "pass": true,
+            "detail": "no URL in final answer",
+            "hard": true
+          },
+          {
+            "name": "artifact_tool:compose_deck",
+            "pass": true,
+            "detail": "no successful call observed",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The answer confirms a 6-slide executive deck was built, provides both preview and PowerPoint links, and includes executive key statistics and trend takeaways rather than merely describing what it would do.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "137786 vs 320000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "93.3 vs 360",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "7 vs 14",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "edge-infographic",
+      "category": "edge",
+      "turns": [
+        {
+          "user": "Create an infographic showing who really bears the refugee burden \u2014 wealth or geography?",
+          "latency_s": 121.0,
+          "answer": "I built an infographic, *Refugee burden tracks geography more than wealth, 2024*.\n\n- Wealth is a weak predictor: across **93** host countries, GDP per capita explains only **7.8%** of the variation in refugees hosted per 1,000 residents.\n- The highest per-capita burdens are mostly near major displacement crises: **Lebanon 130.7**, **Chad 63.0**, **Moldova 56.6**, **Jordan 55.7**, and **Armenia 47.6** refugees per 1,000 residents.\n- The pattern is not simply \u201cpoor vs rich\u201d: **Germany** hosts **32.9 refugees per 1,000 residents**, while some wealthy, more distant countries sit far lower; geography and proximity to crises dominate the story.",
+          "error": null
+        }
+      ],
+      "latency_s": 121.0,
+      "metrics": {
+        "llm_calls": 7,
+        "llm_errors": 0,
+        "input_tokens": 167730,
+        "output_tokens": 3598,
+        "total_tokens": 171328,
+        "max_input_tokens_call": 36807,
+        "llm_time_s": 63.4,
+        "tool_time_s": 55.4,
+        "tool_call_count": 12
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 4.96,
+          "n_messages": 2,
+          "input_chars": 26933,
+          "input_tokens": 12470,
+          "output_tokens": 214,
+          "total_tokens": 12684,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 4.48,
+          "n_messages": 5,
+          "input_chars": 34414,
+          "input_tokens": 14679,
+          "output_tokens": 181,
+          "total_tokens": 14860,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 3.81,
+          "n_messages": 8,
+          "input_chars": 41804,
+          "input_tokens": 16955,
+          "output_tokens": 178,
+          "total_tokens": 17133,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 7.92,
+          "n_messages": 10,
+          "input_chars": 57708,
+          "input_tokens": 22203,
+          "output_tokens": 473,
+          "total_tokens": 22676,
+          "cache_read": 16000
+        },
+        {
+          "duration_s": 19.33,
+          "n_messages": 13,
+          "input_chars": 73929,
+          "input_tokens": 28543,
+          "output_tokens": 1349,
+          "total_tokens": 29892,
+          "cache_read": 22144
+        },
+        {
+          "duration_s": 15.43,
+          "n_messages": 17,
+          "input_chars": 91756,
+          "input_tokens": 36073,
+          "output_tokens": 1029,
+          "total_tokens": 37102,
+          "cache_read": 28288
+        },
+        {
+          "duration_s": 7.47,
+          "n_messages": 20,
+          "input_chars": 92436,
+          "input_tokens": 36807,
+          "output_tokens": 174,
+          "total_tokens": 36981,
+          "cache_read": 35968
+        }
+      ],
+      "tool_calls_detail": [
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 869,
+          "output_head": "Command(update={'todos': [{'content': 'Find the refugee-burden metric, data scope, and infographic recipe', 'status': 'in_progress'}, {'content': 'Query latest refugee hosting burden indicators', 'status': 'pending'}, {'content': 'Shape the data for a geography-versus-wealth visual', 'status': 'pend"
+        },
+        {
+          "name": "find_skill",
+          "duration_s": 1.66,
+          "output_chars": 7092,
+          "output_head": "# Plan for: 'infographic showing who really bears the refugee burden \u2014 wealth or geography; genie space + sql for refugees hosted by country latest year, host income/region/geography indicators, chart recipe'\n_traversed the skills knowledge graph \u2014 48 nodes, 64 relations, 3 round-trips, 1075.6ms_\n**"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 873,
+          "output_head": "Command(update={'todos': [{'content': 'Find the refugee-burden metric, data scope, and infographic recipe', 'status': 'completed'}, {'content': 'Query latest refugee hosting burden indicators', 'status': 'in_progress'}, {'content': 'Shape the data for a geography-versus-wealth visual', 'status': 'pe"
+        },
+        {
+          "name": "find_skill",
+          "duration_s": 1.31,
+          "output_chars": 6999,
+          "output_head": "# Plan for: 'routed Genie space id for S6 GDP per capita vs refugee burden scatter 2024 host_population host_gdp'\n_traversed the skills knowledge graph \u2014 21 nodes, 30 relations, 2 round-trips, 702.4ms_\n**Best match:** What is each country's per-capita refugee burden? (Question) \u00b7 S6 GDP per capita v"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 26.44,
+          "output_chars": 15904,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"for_compute_refugee_9989dd\", \"source\": \"genie:01f14e10308617a4b984e3668e6471be\", \"sql\": \"SELECT\\n  c.name AS host_country,\\n  c.iso AS host_iso,\\n  c.region AS host_region,\\n  SUM(p.refugees) AS refugees_hosted,\\n  NULL AS resident_population, -- Placeholder: resid"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 873,
+          "output_head": "Command(update={'todos': [{'content': 'Find the refugee-burden metric, data scope, and infographic recipe', 'status': 'completed'}, {'content': 'Query latest refugee hosting burden indicators', 'status': 'in_progress'}, {'content': 'Shape the data for a geography-versus-wealth visual', 'status': 'pe"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 20.8,
+          "output_chars": 15830,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"run_the_gdp_1d086d\", \"source\": \"genie:01f14e10308617a4b984e3668e6471be\", \"sql\": \"SELECT \\n  c.name AS host,\\n  p.coa_iso AS host_iso,\\n  c.region,\\n  SUM(p.refugees) AS hosted,\\n  r.population AS resident_population,\\n  r.pop_year,\\n  (try_divide(SUM(p.refugees) * "
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 877,
+          "output_head": "Command(update={'todos': [{'content': 'Find the refugee-burden metric, data scope, and infographic recipe', 'status': 'completed'}, {'content': 'Query latest refugee hosting burden indicators', 'status': 'completed'}, {'content': 'Shape the data for a geography-versus-wealth visual', 'status': 'in_p"
+        },
+        {
+          "name": "query_stored_dfs",
+          "duration_s": 2.12,
+          "output_chars": 1486,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"refugee_burden_gdp_stats_2024\", \"source\": \"query_stored_dfs\", \"sql\": \"WITH clean AS (\\n  SELECT\\n    host,\\n    region,\\n    CAST(hosted AS DOUBLE) AS hosted,\\n    CAST(refugees_per_1000 AS DOUBLE) AS burden,\\n    CAST(gdp_pc_usd AS DOUBLE) AS gdp\\n  FROM run_the_g"
+        },
+        {
+          "name": "query_stored_dfs",
+          "duration_s": 2.14,
+          "output_chars": 15948,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"refugee_burden_gdp_clean_2024\", \"source\": \"query_stored_dfs\", \"sql\": \"WITH clean AS (\\n  SELECT\\n    host,\\n    host_iso,\\n    region,\\n    CAST(hosted AS DOUBLE) AS hosted,\\n    CAST(resident_population AS DOUBLE) AS resident_population,\\n    CAST(pop_year AS INTE"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 877,
+          "output_head": "Command(update={'todos': [{'content': 'Find the refugee-burden metric, data scope, and infographic recipe', 'status': 'completed'}, {'content': 'Query latest refugee hosting burden indicators', 'status': 'completed'}, {'content': 'Shape the data for a geography-versus-wealth visual', 'status': 'comp"
+        },
+        {
+          "name": "compose_infographic",
+          "duration_s": 0.93,
+          "output_chars": 287,
+          "output_head": "{\"status\":\"ok\",\"infographic_id\":\"infographic_aae2ad3c30fb\",\"title\":\"Refugee burden tracks geography more than wealth, 2024\",\"scene_count\":1,\"scene_types\":[\"bubble_scatter\"],\"url\":\"https://pudding-chatbot-7474656877852004.aws.databricksapps.com/api/infographics/infographic_aae2ad3c30fb\"}"
+        }
+      ],
+      "tool_sequence": [
+        "write_todos",
+        "find_skill",
+        "write_todos",
+        "find_skill",
+        "ask_genie_space",
+        "write_todos",
+        "ask_genie_space",
+        "write_todos",
+        "query_stored_dfs",
+        "query_stored_dfs",
+        "write_todos",
+        "compose_infographic"
+      ],
+      "orchestrator_tool_calls": [
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the refugee-burden metric, data scope, and infographic recipe\", \"status\": \"in_progress\"}, {\"content\": \"Query latest refugee hosting burden indicators\", \"status\": \"pending\"}, {\"content\": \"Shape the data for a geography-versus-wealth visual\", \"status\": \"pending\"}, {\"conten\u2026"
+        },
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"infographic showing who really bears the refugee burden \\u2014 wealth or geography; genie space + sql for refugees hosted by country latest year, host income/region/geography indicators, chart recipe\"}"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the refugee-burden metric, data scope, and infographic recipe\", \"status\": \"completed\"}, {\"content\": \"Query latest refugee hosting burden indicators\", \"status\": \"in_progress\"}, {\"content\": \"Shape the data for a geography-versus-wealth visual\", \"status\": \"pending\"}, {\"cont\u2026"
+        },
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"routed Genie space id for S6 GDP per capita vs refugee burden scatter 2024 host_population host_gdp\"}"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e10308617a4b984e3668e6471be\", \"question\": \"For 2024, compute refugee burden by host country to assess whether hosting burden tracks wealth or geography. Use hosted refugees by country of asylum excluding same origin/asylum and excluding sentinel/aggregate host codes (UNK, Various,\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the refugee-burden metric, data scope, and infographic recipe\", \"status\": \"completed\"}, {\"content\": \"Query latest refugee hosting burden indicators\", \"status\": \"in_progress\"}, {\"content\": \"Shape the data for a geography-versus-wealth visual\", \"status\": \"pending\"}, {\"cont\u2026"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e10308617a4b984e3668e6471be\", \"question\": \"Run the S6 GDP per capita vs refugee burden query for 2024 exactly: compute hosted refugees by coa_iso from workspace.hackathon.population where year=2024, coo_iso<>coa_iso, excluding host sentinel codes UNK, Various, -, STA, XXA, XXX, VA\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the refugee-burden metric, data scope, and infographic recipe\", \"status\": \"completed\"}, {\"content\": \"Query latest refugee hosting burden indicators\", \"status\": \"completed\"}, {\"content\": \"Shape the data for a geography-versus-wealth visual\", \"status\": \"in_progress\"}, {\"co\u2026"
+        },
+        {
+          "name": "query_stored_dfs",
+          "args": "{\"result_name\": \"refugee_burden_gdp_clean_2024\", \"sql\": \"WITH clean AS (\\n  SELECT\\n    host,\\n    host_iso,\\n    region,\\n    CAST(hosted AS DOUBLE) AS hosted,\\n    CAST(resident_population AS DOUBLE) AS resident_population,\\n    CAST(pop_year AS INTEGER) AS pop_year,\\n    CAST(refugees_per_1000 AS\u2026"
+        },
+        {
+          "name": "query_stored_dfs",
+          "args": "{\"result_name\": \"refugee_burden_gdp_stats_2024\", \"sql\": \"WITH clean AS (\\n  SELECT\\n    host,\\n    region,\\n    CAST(hosted AS DOUBLE) AS hosted,\\n    CAST(refugees_per_1000 AS DOUBLE) AS burden,\\n    CAST(gdp_pc_usd AS DOUBLE) AS gdp\\n  FROM run_the_gdp_1d086d\\n  WHERE CAST(refugees_per_1000 AS DOU\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Find the refugee-burden metric, data scope, and infographic recipe\", \"status\": \"completed\"}, {\"content\": \"Query latest refugee hosting burden indicators\", \"status\": \"completed\"}, {\"content\": \"Shape the data for a geography-versus-wealth visual\", \"status\": \"completed\"}, {\"cont\u2026"
+        },
+        {
+          "name": "compose_infographic",
+          "args": "{\"title\": \"Refugee burden tracks geography more than wealth, 2024\", \"kicker\": \"UNHCR \\u00b7 Forced displacement\", \"lede\": \"A country\\u2019s wealth explains little of the refugee burden it carries. The highest per-capita burdens cluster around conflict regions, while some wealthy countries host heavi\u2026"
+        }
+      ],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_call:find_skill",
+            "pass": true,
+            "detail": "sequence=['write_todos', 'find_skill', 'write_todos', 'find_skill', 'ask_genie_space', 'write_todos', 'ask_genie_space', 'write_todos', 'query_stored_dfs', 'query_stored_dfs', 'write_todos', 'compose_infographic']",
+            "hard": true
+          },
+          {
+            "name": "artifact_tool:compose_infographic",
+            "pass": true,
+            "detail": "no successful call observed",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The agent confirms a built infographic by title and frames wealth vs geography with multiple concrete hosting and GDP-explanatory-share numbers.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "171328 vs 500000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "121.0 vs 480",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "7 vs 16",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "edge-vague",
+      "category": "edge",
+      "turns": [
+        {
+          "user": "Show me something interesting about refugee data.",
+          "latency_s": 73.8,
+          "answer": "Focusing on the \u201casylum lottery\u201d angle: how protection outcomes for the same nationality differed by destination country. I built an infographic, *Afghan asylum outcomes varied sharply across Europe in 2023*.\n\n- Among European countries with at least 300 substantive first-instance decisions, Afghan protection rates ranged from **99.43% in Greece** to **40.95% in Belgium**.\n- Several large decision-makers were near-universal protection: **Germany protected 31,567 of 32,008 Afghan applicants (98.62%)**, while the **United Kingdom protected 9,497 of 9,582 (99.11%)**.\n- France handled a large caseload but had a much lower rate than Germany or the UK: **13,496 protected out of 19,481 substantive decisions (69.28%)**.",
+          "error": null
+        }
+      ],
+      "latency_s": 73.8,
+      "metrics": {
+        "llm_calls": 5,
+        "llm_errors": 0,
+        "input_tokens": 75398,
+        "output_tokens": 1184,
+        "total_tokens": 76582,
+        "max_input_tokens_call": 16390,
+        "llm_time_s": 25.5,
+        "tool_time_s": 45.9,
+        "tool_call_count": 7
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 3.55,
+          "n_messages": 2,
+          "input_chars": 26894,
+          "input_tokens": 12463,
+          "output_tokens": 162,
+          "total_tokens": 12625,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 6.19,
+          "n_messages": 5,
+          "input_chars": 34038,
+          "input_tokens": 14551,
+          "output_tokens": 356,
+          "total_tokens": 14907,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 7.84,
+          "n_messages": 8,
+          "input_chars": 37344,
+          "input_tokens": 15739,
+          "output_tokens": 389,
+          "total_tokens": 16128,
+          "cache_read": 14464
+        },
+        {
+          "duration_s": 2.79,
+          "n_messages": 11,
+          "input_chars": 37927,
+          "input_tokens": 16255,
+          "output_tokens": 63,
+          "total_tokens": 16318,
+          "cache_read": 14464
+        },
+        {
+          "duration_s": 5.17,
+          "n_messages": 13,
+          "input_chars": 38220,
+          "input_tokens": 16390,
+          "output_tokens": 214,
+          "total_tokens": 16604,
+          "cache_read": 12416
+        }
+      ],
+      "tool_calls_detail": [
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 673,
+          "output_head": "Command(update={'todos': [{'content': 'Map available refugee datasets and choose a concrete focus', 'status': 'in_progress'}, {'content': 'Retrieve the latest relevant refugee metric', 'status': 'pending'}, {'content': 'Build an infographic and summarize the main insight', 'status': 'pending'}], 'me"
+        },
+        {
+          "name": "find_skill",
+          "duration_s": 1.92,
+          "output_chars": 6853,
+          "output_head": "# Plan for: 'what datasets, tables and questions does this workspace cover; choose something interesting about refugee data and how to chart it'\n_traversed the skills knowledge graph \u2014 43 nodes, 46 relations, 2 round-trips, 952.9ms_\n**Best match:** UNHCR Refugee Data Finder (Concept) \u00b7 stock-vs-flow"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 677,
+          "output_head": "Command(update={'todos': [{'content': 'Map available refugee datasets and choose a concrete focus', 'status': 'completed'}, {'content': 'Retrieve the latest relevant refugee metric', 'status': 'in_progress'}, {'content': 'Build an infographic and summarize the main insight', 'status': 'pending'}], '"
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 42.74,
+          "output_chars": 3013,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"for_afghan_asylum_26f9ad\", \"source\": \"genie:01f14e102f8b1f9fa46a17785a02fc4c\", \"sql\": \"SELECT c.name AS destination_country, SUM(ad.dec_recognized + ad.dec_other) AS protected_persons, SUM(ad.dec_recognized + ad.dec_other + ad.dec_rejected) AS substantive_decisions"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 681,
+          "output_head": "Command(update={'todos': [{'content': 'Map available refugee datasets and choose a concrete focus', 'status': 'completed'}, {'content': 'Retrieve the latest relevant refugee metric', 'status': 'completed'}, {'content': 'Build an infographic and summarize the main insight', 'status': 'in_progress'}],"
+        },
+        {
+          "name": "compose_infographic",
+          "duration_s": 1.22,
+          "output_chars": 288,
+          "output_head": "{\"status\":\"ok\",\"infographic_id\":\"infographic_a42f2da50952\",\"title\":\"Afghan asylum outcomes varied sharply across Europe in 2023\",\"scene_count\":1,\"scene_types\":[\"ranked_bar\"],\"url\":\"https://pudding-chatbot-7474656877852004.aws.databricksapps.com/api/infographics/infographic_a42f2da50952\"}"
+        },
+        {
+          "name": "write_todos",
+          "duration_s": 0.0,
+          "output_chars": 677,
+          "output_head": "Command(update={'todos': [{'content': 'Map available refugee datasets and choose a concrete focus', 'status': 'completed'}, {'content': 'Retrieve the latest relevant refugee metric', 'status': 'completed'}, {'content': 'Build an infographic and summarize the main insight', 'status': 'completed'}], '"
+        }
+      ],
+      "tool_sequence": [
+        "write_todos",
+        "find_skill",
+        "write_todos",
+        "ask_genie_space",
+        "write_todos",
+        "compose_infographic",
+        "write_todos"
+      ],
+      "orchestrator_tool_calls": [
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Map available refugee datasets and choose a concrete focus\", \"status\": \"in_progress\"}, {\"content\": \"Retrieve the latest relevant refugee metric\", \"status\": \"pending\"}, {\"content\": \"Build an infographic and summarize the main insight\", \"status\": \"pending\"}]}"
+        },
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"what datasets, tables and questions does this workspace cover; choose something interesting about refugee data and how to chart it\"}"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Map available refugee datasets and choose a concrete focus\", \"status\": \"completed\"}, {\"content\": \"Retrieve the latest relevant refugee metric\", \"status\": \"in_progress\"}, {\"content\": \"Build an infographic and summarize the main insight\", \"status\": \"pending\"}]}"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e102f8b1f9fa46a17785a02fc4c\", \"question\": \"For Afghan asylum seekers in Europe in 2023, calculate the first-instance total protection rate by destination country. Use only government-led procedures, persons, first-instance decisions, include recognized plus other protection in pro\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Map available refugee datasets and choose a concrete focus\", \"status\": \"completed\"}, {\"content\": \"Retrieve the latest relevant refugee metric\", \"status\": \"completed\"}, {\"content\": \"Build an infographic and summarize the main insight\", \"status\": \"in_progress\"}]}"
+        },
+        {
+          "name": "compose_infographic",
+          "args": "{\"title\": \"Afghan asylum outcomes varied sharply across Europe in 2023\", \"kicker\": \"UNHCR \\u00b7 Asylum decisions\", \"lede\": \"For Afghan applicants, first-instance protection rates in Europe ranged from near-universal protection in several countries to below half in Belgium, even after restricting to\u2026"
+        },
+        {
+          "name": "write_todos",
+          "args": "{\"todos\": [{\"content\": \"Map available refugee datasets and choose a concrete focus\", \"status\": \"completed\"}, {\"content\": \"Retrieve the latest relevant refugee metric\", \"status\": \"completed\"}, {\"content\": \"Build an infographic and summarize the main insight\", \"status\": \"completed\"}]}"
+        }
+      ],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_call:find_skill",
+            "pass": true,
+            "detail": "sequence=['write_todos', 'find_skill', 'write_todos', 'ask_genie_space', 'write_todos', 'compose_infographic', 'write_todos']",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The agent led with a concrete asylum-lottery insight grounded in refugee data and included multiple specific protection-rate and caseload numbers.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "76582 vs 250000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "73.8 vs 300",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "5 vs 12",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "bnd-out-of-scope",
+      "category": "boundary",
+      "turns": [
+        {
+          "user": "What's the weather in Bangkok tomorrow?",
+          "latency_s": 3.6,
+          "answer": "I can\u2019t help with weather forecasts here, but I can help analyze UNHCR forced-displacement data through 2024.",
+          "error": null
+        }
+      ],
+      "latency_s": 3.6,
+      "metrics": {
+        "llm_calls": 1,
+        "llm_errors": 0,
+        "input_tokens": 12462,
+        "output_tokens": 30,
+        "total_tokens": 12492,
+        "max_input_tokens_call": 12462,
+        "llm_time_s": 3.0,
+        "tool_time_s": 0,
+        "tool_call_count": 0
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 2.98,
+          "n_messages": 2,
+          "input_chars": 26884,
+          "input_tokens": 12462,
+          "output_tokens": 30,
+          "total_tokens": 12492,
+          "cache_read": 12416
+        }
+      ],
+      "tool_calls_detail": [],
+      "tool_sequence": [],
+      "orchestrator_tool_calls": [],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:ask_genie_space",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:run_spark_sql",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:compose_infographic",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:compose_deck",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The agent declined the out-of-scope weather request, stated it can help with UNHCR forced-displacement data, and did not fabricate a forecast or use tools.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "12492 vs 30000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "3.6 vs 60",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "1 vs 3",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "bnd-data-coverage",
+      "category": "boundary",
+      "turns": [
+        {
+          "user": "What were global asylum approval rates in 2025 and 2026?",
+          "latency_s": 3.8,
+          "answer": "UNHCR Refugee Data Finder coverage in this workspace ends at **2024**, so I can\u2019t report global asylum approval rates for **2025 or 2026** from these data.\n\nI can calculate the **latest available global asylum approval rate for 2024** instead, using asylum decisions and the standard approval/recognition-rate definition.",
+          "error": null
+        }
+      ],
+      "latency_s": 3.8,
+      "metrics": {
+        "llm_calls": 1,
+        "llm_errors": 0,
+        "input_tokens": 12470,
+        "output_tokens": 138,
+        "total_tokens": 12608,
+        "max_input_tokens_call": 12470,
+        "llm_time_s": 3.6,
+        "tool_time_s": 0,
+        "tool_call_count": 0
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 3.62,
+          "n_messages": 2,
+          "input_chars": 26901,
+          "input_tokens": 12470,
+          "output_tokens": 138,
+          "total_tokens": 12608,
+          "cache_read": 12416
+        }
+      ],
+      "tool_calls_detail": [],
+      "tool_sequence": [],
+      "orchestrator_tool_calls": [],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The agent explicitly states coverage ends at 2024, refuses to fabricate 2025/2026 figures, and offers the latest available 2024 calculation instead.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "12608 vs 120000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "3.8 vs 180",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "1 vs 8",
+            "hard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "mt-followthrough",
+      "category": "multiturn",
+      "turns": [
+        {
+          "user": "Which 5 countries hosted the most refugees in 2024?",
+          "latency_s": 39.2,
+          "answer": "I built an infographic, *Iran hosted the most refugees at end-2024*.\n\n- **Iran** hosted the largest refugee population: **3,489,257** refugees.\n- The next largest hosts were **T\u00fcrkiye** (**2,938,381**) and **Germany** (**2,712,683**).\n- The top five were rounded out by **Uganda** (**1,759,492**) and **Pakistan** (**1,560,480**); together, these five hosted about **12.46M refugees** at end-2024.",
+          "error": null
+        },
+        {
+          "user": "Now show that as a chart.",
+          "latency_s": 17.0,
+          "answer": "I built the chart, *Top 5 refugee-hosting countries, 2024*.\n\n- **Iran** ranked first with **3,489,257** refugees.\n- **T\u00fcrkiye** and **Germany** followed closely, each hosting more than **2.7M** refugees.\n- **Uganda** and **Pakistan** completed the top five, with **1,759,492** and **1,560,480** refugees respectively.",
+          "error": null
+        }
+      ],
+      "latency_s": 56.3,
+      "metrics": {
+        "llm_calls": 7,
+        "llm_errors": 0,
+        "input_tokens": 104698,
+        "output_tokens": 1214,
+        "total_tokens": 105912,
+        "max_input_tokens_call": 15969,
+        "llm_time_s": 28.9,
+        "tool_time_s": 23.8,
+        "tool_call_count": 5
+      },
+      "llm_calls_detail": [
+        {
+          "duration_s": 2.62,
+          "n_messages": 2,
+          "input_chars": 26896,
+          "input_tokens": 12468,
+          "output_tokens": 40,
+          "total_tokens": 12508,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 4.31,
+          "n_messages": 4,
+          "input_chars": 34093,
+          "input_tokens": 14511,
+          "output_tokens": 178,
+          "total_tokens": 14689,
+          "cache_read": 12416
+        },
+        {
+          "duration_s": 5.28,
+          "n_messages": 6,
+          "input_chars": 35517,
+          "input_tokens": 15104,
+          "output_tokens": 237,
+          "total_tokens": 15341,
+          "cache_read": 14464
+        },
+        {
+          "duration_s": 3.0,
+          "n_messages": 8,
+          "input_chars": 35787,
+          "input_tokens": 15433,
+          "output_tokens": 119,
+          "total_tokens": 15552,
+          "cache_read": 14976
+        },
+        {
+          "duration_s": 5.53,
+          "n_messages": 10,
+          "input_chars": 36209,
+          "input_tokens": 15565,
+          "output_tokens": 244,
+          "total_tokens": 15809,
+          "cache_read": 14976
+        },
+        {
+          "duration_s": 4.73,
+          "n_messages": 12,
+          "input_chars": 36337,
+          "input_tokens": 15648,
+          "output_tokens": 301,
+          "total_tokens": 15949,
+          "cache_read": 15488
+        },
+        {
+          "duration_s": 3.45,
+          "n_messages": 14,
+          "input_chars": 36603,
+          "input_tokens": 15969,
+          "output_tokens": 95,
+          "total_tokens": 16064,
+          "cache_read": 15488
+        }
+      ],
+      "tool_calls_detail": [
+        {
+          "name": "find_skill",
+          "duration_s": 1.74,
+          "output_chars": 7197,
+          "output_head": "# Plan for: 'genie space + sql for top 5 refugee-hosting countries in 2024, metric definition and chart recipe'\n_traversed the skills knowledge graph \u2014 59 nodes, 66 relations, 2 round-trips, 1087.4ms_\n**Best match:** Top 10 origins of refugees worldwide in 2024. (Question) \u00b7 What are the top 5 host "
+        },
+        {
+          "name": "ask_genie_space",
+          "duration_s": 19.39,
+          "output_chars": 1424,
+          "output_head": "{\"status\": \"ok\", \"variable_name\": \"for_which_host_c12ac8\", \"source\": \"genie:01f14e10308617a4b984e3668e6471be\", \"sql\": \"SELECT c.name AS host_country, c.iso AS host_country_iso3, SUM(p.refugees) AS total_refugees\\nFROM workspace.hackathon.population p\\nJOIN workspace.hackathon.countries c ON c.iso = "
+        },
+        {
+          "name": "compose_infographic",
+          "duration_s": 0.86,
+          "output_chars": 270,
+          "output_head": "{\"status\":\"ok\",\"infographic_id\":\"infographic_d24f324ea13b\",\"title\":\"Iran hosted the most refugees at end-2024\",\"scene_count\":1,\"scene_types\":[\"ranked_bar\"],\"url\":\"https://pudding-chatbot-7474656877852004.aws.databricksapps.com/api/infographics/infographic_d24f324ea13b\"}"
+        },
+        {
+          "name": "list_dataframes",
+          "duration_s": 0.64,
+          "output_chars": 128,
+          "output_head": "**Variable Store:**\n\n- `for_which_host_c12ac8` -- 5x0 | [] | src: genie:01f14e10308617a4b984e3668e6471be | -299.7m old | 0 reads"
+        },
+        {
+          "name": "compose_infographic",
+          "duration_s": 1.19,
+          "output_chars": 266,
+          "output_head": "{\"status\":\"ok\",\"infographic_id\":\"infographic_8bed985aae4e\",\"title\":\"Top 5 refugee-hosting countries, 2024\",\"scene_count\":1,\"scene_types\":[\"ranked_bar\"],\"url\":\"https://pudding-chatbot-7474656877852004.aws.databricksapps.com/api/infographics/infographic_8bed985aae4e\"}"
+        }
+      ],
+      "tool_sequence": [
+        "find_skill",
+        "ask_genie_space",
+        "compose_infographic",
+        "list_dataframes",
+        "compose_infographic"
+      ],
+      "orchestrator_tool_calls": [
+        {
+          "name": "find_skill",
+          "args": "{\"query\": \"genie space + sql for top 5 refugee-hosting countries in 2024, metric definition and chart recipe\"}"
+        },
+        {
+          "name": "ask_genie_space",
+          "args": "{\"space_id\": \"01f14e10308617a4b984e3668e6471be\", \"question\": \"For year-end 2024, which 5 host countries (country of asylum) hosted the largest total number of refugees globally? Sum the refugees column across all countries of origin, exclude aggregate or unknown host/origin codes such as UNK, Variou\u2026"
+        },
+        {
+          "name": "compose_infographic",
+          "args": "{\"title\": \"Iran hosted the most refugees at end-2024\", \"kicker\": \"UNHCR \\u00b7 Refugee stocks\", \"lede\": \"The five largest refugee-hosting countries together hosted about 12.46M refugees at year-end 2024, led by Iran and T\\u00fcrkiye.\", \"variable_name\": \"for_which_host_c12ac8\", \"top_n\": 5, \"scenes\": \u2026"
+        },
+        {
+          "name": "list_dataframes",
+          "args": "{}"
+        },
+        {
+          "name": "compose_infographic",
+          "args": "{\"title\": \"Top 5 refugee-hosting countries, 2024\", \"kicker\": \"UNHCR \\u00b7 Refugee stocks\", \"lede\": \"At end-2024, Iran, T\\u00fcrkiye and Germany were the three largest refugee-hosting countries globally.\", \"variable_name\": \"for_which_host_c12ac8\", \"top_n\": 5, \"scenes\": [{\"type\": \"ranked_bar\", \"varia\u2026"
+        }
+      ],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_call:ask_genie_space",
+            "pass": true,
+            "detail": "sequence=['find_skill', 'ask_genie_space', 'compose_infographic', 'list_dataframes', 'compose_infographic']",
+            "hard": true
+          },
+          {
+            "name": "genie_space",
+            "pass": true,
+            "detail": "ids=['01f14e10308617a4b984e3668e6471be']",
+            "hard": true
+          },
+          {
+            "name": "artifact_tool:compose_infographic",
+            "pass": true,
+            "detail": "no successful call observed",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "judge",
+            "pass": true,
+            "detail": "The agent provided the expected 2024 top-five refugee-hosting countries with figures and then confirmed a chart using the same top-five data and filter.",
+            "hard": true
+          },
+          {
+            "name": "budget:total_tokens",
+            "pass": true,
+            "detail": "105912 vs 350000",
+            "hard": false
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "56.3 vs 420",
+            "hard": false
+          },
+          {
+            "name": "budget:llm_calls",
+            "pass": true,
+            "detail": "7 vs 16",
+            "hard": false
+          }
+        ]
+      }
+    }
+  ]
+}

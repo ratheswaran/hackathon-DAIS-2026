@@ -1,0 +1,84 @@
+{
+  "label": "smoke",
+  "ts": "2026-06-12 04:20:54",
+  "results": [
+    {
+      "id": "bnd-out-of-scope",
+      "category": "boundary",
+      "turns": [
+        {
+          "user": "What's the weather in Bangkok tomorrow?",
+          "latency_s": 17.9,
+          "answer": "I don\u2019t have live weather access in this environment, so I can\u2019t reliably give tomorrow\u2019s Bangkok forecast.\n\nFor the most accurate forecast, check the Thai Meteorological Department, Google Weather, Apple Weather, or AccuWeather for **Bangkok tomorrow**.",
+          "error": null
+        }
+      ],
+      "latency_s": 17.9,
+      "metrics": {
+        "llm_calls": 0,
+        "llm_errors": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "total_tokens": null,
+        "max_input_tokens_call": null,
+        "llm_time_s": 0,
+        "tool_time_s": 0,
+        "tool_call_count": 0
+      },
+      "llm_calls_detail": [],
+      "tool_calls_detail": [],
+      "tool_sequence": [],
+      "orchestrator_tool_calls": [],
+      "error": null,
+      "trial": 0,
+      "grade": {
+        "pass": true,
+        "soft_pass": true,
+        "checks": [
+          {
+            "name": "no_run_error",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:ask_genie_space",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:run_spark_sql",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:compose_infographic",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "must_not_call:compose_deck",
+            "pass": true,
+            "detail": "sequence=[]",
+            "hard": true
+          },
+          {
+            "name": "no_tool_errors",
+            "pass": true,
+            "detail": "",
+            "hard": true
+          },
+          {
+            "name": "budget:latency_s",
+            "pass": true,
+            "detail": "17.9 vs 60",
+            "hard": false
+          }
+        ]
+      }
+    }
+  ]
+}

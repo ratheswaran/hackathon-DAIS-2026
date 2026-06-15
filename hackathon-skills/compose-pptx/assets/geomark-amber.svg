@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160" role="img" aria-label="Resonance Analytics geo-mark">
+  <!-- Closing-slide motif: thin ring + 35% amber arc + centre dot.
+       Recolour by editing the two stroke/fill values (default amber #DF9B44). -->
+  <circle cx="80" cy="80" r="79" fill="none" stroke="#DF9B44" stroke-width="2"/>
+  <!-- 35% (126°) annular sector of the ring, starting at 12 o'clock, clockwise -->
+  <path d="M80,18 A62,62 0 0 1 130.2,116.4 L108.3,100.6 A35,35 0 0 0 80,45 Z" fill="#DF9B44"/>
+  <circle cx="80" cy="80" r="7" fill="#DF9B44"/>
+</svg>
