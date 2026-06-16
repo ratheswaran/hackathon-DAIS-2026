@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Medical Desert Planner — India · CarePath</title>
+<style>
+  :root{
+    --ink:#161a22; --ink2:#3b4252; --muted:#7a8090; --line:#e7e3da;
+    --bg:#f6f4ef; --panel:#ffffff; --cobalt:#254bb2; --cobalt-d:#1b3a8c;
+    --amber:#e8920c; --good:#11875f; --bad:#b3122e; --desert:#f3ede1;
+    --shadow:0 1px 2px rgba(20,26,34,.06),0 8px 24px rgba(20,26,34,.07);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       color:var(--ink);background:var(--bg);overflow:hidden}
+  .app{display:grid;grid-template-columns:330px 1fr 312px;height:100vh}
+  /* ---- generic panel chrome ---- */
+  .col{height:100vh;overflow:hidden;display:flex;flex-direction:column}
+  .left{background:var(--panel);border-right:1px solid var(--line)}
+  .right{background:var(--panel);border-left:1px solid var(--line)}
+  .scroll{overflow-y:auto;padding:16px 16px 28px}
+  .scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#d8d3c8;border-radius:8px}
+  h1{font-size:15px;margin:0;letter-spacing:.2px}
+  .brand{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--cobalt),#3a6fe0);
+        display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px;flex:0 0 auto}
+  .brand small{display:block;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-top:2px}
+  .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+  .eyebrow:first-child{margin-top:2px}
+  /* ---- stat cards ---- */
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stat{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:10px 11px}
+  .stat .v{font-size:21px;font-weight:800;line-height:1;letter-spacing:-.5px}
+  .stat .v.bad{color:var(--bad)} .stat .v.cob{color:var(--cobalt)}
+  .stat .k{font-size:10.5px;color:var(--ink2);margin-top:5px;line-height:1.25}
+  .stat.wide{grid-column:1/3}
+  .stat.wide .v{font-size:16px}
+  /* ---- priority list ---- */
+  .plist{display:flex;flex-direction:column;gap:6px}
+  .pitem{display:grid;grid-template-columns:26px 1fr auto;align-items:center;gap:9px;padding:8px 9px;
+         border:1px solid var(--line);border-radius:10px;cursor:pointer;background:#fff;transition:.12s}
+  .pitem:hover{border-color:var(--cobalt);background:#f7f9ff}
+  .pitem.sel{border-color:var(--cobalt);background:#eef3ff;box-shadow:inset 0 0 0 1px var(--cobalt)}
+  .rk{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font-weight:800;font-size:11px;color:#fff}
+  .pitem .nm{font-size:12.5px;font-weight:700;line-height:1.15}
+  .pitem .st{font-size:10.5px;color:var(--muted)}
+  .pitem .risk{font-size:14px;font-weight:800;text-align:right}
+  .pitem .risk small{display:block;font-size:9px;color:var(--muted);font-weight:600}
+  .mat{display:inline-block;font-size:9px;font-weight:700;color:#9a3412;background:#fde8d4;border-radius:5px;padding:1px 5px;margin-left:4px;vertical-align:1px}
+  /* ---- map ---- */
+  .center{position:relative;background:radial-gradient(120% 120% at 50% -10%,#fbfaf6 0%,#efece4 100%)}
+  #stage{position:absolute;inset:0}
+  #map,#dots{position:absolute;inset:0;width:100%;height:100%}
+  #dots{pointer-events:none}
+  .dist{stroke:#fff;stroke-width:.4;cursor:pointer}
+  .dist:hover{stroke:#161a22;stroke-width:1.1}
+  .dist.sel{stroke:var(--cobalt);stroke-width:1.8}
+  .maptitle{position:absolute;left:18px;top:14px;max-width:60%;z-index:5}
+  .maptitle h2{margin:0;font-size:17px;letter-spacing:-.2px}
+  .maptitle p{margin:3px 0 0;font-size:11.5px;color:var(--ink2);max-width:430px;line-height:1.35}
+  .legend{position:absolute;left:18px;bottom:16px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);
+          border:1px solid var(--line);border-radius:11px;padding:10px 12px;z-index:5;box-shadow:var(--shadow);min-width:210px}
+  .legend .lt{font-size:11px;font-weight:700;margin-bottom:7px;display:flex;justify-content:space-between;gap:8px}
+  .legend .lt span{color:var(--muted);font-weight:600}
+  .grad{height:9px;border-radius:5px;margin-bottom:4px}
+  .lscale{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+  .lnote{font-size:10px;color:var(--ink2);margin-top:7px;display:flex;align-items:center;gap:6px}
+  .swatch{width:11px;height:11px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.12)}
+  .zoomhint{position:absolute;right:16px;bottom:16px;font-size:10.5px;color:var(--muted);background:rgba(255,255,255,.85);
+            border:1px solid var(--line);border-radius:8px;padding:5px 9px;z-index:5}
+  .resetbtn{position:absolute;right:16px;top:14px;z-index:6;font-size:11px;font-weight:700;color:var(--cobalt);
+            background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer;box-shadow:var(--shadow)}
+  /* ---- tooltip ---- */
+  .tt{position:fixed;z-index:50;pointer-events:none;background:#161a22;color:#fff;border-radius:9px;padding:9px 11px;
+      font-size:11.5px;line-height:1.45;max-width:240px;box-shadow:0 8px 28px rgba(0,0,0,.28);opacity:0;transition:opacity .08s}
+  .tt b{font-size:12.5px} .tt .ttrow{display:flex;justify-content:space-between;gap:14px;margin-top:2px}
+  .tt .ttrow span{color:#aab2c4} .tt .pill{font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:5px;background:#2a3144}
+  /* ---- right controls ---- */
+  .ctl{margin-bottom:6px}
+  select{width:100%;font:inherit;font-size:12.5px;font-weight:600;padding:9px 10px;border:1px solid var(--line);
+         border-radius:9px;background:#fff;color:var(--ink);cursor:pointer;-webkit-appearance:none;appearance:none}
+  .layers{display:flex;flex-direction:column;gap:5px}
+  .lay{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;cursor:pointer;font-size:12px;font-weight:600;transition:.1s}
+  .lay:hover{background:#f7f9ff}
+  .lay.on{border-color:var(--cobalt);background:#eef3ff;color:var(--cobalt-d)}
+  .lay .dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:0 0 auto}
+  .lay.on .dot{background:var(--cobalt)}
+  .lay .ld{font-size:10px;color:var(--muted);font-weight:600;margin-left:auto;text-align:right;max-width:110px;line-height:1.2}
+  .lay.on .ld{color:var(--cobalt)}
+  .filt{border:1px solid var(--line);border-radius:10px;padding:9px 11px 6px;margin-bottom:8px}
+  .filt .fh{display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:2px}
+  .filt .fh em{font-style:normal;color:var(--cobalt);font-weight:700;font-size:11px}
+  .filt svg{display:block;width:100%}
+  .toggles{display:flex;flex-direction:column;gap:7px}
+  .tg{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:600;cursor:pointer;user-select:none}
+  .sw{width:34px;height:19px;border-radius:11px;background:#cfcabd;position:relative;transition:.15s;flex:0 0 auto}
+  .sw::after{content:"";position:absolute;width:15px;height:15px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .tg.on .sw{background:var(--cobalt)} .tg.on .sw::after{transform:translateX(15px)}
+  .specread{font-size:10.5px;color:var(--ink2);margin-top:7px;line-height:1.35}
+  .specread b{color:var(--cobalt)}
+  .caveat{font-size:10px;color:var(--muted);line-height:1.5;border-top:1px solid var(--line);margin-top:14px;padding-top:11px}
+  .caveat b{color:var(--ink2)}
+  .src{font-size:9.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .detail{border:1px solid var(--cobalt);background:#f7f9ff;border-radius:11px;padding:11px 12px;margin-top:10px}
+  .detail h3{margin:0 0 2px;font-size:13.5px}
+  .detail .dst{font-size:11px;color:var(--muted);margin-bottom:8px}
+  .dgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .dcell{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+  .dcell .dv{font-size:15px;font-weight:800;letter-spacing:-.3px}
+  .dcell .dk{font-size:9.5px;color:var(--muted);margin-top:2px}
+  .xclose{float:right;cursor:pointer;color:var(--muted);font-size:14px;font-weight:700;line-height:1}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ================= LEFT ================= -->
+  <div class="col left">
+    <div class="brand">
+      <div class="logo">⌖</div>
+      <div><h1>Medical Desert Planner</h1><small>India · access-gap intelligence</small></div>
+    </div>
+    <div class="scroll">
+      <div class="eyebrow">The access lottery</div>
+      <div class="stats" id="stats"></div>
+
+      <div class="eyebrow" style="margin-top:20px">Priority deserts — where to send help first</div>
+      <div id="detail-slot"></div>
+      <div class="plist" id="plist"></div>
+    </div>
+  </div>
+
+  <!-- ================= CENTER ================= -->
+  <div class="col center">
+    <div class="maptitle">
+      <h2 id="mtitle">Medical Desert Risk</h2>
+      <p id="msub">Composite of health need × facility-coverage gap × evidence gap, per district. Darker = a district that is both sicker and further from care.</p>
+    </div>
+    <button class="resetbtn" id="reset">Reset view</button>
+    <div id="stage">
+      <svg id="map"></svg>
+      <canvas id="dots"></canvas>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="zoomhint">scroll to zoom · drag to pan</div>
+  </div>
+
+  <!-- ================= RIGHT ================= -->
+  <div class="col right">
+    <div class="brand" style="justify-content:space-between">
+      <h1 style="font-size:13px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)">Insight Layers</h1>
+    </div>
+    <div class="scroll">
+      <div class="eyebrow">Specialty lens</div>
+      <div class="ctl"><select id="spec"></select></div>
+      <div class="specread" id="specread"></div>
+
+      <div class="eyebrow">Colour districts by</div>
+      <div class="layers" id="layers"></div>
+
+      <div class="eyebrow">Filter districts (drag the histogram)</div>
+      <div id="filters"></div>
+
+      <div class="eyebrow">Map layers</div>
+      <div class="toggles">
+        <label class="tg on" id="tg-fac"><span class="sw"></span> Show facilities <span style="margin-left:auto;font-size:10px;color:var(--muted)" id="facn"></span></label>
+        <label class="tg" id="tg-desert"><span class="sw"></span> Spatial deserts only</label>
+        <label class="tg" id="tg-op"><span class="sw"></span> Colour dots by public/private</label>
+      </div>
+
+      <div class="caveat">
+        <b>Read me honestly.</b> Facilities are a ~10k-record Virtue Foundation <b>sample</b> — this is care <b>coverage</b>, not a hospital census, and not per-capita (district population isn't in the data). Capacity &amp; specialty are <b>self-reported</b>. NFHS-5 suppressed cells encode <b>rarity</b>, not absence. Boundaries are DataMeet <b>Census-2011</b>; post-2011 NFHS districts are resolved onto their parent polygon (survey-weighted) — 639/641 painted, the 2 with no NFHS counterpart show grey.
+      </div>
+      <div class="src">Sources · Virtue Foundation facilities · NFHS-5 district health indicators · India Post pincode directory · DataMeet district boundaries (CC-BY 2.5). Built from our verified gap-analysis tables.</div>
+    </div>
+  </div>
+</div>
+<div class="tt" id="tt"></div>
+
+<script>/*__D3__*/</script>
+<script>/*__DATA__*/</script>
+<script>
+(function(){
+const MD = window.MD, geo = MD.geo, S = MD.stats;
+const tt = document.getElementById('tt');
+
+/* ---------------- layer definitions ---------------- */
+const LAYERS = [
+  {id:'RISK',  label:'Medical Desert Risk', unit:'0–100 composite', dir:1, dom:[0,95],
+   title:'Medical Desert Risk',
+   sub:'Composite of health need × facility-coverage gap × evidence gap, per district. Darker = a district that is both sicker and further from care.'},
+  {id:'HBI',   label:'Health Burden (HBI)', unit:'0–100 need', dir:1, dom:[0,90],
+   title:'Health Burden Index',
+   sub:'Pure need: anaemia, stunting, low institutional birth, low immunisation & antenatal care, rolled into one 0–100 index. Higher = greater health need.'},
+  {id:'COVGAP',label:'Coverage gap', unit:'0–100', dir:1, dom:[0,100],
+   title:'Facility-coverage gap',
+   sub:'How under-supplied a district is relative to its need. 100 = no mapped facilities for a high-need population.'},
+  {id:'nfac',  label:'Facility coverage', unit:'# mapped', dir:-1, dom:[0,40],
+   title:'Mapped facility coverage',
+   sub:'Count of sampled facilities falling in each district. Red = zero mapped facilities (a desert in this sample); green = better covered. Coverage, not a census.'},
+  {id:'nearkm',label:'Distance to nearest', unit:'km', dir:1, dom:[0,120],
+   title:'Distance to the nearest facility',
+   sub:'Straight-line km from a district centroid to its nearest mapped facility. Darker = more remote from any care in the sample.'},
+  {id:'MATNEED',label:'Maternal need', unit:'0–100', dir:1, dom:[0,90],
+   title:'Maternal-care desert',
+   sub:'Maternal need index (low antenatal care + low institutional birth + high adolescent motherhood). Pair with the maternal-desert flag in the list at left.'},
+];
+let layer = LAYERS[0];
+
+/* sequential scales: dir=1 higher worse (Reds), dir=-1 higher better (RdYlGn) */
+function interp(L){ return L.dir===1 ? d3.interpolateReds : t=>d3.interpolateRdYlGn(t); }
+function colorFor(L){
+  const [a,b]=L.dom, ip=interp(L);
+  return v=>{ if(v==null) return '#e4e0d8';
+    let t=(v-a)/(b-a); t=Math.max(0,Math.min(1,t));
+    if(L.dir===1) t=0.12+0.88*t;                 // keep low values readable
+    return ip(t); };
+}
+
+/* ---------------- filters ---------------- */
+const FILTERS = [
+  {id:'HBI',   label:'Health burden (HBI)',  dom:[0,90]},
+  {id:'nfac',  label:'Mapped facilities',    dom:[0,40]},
+  {id:'nearkm',label:'Km to nearest facility',dom:[0,150]},
+];
+const fstate = {}; FILTERS.forEach(f=>fstate[f.id]=[f.dom[0],f.dom[1]]);
+let desertsOnly=false, showFac=true, opColor=false, specIdx=-1, selKey=null;
+
+function passFilters(p){
+  for(const f of FILTERS){ const v=p[f.id];
+    if(v==null) continue;
+    const [lo,hi]=fstate[f.id]; if(v<lo||v>hi) return false; }
+  if(desertsOnly && !p.spdesert) return false;
+  return true;
+}
+
+/* ---------------- map setup ---------------- */
+const stage=document.getElementById('stage');
+const svg=d3.select('#map'), gMap=svg.append('g').attr('class','map');
+const canvas=document.getElementById('dots'), ctx=canvas.getContext('2d');
+let W=0,H=0,DPR=Math.min(2,window.devicePixelRatio||1);
+const proj=d3.geoMercator(), path=d3.geoPath(proj);
+let fxy=null;                                   // base projected facility coords
+
+function sizeup(){
+  W=stage.clientWidth; H=stage.clientHeight;
+  svg.attr('width',W).attr('height',H);
+  canvas.width=W*DPR; canvas.height=H*DPR;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  proj.fitExtent([[14,64],[W-14,H-16]],geo);
+  paths.attr('d',path);
+  fxy=MD.facs.map(f=>{ const xy=proj([f[1],f[0]]); return xy?[xy[0],xy[1]]:null; });
+  drawDots(d3.zoomTransform(svg.node()));
+}
+
+const paths=gMap.selectAll('path').data(geo.features).enter().append('path')
+  .attr('class','dist')
+  .on('mousemove',function(ev,d){ showTip(ev,d.properties); })
+  .on('mouseleave',()=>{ tt.style.opacity=0; })
+  .on('click',function(ev,d){ selectDistrict(d.properties, this); });
+
+/* zoom */
+const zoom=d3.zoom().scaleExtent([1,9]).on('zoom',ev=>{
+  gMap.attr('transform',ev.transform); drawDots(ev.transform);
+});
+svg.call(zoom);
+document.getElementById('reset').onclick=()=>svg.transition().duration(450).call(zoom.transform,d3.zoomIdentity);
+
+/* facility canvas */
+function drawDots(t){
+  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0,0,W,H);
+  if(!showFac||!fxy) return;
+  const k=t.k, ox=t.x, oy=t.y, r=Math.max(.9,1.15*Math.sqrt(k));
+  ctx.globalAlpha=0.7;
+  for(let i=0;i<fxy.length;i++){
+    const c=fxy[i]; if(!c) continue; const f=MD.facs[i];
+    if(specIdx>=0 && !(f[4]&&f[4].includes(specIdx))) continue;
+    ctx.beginPath(); ctx.arc(ox+k*c[0],oy+k*c[1],r,0,6.283);
+    ctx.fillStyle = opColor ? (f[2]===0?'#1f6f8b':f[2]===1?'#b3122e':'#7a8090') : '#155e75';
+    ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ---------------- recolor ---------------- */
+function recolor(){
+  const col=colorFor(layer);
+  paths.attr('fill',d=>{ const p=d.properties;
+      if(p.district===undefined) return '#e4e0d8';
+      const base=col(p[layer.id]);
+      return passFilters(p)?base:'#ece8df';
+    })
+    .attr('opacity',d=>{ const p=d.properties;
+      if(p.district===undefined) return .55;
+      return passFilters(p)?1:.45; })
+    .classed('sel',d=>keyOf(d.properties)===selKey);
+  document.getElementById('mtitle').textContent=layer.title;
+  document.getElementById('msub').textContent=layer.sub;
+  buildLegend();
+}
+function keyOf(p){ return p.district? (p.state+'|'+p.district):null; }
+
+/* ---------------- legend ---------------- */
+function buildLegend(){
+  const L=layer, ip=interp(L), el=document.getElementById('legend');
+  const stops=Array.from({length:24},(_,i)=>{ let t=i/23; if(L.dir===1)t=0.12+0.88*t; return ip(t); });
+  const lo=L.dir===1?'low':'red = 0 mapped', hi=L.dir===1?'high':'green = covered';
+  el.innerHTML=`<div class="lt">${L.title.replace(/—.*/,'')} <span>${L.unit}</span></div>
+    <div class="grad" style="background:linear-gradient(90deg,${stops.join(',')})"></div>
+    <div class="lscale"><span>${L.dir===1?L.dom[0]:'desert'}</span><span>${L.dir===1?L.dom[1]+'+':'best'}</span></div>
+    <div class="lnote"><span class="swatch" style="background:#155e75"></span> facility (sample)
+      &nbsp;<span class="swatch" style="background:#e4e0d8"></span> no data / newer district</div>`;
+}
+
+/* ---------------- tooltip ---------------- */
+function showTip(ev,p){
+  if(p.district===undefined){ tt.style.opacity=0; return; }
+  const r=v=>v==null?'—':v;
+  tt.innerHTML=`<b>${p.district}</b> <span class="pill">${p.state}</span>
+    ${p.himatneed?'<span class="mat">maternal desert</span>':''}
+    ${p.agg?`<div style="font-size:10px;color:#aab2c4;margin-top:3px">▦ aggregates ${p.agg.length} post-2011 districts</div>`:''}
+    <div class="ttrow"><span>Desert risk</span><b>${r(p.RISK)}</b></div>
+    <div class="ttrow"><span>Health burden</span>${r(p.HBI)}</div>
+    <div class="ttrow"><span>Mapped facilities</span>${r(p.nfac)}</div>
+    <div class="ttrow"><span>Nearest facility</span>${p.nearkm==null?'—':p.nearkm+' km'}</div>
+    <div class="ttrow"><span>Women anaemic</span>${p.anaemia==null?'—':p.anaemia+'%'}</div>`;
+  tt.style.opacity=1;
+  const pad=14; let x=ev.clientX+pad,y=ev.clientY+pad;
+  if(x+250>innerWidth)x=ev.clientX-250; if(y+150>innerHeight)y=ev.clientY-150;
+  tt.style.left=x+'px'; tt.style.top=y+'px';
+}
+
+/* ---------------- selection / detail ---------------- */
+function selectDistrict(p,node){
+  if(p.district===undefined) return;
+  selKey=keyOf(p); paths.classed('sel',d=>keyOf(d.properties)===selKey);
+  renderDetail(p);
+  [...document.querySelectorAll('.pitem')].forEach(el=>el.classList.toggle('sel',el.dataset.k===selKey));
+}
+function renderDetail(p){
+  const slot=document.getElementById('detail-slot');
+  const cell=(v,k,suf='')=>`<div class="dcell"><div class="dv">${v==null?'—':v}${v==null?'':suf}</div><div class="dk">${k}</div></div>`;
+  const persona=p.cluster!=null?MD.clusters[p.cluster]:null;
+  slot.innerHTML=`<div class="detail">
+    <span class="xclose" onclick="this.parentNode.remove()">×</span>
+    <h3>${p.district} ${p.himatneed?'<span class="mat">maternal desert</span>':''}</h3>
+    <div class="dst">${p.state} · ${p.region||''} ${p.rank?'· national risk rank #'+p.rank:''}${persona?' · '+persona:''}</div>
+    ${p.agg?`<div class="dst" style="margin-top:-4px">▦ survey-weighted aggregate of ${p.agg.length} post-2011 districts: ${p.agg.join(', ')}</div>`:''}
+    <div class="dgrid">
+      ${cell(p.RISK,'Desert risk (0–100)')}
+      ${cell(p.HBI,'Health burden')}
+      ${cell(p.nfac,'Mapped facilities')}
+      ${cell(p.nearkm,'Km to nearest','')}
+      ${cell(p.anaemia,'Women anaemic','%')}
+      ${cell(p.instbirth,'Institutional birth','%')}
+    </div></div>`;
+}
+
+/* ---------------- left: stats + priority ---------------- */
+function renderStats(){
+  const el=document.getElementById('stats');
+  const cards=[
+    {v:S.zero_fac,k:'districts with <b>zero</b> mapped facility',cls:'bad'},
+    {v:S.sp_desert,k:'true spatial deserts (remote from all care)',cls:'bad'},
+    {v:S.median_near+' km',k:'median distance to the nearest facility',cls:'cob'},
+    {v:S.n_facilities.toLocaleString(),k:'facilities mapped (a sample, not a census)',cls:'cob'},
+    {v:S.himat_zero,k:'high maternal-need districts with <b>zero</b> facility',cls:'bad',wide:true},
+    {v:S.worst_state+' '+S.worst_hbi+' vs '+S.best_state+' '+S.best_hbi,k:'worst vs best state health-burden index',wide:true},
+  ];
+  el.innerHTML=cards.map(c=>`<div class="stat ${c.wide?'wide':''}"><div class="v ${c.cls||''}">${c.v}</div><div class="k">${c.k}</div></div>`).join('');
+}
+function riskColor(v){ return d3.interpolateReds(0.25+0.6*Math.min(1,v/95)); }
+function renderPriority(){
+  const el=document.getElementById('plist');
+  el.innerHTML=MD.priority.map((p,i)=>{
+    const k=p.state+'|'+p.district;
+    return `<div class="pitem" data-k="${k}">
+      <span class="rk" style="background:${riskColor(p.RISK)}">${i+1}</span>
+      <div><div class="nm">${p.district}${p.himatneed?'<span class="mat">mat</span>':''}</div>
+        <div class="st">${p.state} · ${p.nfac} fac · ${p.nearkm==null?'—':p.nearkm+'km'}</div></div>
+      <div class="risk">${p.RISK}<small>risk</small></div></div>`;
+  }).join('');
+  [...el.querySelectorAll('.pitem')].forEach(it=>it.onclick=()=>{
+    const k=it.dataset.k;
+    const d=geo.features.find(f=>keyOf(f.properties)===k);
+    if(d){ selectDistrict(d.properties); flyTo(d); }
+  });
+}
+function flyTo(d){
+  const b=path.bounds(d), dx=b[1][0]-b[0][0], dy=b[1][1]-b[0][1];
+  const cx=(b[0][0]+b[1][0])/2, cy=(b[0][1]+b[1][1])/2;
+  const k=Math.max(1,Math.min(8,.6/Math.max(dx/W,dy/H)));
+  svg.transition().duration(600).call(zoom.transform,
+    d3.zoomIdentity.translate(W/2,H/2).scale(k).translate(-cx,-cy));
+}
+
+/* ---------------- right: layers, filters, specialty, toggles ---------------- */
+function renderLayers(){
+  const el=document.getElementById('layers');
+  el.innerHTML=LAYERS.map(L=>`<div class="lay ${L.id===layer.id?'on':''}" data-id="${L.id}">
+     <span class="dot"></span>${L.label}<span class="ld">${L.unit}</span></div>`).join('');
+  [...el.querySelectorAll('.lay')].forEach(l=>l.onclick=()=>{
+    layer=LAYERS.find(x=>x.id===l.dataset.id);
+    [...el.querySelectorAll('.lay')].forEach(x=>x.classList.toggle('on',x===l));
+    recolor();
+  });
+}
+function renderFilters(){
+  const wrap=document.getElementById('filters'); wrap.innerHTML='';
+  FILTERS.forEach(f=>{
+    const vals=geo.features.map(d=>d.properties[f.id]).filter(v=>v!=null);
+    const box=document.createElement('div'); box.className='filt';
+    box.innerHTML=`<div class="fh"><span>${f.label}</span><em data-r></em></div>`;
+    wrap.appendChild(box);
+    const w=box.clientWidth-22, h=38, bx=d3.scaleLinear().domain(f.dom).range([0,w]);
+    const bins=d3.bin().domain(f.dom).thresholds(22)(vals);
+    const my=d3.scaleLinear().domain([0,d3.max(bins,b=>b.length)||1]).range([h-12,2]);
+    const s=d3.select(box).append('svg').attr('height',h);
+    s.attr('width',w);
+    s.selectAll('rect.bar').data(bins).enter().append('rect').attr('class','bar')
+      .attr('x',b=>bx(b.x0)+.5).attr('width',b=>Math.max(1,bx(b.x1)-bx(b.x0)-1))
+      .attr('y',b=>my(b.length)).attr('height',b=>h-12-my(b.length))
+      .attr('fill','#c9d4ef').attr('rx',1);
+    const readout=box.querySelector('[data-r]');
+    const setR=([a,b])=>readout.textContent=`${Math.round(a)} – ${Math.round(b)}`;
+    setR(f.dom);
+    const brush=d3.brushX().extent([[0,0],[w,h-10]]).on('brush end',ev=>{
+      const sel=ev.selection;
+      const rng = sel? [bx.invert(sel[0]),bx.invert(sel[1])] : f.dom.slice();
+      fstate[f.id]=rng; setR(rng);
+      s.selectAll('rect.bar').attr('fill',b=>(b.x1>=rng[0]&&b.x0<=rng[1])?'#5b7fd6':'#dfe4ee');
+      recolor();
+    });
+    s.append('g').attr('class','brush').call(brush);
+  });
+}
+function renderSpec(){
+  const sel=document.getElementById('spec');
+  sel.innerHTML='<option value="-1">All specialties</option>'+
+    MD.specs.map((s,i)=>`<option value="${i}">${s}</option>`).join('');
+  const read=document.getElementById('specread');
+  const total=MD.facs.length;
+  const update=()=>{
+    specIdx=+sel.value;
+    if(specIdx<0){ read.innerHTML=`All <b>${total.toLocaleString()}</b> mapped facilities shown.`; }
+    else{ const n=MD.facs.filter(f=>f[4]&&f[4].includes(specIdx)).length;
+      read.innerHTML=`<b>${n.toLocaleString()}</b> of ${total.toLocaleString()} facilities report <b>${MD.specs[specIdx]}</b> — the empty regions are this specialty's deserts.`; }
+    drawDots(d3.zoomTransform(svg.node()));
+  };
+  sel.onchange=update; update();
+}
+function wireToggles(){
+  const facn=document.getElementById('facn'); facn.textContent=MD.facs.length.toLocaleString();
+  const tgF=document.getElementById('tg-fac'), tgD=document.getElementById('tg-desert'), tgO=document.getElementById('tg-op');
+  tgF.onclick=()=>{ showFac=!showFac; tgF.classList.toggle('on',showFac); drawDots(d3.zoomTransform(svg.node())); };
+  tgD.onclick=()=>{ desertsOnly=!desertsOnly; tgD.classList.toggle('on',desertsOnly); recolor(); };
+  tgO.onclick=()=>{ opColor=!opColor; tgO.classList.toggle('on',opColor); drawDots(d3.zoomTransform(svg.node())); };
+}
+
+/* ---------------- go ---------------- */
+renderStats(); renderPriority(); renderLayers(); renderSpec(); wireToggles();
+sizeup(); renderFilters(); recolor();
+window.addEventListener('resize',()=>{ sizeup(); renderFilters(); recolor(); });
+})();
+</script>
+</body>
+</html>
