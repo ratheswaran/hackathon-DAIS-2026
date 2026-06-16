@@ -3,6 +3,8 @@
 > A full-stack data-analytics agent for the **Virtue Foundation India healthcare-access** dataset,
 > built for the **Databricks Apps & Agents for Good 2026** hackathon. Track: **Medical Desert Planner**.
 
+> ⏳ **Give the GIFs a moment to load. It will be worth it!**
+
 First we had to create a scaffold for the harness. We used the **Deep Agents SDK by LangChain** to
 build it, because Databricks does not have a sandbox natively. A virtual filesystem of **Volumes**
 (to store artefacts) and **Workspaces** (to store agent-generated Databricks notebooks) was simulated,
@@ -137,12 +139,6 @@ Virtue Foundation Delta Share, `databricks_virtue_foundation_dataset_dais_2026.v
 
 Join spine: facility PIN to pincode modal district to NFHS district.
 
-## The stack
-
-Databricks Model Serving (gpt-5.5 via Azure) · **Agent Bricks** Genie Spaces · Lakebase (Autoscale
-Postgres) · Neo4j Aura (the `find_skill` knowledge graph) · `databricks-gte-large-en` embeddings ·
-DeepAgents and LangGraph · React/Vite and Express on Databricks Apps.
-
 ## Repo layout
 
 | Path | What it is |
@@ -152,13 +148,6 @@ DeepAgents and LangGraph · React/Vite and Express on Databricks Apps.
 | `hackathon-medical-desert-map/` | The standalone interactive India access-gap map (D3), served by the app. |
 | `hackathon-skills/` | Domain and design-system skill files (the filesystem fallback; the live system reads from the graph). |
 | `graph-build/` | Reproducible pipeline that builds the India-healthcare `find_skill` graph (domain seed, capability/skill layer, embeddings) on Neo4j Aura. |
-
-## Secrets
-
-No credentials are committed. The orchestrator reads them from a Databricks secret scope or a gitignored
-`workspace_config.yml` (see `hackathon-orchestrator-neo4j/workspace_config.example.yml`); the app reads
-`POSTGRES_URL` and `DATABRICKS_SERVING_ENDPOINT` from app env. Placeholders like `${LAKEBASE_PASSWORD}`
-and `${NEO4J_PASSWORD}` mark where to supply your own.
 
 ## View the full video
 
