@@ -125,7 +125,7 @@ export function presentToolRow(
   };
 }
 
-// Hackathon Genie spaces — keep in sync with hackathon-skills/domains/SKILL.md.
+// Hackathon Genie spaces (India Healthcare Access) — labels for the find_skill graph's Genie space.
 // Add new spaces here when wiring additional domains.
 const GENIE_SPACE_NAMES: Record<string, string> = {
   '01f168ec4bf01d27a00ac8069c1b06b8': 'India Healthcare Access',

@@ -1,4 +1,4 @@
-"""DuckDB-over-Lakebase fast path for querying stored DataFrames (plan A6).
+"""DuckDB-over-Lakebase fast path for querying stored DataFrames.
 
 Runs arbitrary SQL against variables previously stored by
 ``ask_genie_space``, ``run_spark_sql``, or ``store_dataframe`` without
@@ -10,18 +10,14 @@ current ``(user_id, thread_id)`` scope. The user writes SQL that
 references variable names directly — the views map them back to the
 real ``ai_chatbot.variable_store_<hash>`` tables.
 
-Model C was picked by the A6a benchmark (commit ``3282764``, median
-``C/A_cold`` = 0.65x on 100K rows). See
-``deep_agent_ra_v2/benchmarks/duckdb_model_comparison.py`` and
-``~/.claude/.../project_a6a_benchmark_decision.md`` for numbers +
-caveats. Notable: ~500ms per call, so the subagent prompts (B4) should
-encourage SQL batching with CTEs rather than 5 sequential one-liners.
+The attach-and-temp-view model was picked by benchmark for its low cold
+latency (~0.65x vs. rehydrating pandas on 100K rows). Notable: ~500ms per
+call, so the subagent prompts should encourage SQL batching with CTEs
+rather than 5 sequential one-liners.
 
 **Result auto-store:** if ``result_name`` is provided and the
 VariableStore factory is wired, the result DataFrame is stored back to
 Lakebase under the new name so downstream queries can chain on it.
-
-Spec: ``deep_agent_ra_v2/plans/functional-dancing-tiger.md`` A6 (ST §1.1, §1.2).
 """
 
 from __future__ import annotations
@@ -93,7 +89,7 @@ def build_query_stored_dfs_tool(
 
         Use AFTER ``ask_genie_space`` / ``run_spark_sql`` have populated the
         VariableStore. Reference stored variables by name as tables (e.g.
-        ``SELECT origin, SUM(decisions) FROM asylum_by_origin GROUP BY 1``).
+        ``SELECT state, SUM(facility_count) FROM facilities_by_district GROUP BY 1``).
         DuckDB dialect; joins, window functions and CTEs all work. Prefer ONE
         multi-stage CTE query over several one-liners — each call costs ~500ms
         of attach overhead.

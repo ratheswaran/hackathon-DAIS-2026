@@ -19,32 +19,32 @@ The LATEST frame is rendered first as the resting state; the loop (if motion all
       "year": 2014,
       "rows": [
         {
-          "label": "Syria",
-          "value": 7600000
+          "label": "Maharashtra",
+          "value": 760
         },
         {
-          "label": "Afghanistan",
-          "value": 4200000
+          "label": "Uttar Pradesh",
+          "value": 420
         },
         {
-          "label": "Colombia",
-          "value": 6100000
+          "label": "Tamil Nadu",
+          "value": 610
         },
         {
-          "label": "DR Congo",
-          "value": 2900000
+          "label": "Karnataka",
+          "value": 290
         },
         {
-          "label": "Somalia",
-          "value": 2100000
+          "label": "Kerala",
+          "value": 210
         },
         {
-          "label": "Sudan",
-          "value": 1800000
+          "label": "Bihar",
+          "value": 180
         },
         {
-          "label": "Iraq",
-          "value": 1500000
+          "label": "Rajasthan",
+          "value": 150
         }
       ]
     },
@@ -52,32 +52,32 @@ The LATEST frame is rendered first as the resting state; the loop (if motion all
       "year": 2018,
       "rows": [
         {
-          "label": "Syria",
-          "value": 12600000
+          "label": "Maharashtra",
+          "value": 1260
         },
         {
-          "label": "Afghanistan",
-          "value": 4900000
+          "label": "Uttar Pradesh",
+          "value": 490
         },
         {
-          "label": "Colombia",
-          "value": 7900000
+          "label": "Tamil Nadu",
+          "value": 790
         },
         {
-          "label": "DR Congo",
-          "value": 4500000
+          "label": "Karnataka",
+          "value": 450
         },
         {
-          "label": "Somalia",
-          "value": 3100000
+          "label": "Kerala",
+          "value": 310
         },
         {
-          "label": "Sudan",
-          "value": 2500000
+          "label": "Bihar",
+          "value": 250
         },
         {
-          "label": "South Sudan",
-          "value": 4200000
+          "label": "Gujarat",
+          "value": 420
         }
       ]
     },
@@ -85,32 +85,32 @@ The LATEST frame is rendered first as the resting state; the loop (if motion all
       "year": 2024,
       "rows": [
         {
-          "label": "Sudan",
-          "value": 14900000
+          "label": "Maharashtra",
+          "value": 1490
         },
         {
-          "label": "Syria",
-          "value": 13800000
+          "label": "Tamil Nadu",
+          "value": 1380
         },
         {
-          "label": "Afghanistan",
-          "value": 10300000
+          "label": "Uttar Pradesh",
+          "value": 1030
         },
         {
-          "label": "Ukraine",
-          "value": 9700000
+          "label": "Karnataka",
+          "value": 970
         },
         {
-          "label": "Colombia",
-          "value": 6800000
+          "label": "Kerala",
+          "value": 680
         },
         {
-          "label": "DR Congo",
-          "value": 6400000
+          "label": "Gujarat",
+          "value": 640
         },
         {
-          "label": "Somalia",
-          "value": 3700000
+          "label": "Bihar",
+          "value": 370
         }
       ]
     }
@@ -152,7 +152,7 @@ for yr, grp in work.groupby(year_col, sort=True):
 return {"frames": frames, "top_n": top_n}
 ```
 
-**Notes:** Faithful port of build_race.py, adapted to the scene-engine contract.
+**Notes:** Faithful port of the reference bar-race builder, adapted to the scene-engine contract.
 
 MOTION/RELIABILITY: the LATEST frame is painted first as the resting geometry (correct at t=0 for headless-Chrome rasterization and backgrounded tabs), then opacity-faded in via H.in. Bar-race is the contract's explicit "inherently animated" exception, so the replay loop (earliest→latest, ending on latest) recomputes bar widths per frame via a d3.timer — width/transform changes happen ONLY inside the loop, never as the reveal mechanism. RM (prefers-reduced-motion) short-circuits the loop, leaving the static final frame. The replay starts after a 900ms delay so a screenshot taken near t=0 captures the final-frame resting state, not frame 0.
 
@@ -160,6 +160,6 @@ CSS: used only contract classes — 'axis' (gridline ticks via axisTop with tick
 
 HIGHLIGHT-BY-COLOUR: by default every bar is neutral (H.hue → P.grey); only the label equal to scene.highlight gets P.signal. If the python_shaper is given a mapping['color_col'] (e.g. a region-bucket hex like the reference's BUCKET_COLOR), per-row d.frames[*].rows[*].color overrides and colours bars by region — that reproduces the reference's editorial region palette. Leave color_col unset for the sober highlight-one-entity default.
 
-Simplifications vs the reference: dropped the interactive play/pause/scrub/speed UI and the linear inter-year interpolation (the scene engine renders a static-or-autoplay figure, not a controllable widget); frames are discrete with a fixed hold. The leader caption + takeaway cards + legend from the reference live in scene narrative fields (lede/caption/annotations) rather than chart chrome. d.frames[*].rows is the full per-year field; the renderer does the top_n slice + per-frame re-rank itself, matching build_race.py's render().
+Simplifications vs the reference: dropped the interactive play/pause/scrub/speed UI and the linear inter-year interpolation (the scene engine renders a static-or-autoplay figure, not a controllable widget); frames are discrete with a fixed hold. The leader caption + takeaway cards + legend from the reference live in scene narrative fields (lede/caption/annotations) rather than chart chrome. d.frames[*].rows is the full per-year field; the renderer does the top_n slice + per-frame re-rank itself, matching the reference builder's render().
 
 python_shaper expects a long/tidy DataFrame (one row per year×entity) and reads mapping {year_col, label_col, value_col, color_col?, top_n?}. Falls back to sensible auto-detection (year = a numeric col in 1900–2100; value = first numeric; label = first remaining). For inline data, pass d directly on the scene.

@@ -132,9 +132,9 @@ identical args.** Two retries max per turn.
    normal; ten queries means you are over-engineering.
 5b. **Cover + closing + section titles: keep them short** (≤ 8 words,
    fits two lines). Push period/scope/preparer detail into `lede`.
-   Example: title `"The Asylum Lottery"` + lede `"Why identical claims
-   meet opposite fates across Europe."` — not a period crammed into the
-   title.
+   Example: title `"The Care Lottery"` + lede `"Why district health
+   access varies up to 80x across India."` — not a period crammed into
+   the title.
 6. **Data unavailable → build the deck anyway with the closest available
    data.** After one attempt that confirms absence, pivot. The first
    content slide MUST then be a `data_note` naming the requested vs the
@@ -214,8 +214,8 @@ multiple charts or use a stacked treatment.
 - **No text-only slides** — every slide gets a chart, KPI tile, big
   number, or shape.
 - **Don't over-explain the chart in the title.** The title says what
-  the data says ("Germany recognises 96%, Sweden 40%"), not what kind of
-  chart it is ("Bar chart of recognition rate").
+  the data says ("Bihar HBI 78, Kerala 17"), not what kind of
+  chart it is ("Bar chart of health burden index").
 - **Don't add a `logo` field.** The brand-mark is drawn automatically.
 
 ## QA (Required)

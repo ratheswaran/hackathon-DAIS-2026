@@ -7,19 +7,26 @@ embed_text straight from the loaded :Node nodes.
 import os, sys, time, configparser
 from pathlib import Path
 
-BASE = Path("/Users/rathes/Library/CloudStorage/OneDrive-ResonanceAnalyticsEnterprise/Documents/MSc Business Analytics/05. Analytics in Business/Building A Open Harness Agent/databricks notebook")
-ORCH = BASE / "hackathon-orchestrator-neo4j"
-CREDS = BASE / "neo4j" / "Neo4j-2a3edbfb-Created-2026-06-09.txt"
-PROFILE = "hackathon"
+REPO_ROOT = Path(os.environ.get("HACKATHON_REPO_ROOT", Path(__file__).resolve().parent.parent))
+ORCH = REPO_ROOT / "hackathon-orchestrator-neo4j"
+PROFILE = os.environ.get("DATABRICKS_PROFILE", "hackathon")
 
-for line in CREDS.read_text().splitlines():
-    line = line.strip()
-    if "=" in line and not line.startswith("#"):
-        k, v = line.split("=", 1)
-        if k == "NEO4J_URI": NEO_URI = v
-        elif k == "NEO4J_USERNAME": NEO_USER = v
-        elif k == "NEO4J_PASSWORD": NEO_PW = v
-        elif k == "NEO4J_DATABASE": NEO_DB = v
+# Neo4j creds: env vars win; else read a gitignored KEY=VALUE creds file (NEO4J_CREDS_FILE).
+NEO_URI = os.environ.get("NEO4J_URI"); NEO_USER = os.environ.get("NEO4J_USERNAME", "neo4j")
+NEO_PW = os.environ.get("NEO4J_PASSWORD"); NEO_DB = os.environ.get("NEO4J_DATABASE", "neo4j")
+if not (NEO_URI and NEO_PW):
+    _creds = os.environ.get("NEO4J_CREDS_FILE")
+    if not _creds:
+        sys.exit("Set NEO4J_URI/NEO4J_USERNAME/NEO4J_PASSWORD/NEO4J_DATABASE, "
+                 "or NEO4J_CREDS_FILE=<path to a gitignored KEY=VALUE creds file>.")
+    for line in Path(_creds).read_text().splitlines():
+        line = line.strip()
+        if "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            if k == "NEO4J_URI": NEO_URI = v
+            elif k == "NEO4J_USERNAME": NEO_USER = v
+            elif k == "NEO4J_PASSWORD": NEO_PW = v
+            elif k == "NEO4J_DATABASE": NEO_DB = v
 
 cfg = configparser.ConfigParser(); cfg.read(os.path.expanduser("~/.databrickscfg"))
 host = cfg[PROFILE]["host"].rstrip("/")

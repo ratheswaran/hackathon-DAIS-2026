@@ -169,7 +169,7 @@ def brain_search(
 
 if __name__ == "__main__":
     import sys
-    q = " ".join(sys.argv[1:]) or "what chart should I use to show recognition rate by country of origin"
+    q = " ".join(sys.argv[1:]) or "what chart should I use to show the district access gap by state"
     with Neo4j() as db:
         res = brain_search(db, q)
     print(f"\nQ: {q}")

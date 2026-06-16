@@ -32,9 +32,6 @@ the tool thread is not the orchestrator's thread.
 per-request block (before ``agent.stream()``) so the request gets its
 own fresh list. Tools call ``record_sql(...)`` from anywhere. The
 orchestrator calls ``drain()`` once after the stream completes.
-
-Reported and rationale captured in
-``deep_agent_ra_v2/plans/ultrareview-2026-04-21.md#3``.
 """
 
 from __future__ import annotations

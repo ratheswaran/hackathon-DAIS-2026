@@ -1,7 +1,7 @@
 """Build the India-healthcare (Medical Desert Planner) DOMAIN seed for the
 find_skill knowledge graph — {nodes, edges} in the schema seed_load.py consumes.
 
-Layered like the UNHCR domain it replaces:
+Layered like the prior domain it replaces:
   data-semantics : Domain / GenieSpace / Table / Column   (STATIC — from dataset-schema.md)
   capability-link: Metric / Rule / SqlPattern             (from verified EDA)
   why / insight  : Finding / Question                     (from verified EDA + story spine)

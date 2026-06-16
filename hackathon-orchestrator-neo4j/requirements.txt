@@ -1,8 +1,9 @@
-# Databricks Serverless Environment dependencies for hackathon orchestrator.
+# Databricks Serverless Environment dependencies for the hackathon orchestrator.
 # Add this file via the "Environment" side panel: Dependencies → Add → -r requirements.txt
-# Path on workspace: /Workspace/Users/ra2724@ic.ac.uk/hackathon/orchestrator/requirements.txt
+# Path on workspace: <workspace-user-dir>/hackathon/orchestrator-neo4j/requirements.txt
 #
-# Deps mirror Cell 9 pip_requirements so log_model + serving pull the same set.
+# Deps mirror the deploy notebook's pip_requirements so log_model + serving pull
+# the same set.
 
 # MLflow + Databricks ML platform
 mlflow-skinny[databricks]
@@ -42,9 +43,8 @@ duckdb>=0.10.0
 pydantic>=2.0.0
 pyyaml
 
-# Office-suite document generation for the compose_document tool (added
-# 2026-05-15 after the pptx-via-run_python_code trap in
-# tr-83d056e1a485c06f8b19df47db7f08e3). All pure-Python (no system libs) so
+# Office-suite document generation for the compose_document tool.
+# All pure-Python (no system libs) so
 # they install cleanly in the Apps/Serverless build sandbox — reportlab is
 # preferred over weasyprint specifically because weasyprint pulls cairo/pango.
 # compose_deck (RA decks) renders NATIVE PowerPoint chart objects → needs >=1.0.0

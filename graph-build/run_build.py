@@ -2,9 +2,10 @@
 domain seed + the kept skill/capability layer, embed via the event workspace's
 gte-large-en (1024-dim), build indexes + pagerank/louvain.
 
-Secrets are read at runtime from local files (never on the command line):
-  - Neo4j (Aura) creds  : neo4j/Neo4j-2a3edbfb-Created-2026-06-09.txt
-  - Databricks embed tok : ~/.databrickscfg [hackathon] (event workspace)
+Secrets are read at runtime from the environment (never on the command line):
+  - Neo4j (Aura) creds  : NEO4J_URI / NEO4J_USERNAME / NEO4J_PASSWORD / NEO4J_DATABASE
+                          (or point NEO4J_CREDS_FILE at a gitignored KEY=VALUE creds file)
+  - Databricks embed tok : ~/.databrickscfg [<DATABRICKS_PROFILE or "hackathon">]
 
 Usage:  python run_build.py            # full wipe+load+embed
         python run_build.py --no-embed # structural dry run (still wipes!)
@@ -12,21 +13,32 @@ Usage:  python run_build.py            # full wipe+load+embed
 import os, sys, configparser
 from pathlib import Path
 
-BASE = Path("/Users/rathes/Library/CloudStorage/OneDrive-ResonanceAnalyticsEnterprise/Documents/MSc Business Analytics/05. Analytics in Business/Building A Open Harness Agent/databricks notebook")
-ORCH = BASE / "hackathon-orchestrator-neo4j"
-GB = BASE / "hackathon-session-2026-06-15" / "graph_build"
-CREDS = BASE / "neo4j" / "Neo4j-2a3edbfb-Created-2026-06-09.txt"
-PROFILE = "hackathon"  # event workspace — gte-large-en lives here
+# Repo-relative by default; override the repo root via HACKATHON_REPO_ROOT.
+REPO_ROOT = Path(os.environ.get("HACKATHON_REPO_ROOT", Path(__file__).resolve().parent.parent))
+ORCH = REPO_ROOT / "hackathon-orchestrator-neo4j"
+GB = Path(__file__).resolve().parent  # this graph-build dir holds the seed JSONs
+PROFILE = os.environ.get("DATABRICKS_PROFILE", "hackathon")  # workspace where gte-large-en lives
 
-# --- Neo4j creds -> env ---
-for line in CREDS.read_text().splitlines():
-    line = line.strip()
-    if "=" in line and not line.startswith("#"):
-        k, v = line.split("=", 1)
-        if k == "NEO4J_URI": os.environ["NEO4J_URI"] = v
-        elif k == "NEO4J_USERNAME": os.environ["NEO4J_USER"] = v
-        elif k == "NEO4J_PASSWORD": os.environ["NEO4J_PASSWORD"] = v
-        elif k == "NEO4J_DATABASE": os.environ["NEO4J_DATABASE"] = v
+# --- Neo4j creds -> env (env vars win; else read a gitignored KEY=VALUE creds file) ---
+def _load_neo4j_creds():
+    if os.environ.get("NEO4J_URI") and os.environ.get("NEO4J_PASSWORD"):
+        os.environ.setdefault("NEO4J_USER", os.environ.get("NEO4J_USERNAME", "neo4j"))
+        os.environ.setdefault("NEO4J_DATABASE", os.environ.get("NEO4J_DATABASE", "neo4j"))
+        return
+    creds_file = os.environ.get("NEO4J_CREDS_FILE")
+    if not creds_file:
+        sys.exit("Set NEO4J_URI/NEO4J_USERNAME/NEO4J_PASSWORD/NEO4J_DATABASE, "
+                 "or NEO4J_CREDS_FILE=<path to a gitignored KEY=VALUE creds file>.")
+    for line in Path(creds_file).read_text().splitlines():
+        line = line.strip()
+        if "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            if k == "NEO4J_URI": os.environ["NEO4J_URI"] = v
+            elif k == "NEO4J_USERNAME": os.environ["NEO4J_USER"] = v
+            elif k == "NEO4J_PASSWORD": os.environ["NEO4J_PASSWORD"] = v
+            elif k == "NEO4J_DATABASE": os.environ["NEO4J_DATABASE"] = v
+
+_load_neo4j_creds()
 
 # --- Databricks embed creds -> env (event workspace) ---
 cfg = configparser.ConfigParser(); cfg.read(os.path.expanduser("~/.databrickscfg"))

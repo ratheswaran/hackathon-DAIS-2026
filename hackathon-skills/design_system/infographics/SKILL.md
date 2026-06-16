@@ -6,8 +6,8 @@ description: >
   `compose_story` freehand escape hatch (bespoke scrollytelling). Covers the
   18 chart archetypes, when to pick each (grounded in the Cleveland–McGill
   perceptual hierarchy), the data-injection model, the editorial "reframe"
-  spine, sober UNHCR voice, and the methodology/sourcing apparatus. Use
-  whenever the agent is about to emit a chart, KPI, or visual story.
+  spine, sober healthcare-access voice, and the methodology/sourcing apparatus.
+  Use whenever the agent is about to emit a chart, KPI, or visual story.
 ---
 
 # Data-Story Composition Skill
@@ -20,9 +20,9 @@ description: >
 > escape hatch — only for a *bespoke scroll-driven essay* the archetypes can't
 > express. Prefer `compose_infographic`.
 
-This is the Resonance Analytics visual layer for the UNHCR / DAIS-for-Good
-agent. The subject is forced displacement. The voice is sober; the craft is
-exacting; every number is grounded in a query, never hand-typed.
+This is the Resonance Analytics visual layer for the Medical Desert Planner /
+DAIS-for-Good agent. The subject is India healthcare access. The voice is sober;
+the craft is exacting; every number is grounded in a query, never hand-typed.
 
 ---
 
@@ -30,33 +30,34 @@ exacting; every number is grounded in a query, never hand-typed.
 
 ```python
 compose_infographic(
-  title="Forced displacement is the most concentrated crisis on earth",
-  kicker="UNHCR · Resonance Analytics",        # eyebrow above the title
-  lede="A handful of country-to-country flows account for almost all of it.",
+  title="Healthcare access in India is among the most unequal anywhere",
+  kicker="Virtue Foundation · Resonance Analytics",   # eyebrow above the title
+  lede="A handful of districts hold most of the facility coverage; many hold none.",
   stats=[                                       # optional hero stat cards (the reframe up top)
-    {"value": "0.98", "label": "Gini across all origin→asylum flows (1.0 = total concentration)"},
-    {"value": "76%",  "label": "of refugees sit in the top 1% of country-pairs"},
+    {"value": "81.5×", "label": "gap in facility coverage between the best- and worst-served districts"},
+    {"value": "~245",  "label": "of ~698 NFHS-5 districts have ZERO facilities in the sample"},
   ],
   scenes=[                                       # ORDERED list — 1 = single chart, many = report story
     {"type": "lorenz_gini", "eyebrow": "CONCENTRATION · 01",
      "title": "How unequal? The Lorenz curve.",
      "lede": "The diagonal is perfect equality; the bowed line is reality.",
-     "variable_name": "refugee_pairs_2024", "mapping": {"value_col": "refugees"},
-     "caption": "End-2024 refugee stocks across ~4,700 origin×asylum pairs."},
+     "variable_name": "district_facilities", "mapping": {"value_col": "facility_count"},
+     "caption": "Facility coverage across ~698 NFHS-5 districts (sample, not a census)."},
     {"type": "ranked_bar", "eyebrow": "CONCENTRATION · 02",
-     "title": "The ten origins behind most of the world's refugees.",
-     "variable_name": "top_origins", "mapping": {"label_col": "origin", "value_col": "refugees"},
-     "highlight": "Syria", "value_label": "refugees", "top_n": 10},
+     "title": "The ten districts holding the most facility coverage.",
+     "variable_name": "top_districts", "mapping": {"label_col": "district", "value_col": "facility_count"},
+     "highlight": "Bihar", "value_label": "facilities", "top_n": 10},
   ],
-  methodology="End-of-year stocks, joined on ISO3; sentinel codes excluded. "
-              "Gini computed across all pairs with ≥1 refugee.",
-  source_note="UNHCR Refugee Data Finder, CC BY 4.0, pulled 2026-05-06.",
+  methodology="Facilities is a ~10k SAMPLE (coverage, not a census); joined to "
+              "NFHS-5 districts via the India Post PIN crosswalk. No per-capita "
+              "(no population in the 3 tables). Claims are self-reported.",
+  source_note="Virtue Foundation healthcare-access dataset; NFHS-5 district health indicators; India Post PIN directory.",
 )
 ```
 
 Returns `{"status":"ok","infographic_id":..,"url":"/api/infographics/<id>","scene_count":..}`.
 **Surface ONLY the title in prose** — the frontend auto-opens the side panel from
-`infographic_id`. Never paste the `url` or a `databricksapps.com/Volumes/...` link.
+`infographic_id`. Never paste the `url` or a Volumes link.
 
 ### How a scene gets its data — two ways
 
@@ -95,17 +96,17 @@ are low-rank — use `ranked_bar` or `kpi_grid` instead).
 | How concentrated / unequal is it? | `lorenz_gini` | position + area |
 | One headline number with weight | `stat` (or `count_up`) | text |
 | A few headline numbers + deltas | `kpi_grid` | text + length(delta) |
-| Is the treatment a lottery? (effect + uncertainty) | `forest_ci` | position on log scale + CI length |
-| The lottery as texture (origin × destination) | `heatmap_matrix` | **number printed**, colour secondary |
-| Does wealth predict burden? (correlation, honest null) | `bubble_scatter` | position (log–log) + area |
-| Where, geographically? | `choropleth` | shading (Europe-framed) |
+| Is the outcome a lottery? (effect + uncertainty) | `forest_ci` | position on log scale + CI length |
+| The disparity as texture (state × indicator) | `heatmap_matrix` | **number printed**, colour secondary |
+| Does supply follow need? (correlation, honest null) | `bubble_scatter` | position (log–log) + area |
+| Where, geographically? | `choropleth` | shading (district/state-framed) |
 | Two-state comparison / gap per row | `dumbbell` | position + length(gap) |
 | Rank reversal / Simpson's paradox | `slope` | position + crossing lines |
-| Age–sex structure | `pyramid` | length, diverging from centre |
+| Demographic structure | `pyramid` | length, diverging from centre |
 | Who led over time (changing ranks) | `bar_race` | length + motion |
 | The reframe: the number behind the number | `iceberg` | length, above/below a waterline |
 | Where is this heading? | `projection` | position + uncertainty band |
-| The biggest flows origin→host | `sankey_corridors` | flow width |
+| The biggest flows district→facility-type | `sankey_corridors` | flow width |
 
 **When two archetypes fit, prefer the higher-rank encoding** (e.g. `ranked_bar`
 over a donut for composition; `dumbbell` over two separate bars for a 2-state gap).
@@ -126,28 +127,28 @@ A *story* (≥2 scenes) is more than a chart dump. Sequence it:
 
 ### The "reframe" editorial spine
 
-Every strong UNHCR story shows **the second number behind the first**:
+Every strong healthcare-access story shows **the second number behind the first**:
 
-- headline refugee count → **iceberg**: most are IDPs who never crossed a border
-- "generous nations" → **slope/dumbbell**: Simpson's paradox once you adjust for caseload
-- absolute hosting leaderboard → **per-capita**: Lebanon/Chad carry the real weight
-- "asylum is asylum" → **forest_ci / heatmap_matrix**: a 17× lottery by destination
+- headline facility count → **iceberg**: most districts hold the visible tip, many hold none
+- "supply follows need" → **slope/dumbbell**: rank reversal once you adjust for urbanisation
+- absolute facility leaderboard → **coverage gap**: Bihar's burden vs Kerala's access
+- "more facilities = better care" → **forest_ci / heatmap_matrix**: outcomes vary district-to-district
 
 Lead with the reframe in the lede and the hero stat. State it plainly.
 
 ---
 
-## 4. Voice (UNHCR data = real displaced people)
+## 4. Voice (healthcare-access data = real patients & communities)
 
-- **No emoji. No clickbait. No triumphalism** — a high ranking is a tragedy, not a podium.
-- **Titles**: plain noun phrase, **time scope when the data has one**
-  ("Top hosts of Sudanese refugees, end-2024"). Past/scope-bound tense, not present
-  ("Sudan exceeded Syria on total displaced in 2024", not "Sudan IS the biggest crisis").
-- **Lede**: 1–2 sentences, human framing first ("1.11 million people from Sudan
-  sought protection in Chad" — not "Chad ranks #1"). Don't repeat the title.
+- **No emoji. No clickbait. No triumphalism** — a high ranking is a burden, not a podium.
+- **Titles**: plain noun phrase, **scope when the data has one**
+  ("Districts with zero facilities, NFHS-5 sample"). Scope-bound tense, not overclaiming
+  ("Bihar's burden index exceeded Kerala's", not "Bihar IS the worst-served").
+- **Lede**: 1–2 sentences, human framing first ("~245 of ~698 districts have no facility
+  in the sample" — not "district X ranks #1"). Don't repeat the title.
 - **Caption**: name the finding + the scope/denominator + any methodology caveat
-  (R2 Venezuela OOC reclassification; R3 refugees vs asylum-seekers; R11 decisions
-  lag applications 1–3 yrs; R13 closures ≠ rejections; TRR ≠ recognition-over-total).
+  (facilities is a ~10k SAMPLE = coverage not supply; claims are self-reported;
+  no per-capita; NFHS suppression = rarity not poverty; PIN→district crosswalk join).
 - **Numbers**: `14.34 million` for ≥1M; `1,109,357` (commas) for 100K–1M; bare for
   <100K; `94.06%` not `0.9406`; signed deltas `+12.4%` / `−3.1%`. (The charts'
   axis/value labels auto-format K/M/B — you only format prose + stat-card values.)
@@ -193,7 +194,7 @@ scrolls past prose steps) that the scene archetypes can't express. Otherwise use
 
 ```python
 compose_story(
-  title="The asylum lottery",
+  title="The care lottery",
   template_html="<!DOCTYPE html>… const DATA = \"__DATA__\"; …",  # copy recipes/_flagship_scaffold.html
   data={...},   # EVERY figure, computed via run_python_code over stored DataFrames
 )
@@ -220,7 +221,7 @@ The scaffold already wires this end-to-end — keep it:
 - An `IntersectionObserver` marks the active `.step` and **re-invokes that
   chapter's renderer** with the new `si` — that line is the swap; never delete it.
 - Per-step choreography lives in `data`: each step may carry
-  `view: { highlight: "Sweden" | ["Germany","Sweden"], reveal: 8, annotate: {at,text} }`.
+  `view: { highlight: "Bihar" | ["Bihar","Kerala"], reveal: 8, annotate: {at,text} }`.
   Omit `view` and the engine still moves (the highlight walks the rows/series).
 - Need a chart type beyond line/bars (rank, odds/CI, slope, heatmap)? **Add a
   renderer the same way** — `(svg, ch, ci, si)`, keyed joins, `T()` for the
@@ -242,10 +243,11 @@ must visibly change its chart, not just dim the prose.
 ❌ A chart for a single number — use `stat`, or just say it in one sentence.
 ❌ Rainbow / saturated palettes (subject is grave; cobalt+neutral, accent sparingly).
 ❌ Hand-typed figures in a story — compute everything; pass via `data` / `mapping`.
-❌ Top-N leaderboard with sentinel rows — filter `coo_iso NOT IN ('UNK','Various','-',…)`.
+❌ Top-N leaderboard with sentinel rows — filter out blank/placeholder district names.
 ❌ Pasting the infographic URL or a fabricated Volumes link in chat (reference by title).
-❌ Recognition-rate-over-`dec_total` for a fairness comparison — use **TRR** (see the
-   asylum-flow domain skill, R14). Per-capita burden without the World Bank ref table (R16).
+❌ Treating facility coverage as supply, or implying per-capita — the dataset has no
+   population and the facilities table is a ~10k SAMPLE (see the domain rules via the
+   find_skill graph). Claims are self-reported, not verified.
 ❌ `compose_story` for a standard chart — that's `compose_infographic`'s job.
 
 ---
@@ -258,7 +260,8 @@ must visibly change its chart, not just dim the prose.
 - Palette/type single source: `../tokens.css`. Chart-choice theory:
   `../data-visualisation-chart-guidance/` (Cleveland–McGill hierarchy, proportional
   ink, colour encoding, no-3D).
-- Story metric SQL (TRR, Gini, per-capita, matrix, corridors): the two domain
-  skills' `sql_patterns.md` **S-series**; cohort/suppression rules R14–R16.
-- Source footer always: "UNHCR Refugee Data Finder (api.unhcr.org/population/v1/),
-  CC BY 4.0" (+ "Host population & GDP: World Bank, CC BY 4.0" when burden stories use R16).
+- Domain knowledge (metric definitions, SQL patterns, coverage/suppression caveats):
+  served at runtime by the **find_skill** Neo4j graph + the India Genie space — query
+  `find_skill` for the relevant Finding/Metric/SqlPattern/Rule nodes before composing.
+- Source footer: name the dataset(s) the story draws on, e.g. "Virtue Foundation
+  healthcare-access dataset; NFHS-5 district health indicators; India Post PIN directory."

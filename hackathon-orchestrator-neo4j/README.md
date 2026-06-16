@@ -23,7 +23,7 @@ concept *pages-as-nodes* with typed relationships).
 ```
                       PRODUCTION                         THIS FORK
   skill lookup   SkillsMiddleware + read_file walk   find_skill → 1 graph traversal
-  knowledge      32 .md files on a FilesystemBackend  741-node Neo4j graph (Aura Free)
+  knowledge      .md files on a FilesystemBackend     Neo4j graph (Aura Free)
   the agent...   reads files to assemble context      reads a PLAN (no files)
 ```
 
@@ -34,23 +34,23 @@ over node content) and expanding one hop along the answer-path relations:
 
 - **Route to Genie** — the right Genie Space + its real `space_id`
 - **SQL pattern** — the verbatim SQL to run
-- **Gotchas to honor** — the rules/casts (R1 ISO3, R3 asylum≠refugees, R7 cast…)
+- **Gotchas to honor** — the rules/casts (PIN→district join, facilities is a sample, NFHS try_cast…)
 - **Metric** — the definition/formula
 - **Visualize with** — the chart recipe / chart type + which tool (`compose_infographic` / `compose_deck`)
-- **Why / insight** — the analytical finding (asylum-lottery, burden paradox, Gini concentration)
+- **Why / insight** — the analytical finding (district access gap, zero-facility deserts, urbanisation confounder)
 - **Relationships** — the edges connecting them (so the agent sees *why* they connect)
 
 No skill files are read. The graph **is** the knowledge source.
 
 ## The knowledge graph (llm-wiki-as-graph)
 
-Built by `neo4j/hackathon-brain/kg/` — 37 LLM extractors disassemble the skills
-`.md` + the `hackathon/notes` EDA/findings analysis into a typed graph:
+Built by `neo4j/hackathon-brain/kg/` — LLM extractors disassemble the skills
+`.md` + the EDA/findings analysis into a typed graph:
 
 - **18 node types** across 3 layers — data-semantics (`Domain`, `GenieSpace`,
   `Table`, `Column`, `Metric`, `Rule`), why/insight (`Finding`, `Question`), and
   capability (`SqlPattern`, `ChartType`, `ChartRecipe`, `DesignRule`, `SlideType`,
-  `DeckGuide`, `Tool`, `Country`, `Asset`, `Concept`). Each node is an atomic
+  `DeckGuide`, `Tool`, `Region`, `Asset`, `Concept`). Each node is an atomic
   "wiki page": its `content` is the self-sufficient text the agent needs.
 - **25 edge types** — `ROUTES_TO`, `ANSWERS`, `COMPUTES`, `HONORS`, `GOTCHA_FOR`,
   `VISUALIZED_BY`, `PRODUCED_BY`, `SURFACES`, `ABOUT`, `EXPLAINS_WHY`, `JOINS_ON`…
@@ -73,7 +73,6 @@ subagents/                     prompts (skill-access instructions point at find_
 skills/                        symlink → ../hackathon-skills (TOOL ASSETS only; agent reads none)
 workspace_config.yml           creds + the neo4j: block  (gitignored; see .example.yml)
 setup_neo4j_secrets.sh         put Neo4j creds in the agent-secrets scope (SAP pattern)
-test_find_skill_e2e.py         local e2e: gpt-5.5 + find_skill against Aura, no Lakebase
 deploy.sh / DEPLOY.md          stage → push → submit → poll (parallel endpoint/app)
 
 ../neo4j/hackathon-brain/kg/   the KG builder (run once to (re)build the graph):
@@ -97,10 +96,7 @@ DATABRICKS_HOST=... DATABRICKS_TOKEN=... \
 # 2. (prod) put Neo4j creds in the secret scope, then flip neo4j.inject_plaintext: false
 ./setup_neo4j_secrets.sh
 
-# 3. local end-to-end smoke test (gpt-5.5 + find_skill, no Lakebase)
-.venv-test/bin/python test_find_skill_e2e.py
-
-# 4. deploy the parallel endpoint + app
+# 3. deploy the parallel endpoint + app
 ./deploy.sh
 ```
 

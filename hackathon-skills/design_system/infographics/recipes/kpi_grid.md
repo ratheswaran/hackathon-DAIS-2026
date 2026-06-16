@@ -21,28 +21,27 @@ Notes: value_fmt is preferred for percentages, ratios, and "N in M" framings tha
 {
   "cards": [
     {
-      "value_fmt": "6.1%",
-      "label": "of the global refugee stock reached any durable solution in 2024",
-      "delta": "-1.4 pts",
+      "value_fmt": "35%",
+      "label": "of NFHS-5 districts have ZERO facilities in the sample",
+      "delta": "~245 of ~698",
       "delta_dir": "down",
-      "sub": "vs 2016"
+      "sub": "coverage gap, not verified absence"
     },
     {
-      "value": 1890000,
-      "label": "people found a durable solution",
-      "delta": 0.21,
-      "delta_dir": "up",
-      "sub": "returns, resettlement, naturalisation"
+      "value_fmt": "81.5×",
+      "label": "gap between the best- and worst-served districts",
+      "sub": "facility coverage, sampled"
     },
     {
-      "value_fmt": "29 in 30",
-      "label": "refugees simply waited another year"
+      "value": 9953,
+      "label": "facilities in the sample across India",
+      "sub": "a ~10k SAMPLE, not a census"
     },
     {
-      "value": 1620000,
-      "label": "voluntary returns dominated the exit mix",
-      "delta": "+4x since 2017",
-      "delta_dir": "up"
+      "value_fmt": "78.4 vs 16.9",
+      "label": "health-burden index, Bihar vs Kerala",
+      "delta": "4.6× higher burden",
+      "delta_dir": "down"
     }
   ]
 }
@@ -84,7 +83,7 @@ return {"cards": cards}
 **Notes:** - HTML-not-SVG by design: per the archetype brief and the existing `stat` renderer (`root.classed('bare', true)` + appended divs), kpi_grid appends HTML for crisp text. It does NOT call H.svg. The `.figure.bare` CSS strips the card chrome so the grid sits flat on the page, matching `stat`.
 - Existing CSS classes (`vlabel`/`clabel`/`annot`) are SVG `fill:` styles, useless on HTML, so card text is inline-styled but draws ALL colours/fonts from the same CSS custom properties (var(--serif/sans/mono)) and the P palette — zero new colours, no injected <style>, identical look to the page-level `.stat-card`.
 - Motion is screenshot-safe: each card's full text is painted immediately, then H.in fades opacity only (staggered). Under reduced-motion or a backgrounded/rasterized tab the final values are already present at t=0. No width/transform reveals.
-- Highlight-by-colour honoured: values are cobalt (P.signal) by default; a card whose `label` is in scene.highlight gets its accent. Delta up=amber, down=alarm (sober displacement palette).
+- Highlight-by-colour honoured: values are cobalt (P.signal) by default; a card whose `label` is in scene.highlight gets its accent. Delta up=amber, down=alarm (sober healthcare-access palette).
 - value_fmt is the escape hatch for percentages / ratios / "N in M" strings H.fmt can't produce — prefer it for those. Numeric `value` runs through H.fmt (K/M/B).
 - Delta arrows use Unicode geometric triangles (▲/▼), not emoji.
 - python_shaper handles the natural DataFrame->grid (one card per row, top_n rows) when a scene gives variable_name+mapping; agents can also pass `data.cards` inline for hand-curated KPI sets (the common case for hero reframes). Register `kpi_grid` shaping in _shape_scene_data if wiring the DataFrame path (the inline-data path already works via the existing scene.data passthrough).

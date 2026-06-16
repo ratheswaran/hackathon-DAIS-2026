@@ -1,36 +1,24 @@
-"""PRIMARY Genie-first data retrieval tool (plan group A2).
+"""PRIMARY Genie-first data retrieval tool.
 
-Replaces the v1 ``ask_genie_space`` which returned a 50-row markdown table
-dump plus SQL + interpretation + status as a multi-line string. The v2
-version stores the result to the VariableStore and returns a compact
+Stores the Genie result to the VariableStore and returns a compact
 pass-by-reference payload via ``_compact_ref`` — keeping the tool return
-under ~500 tokens even for multi-thousand-row query results.
+under ~500 tokens even for multi-thousand-row query results, rather than
+dumping a markdown table of rows.
 
-**What was stripped** (v1 source lines 1116-1135 of
-``deep_agent_ra/deploy_orchestrator_agent.py``):
-
-- ``display_limit = 50`` row loop building a markdown table
-- Header / separator construction
-- "... N more rows truncated" tail
-
-**What was kept:**
+**What this tool does:**
 
 - Genie API call with configurable timeout
-- ``_format_genie_response`` parsing (copied verbatim, with
-  ``workspace_client`` moved from a module global to an explicit kwarg
-  so the helper is unit-testable)
+- ``_format_genie_response`` parsing (``workspace_client`` is an explicit
+  kwarg so the helper is unit-testable with a fake client)
 - Auto-store to the VariableStore via the injected ``store`` param
-- Genie's natural-language interpretation (now mapped into
-  ``_compact_ref.description``)
+- Maps Genie's natural-language interpretation into
+  ``_compact_ref.description``
 
-**Factory pattern:** unlike v1's module-global ``_workspace_client``, the
-tool is built via ``build_ask_genie_space_tool(workspace_client=...,
-variable_store_cls=...)`` — matching the subagent builder pattern in
-``subagents/python_analyst.py`` and avoiding circular imports with the
-deploy notebook. The factory closes over ``workspace_client`` and
-``variable_store_cls`` so tests can inject fakes.
-
-Spec: ``deep_agent_ra_v2/plans/functional-dancing-tiger.md`` A2 (ST §1.3).
+**Factory pattern:** the tool is built via
+``build_ask_genie_space_tool(workspace_client=..., variable_store_cls=...)``
+— matching the subagent builder pattern in ``subagents/python_analyst.py``
+and avoiding circular imports with the deploy notebook. The factory closes
+over ``workspace_client`` and ``variable_store_cls`` so tests can inject fakes.
 """
 
 from __future__ import annotations
@@ -48,7 +36,7 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedStore
 
 from tools.compact_ref import _compact_error, _compact_ref
-# _sql_sanitizer dropped for hackathon — TH-agency-specific cleaners.
+# _sql_sanitizer dropped for hackathon — domain-specific SQL cleaners no longer applied.
 def apply_trim(sql: str) -> str:
     return sql
 def ensure_region_filter(sql: str, question: str) -> str:
@@ -58,7 +46,7 @@ from util.trace_collector import record_sql
 logger = logging.getLogger(__name__)
 
 # ── CONFIGURATION ────────────────────────────────────────────────────────
-# When True, auto-apply TRIM() and mandatory region filters to Genie SQL.
+# When True, auto-apply any configured SQL sanitizers to Genie SQL.
 # Disable via env var for experimental runs.
 SQL_STRICT_MODE = os.environ.get("SQL_STRICT_MODE", "true").lower() == "true"
 
@@ -72,10 +60,8 @@ def _format_genie_response(
 ) -> dict[str, Any]:
     """Format a Genie SDK response into a clean dict.
 
-    Copied verbatim from v1 ``deep_agent_ra/deploy_orchestrator_agent.py``
-    (``_format_genie_response`` at line 1002), with ``workspace_client``
-    lifted from a module global to an explicit kwarg so the helper can
-    be unit-tested with a fake client.
+    ``workspace_client`` is an explicit kwarg (rather than a module global)
+    so the helper can be unit-tested with a fake client.
     """
     result: dict[str, Any] = {
         "question": question,
@@ -174,27 +160,6 @@ def _validate_result(question: str, df: pd.DataFrame) -> bool:
     return True
 
 
-# DOMAIN CONFIG: expected ANP magnitude range for the default scope.
-# Adjust these bounds when adding non-Thailand domains.
-_ANP_EXPECTED_LOW = 0.8e9
-_ANP_EXPECTED_HIGH = 1.2e9
-
-
-def _sanity_check_anp(df: pd.DataFrame) -> None:
-    """Warn if ANP values are outside the expected range (possible wrong series)."""
-    anp_cols = [c for c in df.columns if "ANP" in c.upper()]
-    for col in anp_cols:
-        try:
-            mean_val = pd.to_numeric(df[col], errors="coerce").mean()
-            if pd.notna(mean_val) and mean_val > 1e6:
-                if not (_ANP_EXPECTED_LOW <= mean_val <= _ANP_EXPECTED_HIGH):
-                    logger.warning(
-                        "ANP magnitude out of expected range: %.2e in column '%s' "
-                        "(expected %.1e-%.1e). Possible wrong series.",
-                        mean_val, col, _ANP_EXPECTED_LOW, _ANP_EXPECTED_HIGH,
-                    )
-        except Exception:
-            pass
 
 
 def build_ask_genie_space_tool(
@@ -349,7 +314,6 @@ def build_ask_genie_space_tool(
 
         # ── Post-query validation (warn-only, never blocks) ─────────
         _validate_result(question, df)
-        _sanity_check_anp(df)
 
         return json.dumps(
             _compact_ref(

@@ -1,20 +1,11 @@
-"""Spark SQL fallback data retrieval tool (plan group A3).
+"""Spark SQL fallback data retrieval tool.
 
-Replaces the v1 ``run_spark_sql`` (``deep_agent_ra/deploy_orchestrator_agent.py``
-lines 1164-1255) which returned a 100-row markdown table + JSON dump of
-the first 10 rows as a multi-line string. The v2 version stores the
-result to the VariableStore and returns a compact pass-by-reference
-payload via ``_compact_ref`` — keeping the tool return under ~500 tokens
-even for large result sets.
+Stores the result to the VariableStore and returns a compact
+pass-by-reference payload via ``_compact_ref`` — keeping the tool return
+under ~500 tokens even for large result sets, rather than dumping a
+markdown table plus JSON of the first rows.
 
-**What was stripped** (v1 source lines 1222-1251):
-
-- ``for row in data[:max_rows]`` markdown table loop
-- "... N more rows" tail
-- ``json.dumps([dict(zip(columns, row)) for row in data[:10]], indent=2)``
-  extra JSON dump of the first 10 rows
-
-**What was kept:**
+**What this tool does:**
 
 - Input validation (empty SQL check)
 - Warehouse auto-start via ``ensure_warehouse_running``
@@ -25,8 +16,6 @@ even for large result sets.
 **Factory pattern:** same as ``ask_genie_space`` — takes ``workspace_client``,
 ``variable_store_cls``, ``sql_warehouse_id`` as closure args so the tool
 is testable without a real Databricks SDK client.
-
-Spec: ``deep_agent_ra_v2/plans/functional-dancing-tiger.md`` A3 (ST §1.3).
 """
 
 from __future__ import annotations

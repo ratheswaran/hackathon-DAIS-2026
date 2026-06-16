@@ -17,7 +17,7 @@ d = {
   threshold: <number>,            // optional horizontal reference line (e.g. 150M)
   threshold_label: "150M threshold",  // optional; defaults to "<fmt(threshold)> threshold"
   markers: [ {x: <number>, label: "exp 2027"} ],  // optional dots placed on the threshold line (crossing years)
-  crisis: [ {x: <number>, label: "Syria", y?: <number>} ],  // optional event annotations dropped on the history line (y auto-snaps to nearest history point if omitted)
+  crisis: [ {x: <number>, label: "NFHS-4", y?: <number>} ],  // optional event annotations dropped on the history line (y auto-snaps to nearest history point if omitted)
   fit_lo: <number>, fit_hi: <number>,  // optional → faint amber shade + "fitted on YYYY–YYYY" caption
   fit_label: "trend fitted on 2010–2024",  // optional override
   y0: <number>,                   // optional y-axis floor (default 0)
@@ -25,28 +25,27 @@ d = {
   y_suffix: "M"                   // optional unit appended to numeric y ticks/threshold label (e.g. "M")
 }
 // scene-level: highlight (string|array of series/marker names → accent that one), value_label (y-axis title).
-// Units convention: pass y already in the display unit (e.g. millions) and set y_suffix:"M", OR pass raw persons with y_format default and let H.fmt do K/M/B.
+// Units convention: pass y already in the display unit (e.g. millions) and set y_suffix:"M", OR pass raw counts with y_format default and let H.fmt do K/M/B.
 
 **Minimal sample** (`scene.data`):
 ```json
 {
-  "title": "Global forced displacement, projected to 2034",
-  "kicker": "UNHCR · The next decade",
-  "lede": "After 2010 the count of the world's forcibly displaced went near-vertical. Two naive 'if the trend just continues' projections — a straight-line fit and a compounding one — and the wide gap between them.",
+  "title": "Districts with zero facilities, projected to 2034",
+  "kicker": "Virtue Foundation · The next decade",
+  "lede": "If facility coverage keeps growing at its recent pace, how many districts stay uncovered? Two naive 'if the trend just continues' projections — a straight-line fit and a compounding one — and the wide gap between them.",
   "scenes": [
     {
       "type": "projection",
-      "eyebrow": "1951–2034 · millions · end-year",
-      "title": "The line doesn't stop at 2024",
+      "eyebrow": "2000–2034 · districts · illustrative",
+      "title": "The gap doesn't close on its own",
       "lede": "Read these as arrows, not forecasts: the band between the two paths is the uncertainty.",
-      "caption": "Solid: observed history. Dashed: naive extrapolations on the 2010–2024 trend. Source: UNHCR Refugee Data Finder.",
-      "value_label": "displaced (millions)",
+      "caption": "Solid: observed sample. Dashed: naive extrapolations on the recent trend. A zero count means no sampled facility, not verified absence. Source: Virtue Foundation healthcare-access dataset; NFHS-5 district frame.",
+      "value_label": "districts (illustrative)",
       "highlight": "Exponential",
       "data": {
-        "y_suffix": "M",
         "split_year": 2024,
         "threshold": 150,
-        "threshold_label": "150M threshold",
+        "threshold_label": "150-district threshold",
         "fit_lo": 2010,
         "fit_hi": 2024,
         "fit_label": "trend fitted on 2010–2024",
@@ -180,19 +179,19 @@ d = {
         ],
         "crisis": [
           {
-            "x": 2011,
-            "label": "Syria"
+            "x": 2015,
+            "label": "NFHS-4"
           },
           {
-            "x": 2022,
-            "label": "Ukraine"
+            "x": 2021,
+            "label": "NFHS-5"
           }
         ]
       }
     }
   ],
-  "methodology": "Linear = OLS on 2010–2024; exponential = 2024 total compounded at the 2010→2024 CAGR. The two paths are the uncertainty band; neither is a UNHCR forecast.",
-  "source": "Source: UNHCR Refugee Data Finder, CC BY 4.0."
+  "methodology": "Linear = OLS on the recent trend; exponential = latest total compounded at the recent CAGR. The two paths are the uncertainty band; neither is a forecast. Facilities is a ~10k SAMPLE, so a 'zero-facility' count is coverage, not verified supply.",
+  "source": "Source: Virtue Foundation healthcare-access dataset; NFHS-5 district health indicators."
 }
 ```
 
@@ -251,7 +250,7 @@ for k in ("y_format", "y_suffix", "fit_lo", "fit_hi", "y0", "threshold_label", "
 return out
 ```
 
-**Notes:** - Faithful port of build_nextdecade.py, adapted to the scene-engine contract. The reference's spec hint (`series:[{x,y}], band:[{x,lo,hi}], split_year`) is generalized: `series` is a LIST of named lines (`{name, role, points:[{x,y}]}`) so the dual linear/exponential idea ports cleanly — one history line + n projection lines. A single-line projection still works (one series, role 'history').
+**Notes:** - Faithful port of the reference next-decade projection builder, adapted to the scene-engine contract. The reference's spec hint (`series:[{x,y}], band:[{x,lo,hi}], split_year`) is generalized: `series` is a LIST of named lines (`{name, role, points:[{x,y}]}`) so the dual linear/exponential idea ports cleanly — one history line + n projection lines. A single-line projection still works (one series, role 'history').
 
 - MOTION is fully compliant: every line is drawn with its FINAL `d` immediately (and dashed projections get their resting `stroke-dasharray:'6,5'` attr up front), the band gets its resting `fill-opacity:.22` attr; H.in then fades OPACITY only. No stroke-dashoffset draw-on, no clip-rect width growth, no width/r reveals (the original used both — deliberately replaced). A t=0 screenshot or backgrounded tab shows correct geometry. RM-safe via H.in.
 
@@ -259,9 +258,9 @@ return out
 
 - Dashed-ness is driven by `role==='projection'` OR explicit `dashed:true`. A projection line that overlaps the history range (the OLS in-sample fit) is fine — it just draws across its full x-extent, exactly like the reference's faint guide line, but here as a normal dashed series.
 
-- Crisis annotations auto-snap their y to the nearest point on the reference (history/first) series if `y` is omitted, mirroring the reference dropping Syria/Ukraine markers onto the history curve.
+- Crisis/event annotations auto-snap their y to the nearest point on the reference (history/first) series if `y` is omitted, mirroring the reference dropping survey-round markers (e.g. NFHS-4/NFHS-5) onto the history curve.
 
-- Units: pass y in display units + `y_suffix:"M"` (axis ticks/threshold label append it; sample does this), OR pass raw persons and leave defaults so H.fmt renders K/M/B. `y_format:'pct'` switches the axis to 0-dp percent.
+- Units: pass y in display units + `y_suffix:"M"` (axis ticks/threshold label append it), OR pass raw counts and leave defaults so H.fmt renders K/M/B (the sample uses raw district counts). `y_format:'pct'` switches the axis to 0-dp percent.
 
 - python_shaper covers the natural DataFrame→shape: long table with x_col + y_col (+ optional series_col / role_col / lo_col / hi_col). For OLS/CAGR-derived projection points and crossing years (which SQL can't compute), the agent should pass the scene `data` inline — the tool uses inline data verbatim per _shape_scene_data. The shaper is for the case where projection rows are already materialized in a DataFrame.
 

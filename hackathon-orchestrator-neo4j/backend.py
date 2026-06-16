@@ -52,31 +52,43 @@ _CFG = _load_workspace_config()
 
 VOLUME_BASE = os.environ.get(
     "AGENT_VOLUME_PATH",
-    _CFG.get("agent", {}).get("volume_path", "/Volumes/smart_claims/ai_ops/agent_scratch"),
+    _CFG.get("agent", {}).get("volume_path", "/Volumes/workspace/ai_ops/agent_scratch"),
 )
 SCRATCH_SCHEMA = os.environ.get(
     "AGENT_SCRATCH_SCHEMA",
-    _CFG.get("agent", {}).get("scratch_schema", "smart_claims.ai_ops"),
+    _CFG.get("agent", {}).get("scratch_schema", "workspace.ai_ops"),
 )
 AUDIT_LOG_TABLE = os.environ.get(
     "AGENT_AUDIT_LOG_TABLE",
-    _CFG.get("agent", {}).get("audit_log_table", "smart_claims.ai_ops.agent_fs_log"),
+    _CFG.get("agent", {}).get("audit_log_table", "workspace.ai_ops.agent_fs_log"),
 )
 SQL_WAREHOUSE_ID = os.environ.get(
     "SQL_WAREHOUSE_ID",
-    _CFG.get("compute", {}).get("sql_warehouse_id", "a75fe9905aae2120"),
+    _CFG.get("compute", {}).get("sql_warehouse_id", ""),
 )
 
-# Lakebase Postgres — the /tables/ virtual FS now routes here per the
-# 2026-05-13 hackathon decisions doc. Two schemas matter:
+# Lakebase Postgres — the /tables/ virtual FS routes here. Two kinds of schema
+# matter:
 #   - ai_chatbot.scratch_* — orchestrator scratch tables (writeable)
-#   - unhcr.*              — bronze-layer UNHCR data tables (read-only mirror of UC Delta)
+#   - the data schema(s)   — read-only mirror of the source Delta tables
+#                            (India healthcare: facilities,
+#                            india_post_pincode_directory,
+#                            nfhs_5_district_health_indicators)
+# The data schema names are config-driven (lakebase.data_schemas).
 LAKEBASE_URL = os.environ.get(
     "LAKEBASE_URL", _CFG.get("lakebase", {}).get("url", "")
 )
 LAKEBASE_SCRATCH_SCHEMA = os.environ.get(
     "LAKEBASE_SCRATCH_SCHEMA",
     _CFG.get("lakebase", {}).get("scratch_schema", "ai_chatbot"),
+)
+# Read-only data schemas exposed under /tables/. Comma-separated env override,
+# else config list, else empty (only the scratch schema is listed).
+_data_schemas_env = os.environ.get("LAKEBASE_DATA_SCHEMAS", "")
+LAKEBASE_DATA_SCHEMAS = (
+    [s.strip() for s in _data_schemas_env.split(",") if s.strip()]
+    if _data_schemas_env
+    else list(_CFG.get("lakebase", {}).get("data_schemas", []))
 )
 
 
@@ -104,6 +116,7 @@ class DatabricksVolumesBackend(BackendProtocol):
         agent_name="spark-sql-agent",
         lakebase_url=LAKEBASE_URL,
         lakebase_scratch_schema=LAKEBASE_SCRATCH_SCHEMA,
+        lakebase_data_schemas=None,
     ):
         self._w = workspace_client or WorkspaceClient()
         self._volume_base = volume_base.rstrip("/")
@@ -116,6 +129,10 @@ class DatabricksVolumesBackend(BackendProtocol):
         # Lakebase wiring for /tables/ virtual FS (hackathon Wave 3).
         self._lakebase_url = lakebase_url
         self._lakebase_scratch_schema = lakebase_scratch_schema
+        self._lakebase_data_schemas = (
+            lakebase_data_schemas if lakebase_data_schemas is not None
+            else LAKEBASE_DATA_SCHEMAS
+        )
         self._pg_pool = None  # lazy psycopg_pool.ConnectionPool
         self._notebook_base = None  # set lazily from current user
 
@@ -165,9 +182,9 @@ class DatabricksVolumesBackend(BackendProtocol):
         """Map a `/tables/...` virtual path to a (schema, table) tuple.
 
         Supported forms:
-          /tables/foo            → (scratch_schema_default, "foo")
-          /tables/unhcr/foo      → ("unhcr", "foo")
-          /tables/unhcr.foo      → ("unhcr", "foo")
+          /tables/foo                 → (scratch_schema_default, "foo")
+          /tables/health/facilities   → ("health", "facilities")
+          /tables/health.facilities   → ("health", "facilities")
         """
         rest = file_path.split("/tables/", 1)[1].strip("/")
         if "/" in rest:
@@ -226,7 +243,7 @@ class DatabricksVolumesBackend(BackendProtocol):
         return self._notebook_base
 
     def _resolve_notebook_path(self, virtual_path):
-        """Map /notebooks/<name> → /Workspace/Users/<user>/agent_generated/<name>."""
+        """Map /notebooks/<name> → /Workspace/Users/<current-user>/agent_generated/<name> (current user resolved at runtime)."""
         name = virtual_path.lstrip("/").removeprefix("notebooks/").lstrip("/")
         # Strip .py/.ipynb extensions — Databricks notebooks don't use them
         for ext in (".py", ".ipynb"):
@@ -308,20 +325,23 @@ class DatabricksVolumesBackend(BackendProtocol):
             logger.warning(f"ls_info failed for {physical}: {e}")
 
         try:
-            # List Lakebase tables under the agent's two relevant schemas.
-            # Hackathon Wave 3: was UC Delta SHOW TABLES, now Postgres
-            # information_schema. See decisions doc 2026-05-13.
+            # List Lakebase tables under the agent's relevant schemas:
+            # the writeable scratch schema plus any read-only data schemas
+            # (config-driven via lakebase.data_schemas). Postgres
+            # information_schema (was UC Delta SHOW TABLES).
+            schemas = [self._lakebase_scratch_schema, *self._lakebase_data_schemas]
+            placeholders = ", ".join(["%s"] * len(schemas))
             with self._pg_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
-                        """
+                        f"""
                         SELECT table_schema, table_name
                         FROM information_schema.tables
-                        WHERE table_schema IN (%s, 'unhcr')
+                        WHERE table_schema IN ({placeholders})
                           AND table_type = 'BASE TABLE'
                         ORDER BY table_schema, table_name
                         """,
-                        (self._lakebase_scratch_schema,),
+                        tuple(schemas),
                     )
                     for tschema, tname in cur.fetchall():
                         # Virtual path uses 'schema/table' so it's stat-able by ls/glob.

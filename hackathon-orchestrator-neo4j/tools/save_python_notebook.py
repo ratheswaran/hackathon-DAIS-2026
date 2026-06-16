@@ -1,9 +1,8 @@
-"""Save-only notebook tool (plan group B2, first half).
+"""Save-only notebook tool.
 
-Split from the v1 ``run_python_notebook`` which combined save + execute
-in a single tool. ``save_python_notebook`` writes code to a Databricks
-Workspace notebook and returns the URL — no execution, <1s. The user
-gets a shareable, re-runnable artifact immediately.
+``save_python_notebook`` writes code to a Databricks Workspace notebook
+and returns the URL — no execution, <1s. The user gets a shareable,
+re-runnable artifact immediately.
 
 The preamble is injected so the notebook is self-contained — users can
 open it and Run All without missing ``variable_store`` or ``psycopg``.
@@ -11,8 +10,6 @@ open it and Run All without missing ``variable_store`` or ``psycopg``.
 Execution is handled by the sibling ``run_python_notebook`` tool, which
 saves to an ephemeral ``_ephemeral/`` subdirectory and runs via the
 Jobs API.
-
-Spec: ``deep_agent_ra_v2/plans/functional-dancing-tiger.md`` B2.
 """
 
 from __future__ import annotations

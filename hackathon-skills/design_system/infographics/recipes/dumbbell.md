@@ -6,164 +6,164 @@ d = {
   right: [ {key, name, rank, value, value_fmt?, standout?} ... ],   // metric-B column
   movers:[ {key, dir} ... ],   // entities present on BOTH columns; dir 'up' (rises on B, amber) | 'down' (falls, cyan). Connector drawn between their lRank and rRank.
   left_head, right_head:  string column headers (rendered uppercased)
-  left_sub?, right_sub?:  optional small sub-headers (e.g. 'rank 1 = most refugees')
+  left_sub?, right_sub?:  optional small sub-headers (e.g. 'rank 1 = most facilities')
   annotations?: [ {side:'left'|'right', rank, text} ... ]   // italic-serif callouts anchored beside a row, offset 15px above
 }
-Notes: `key` joins left↔right↔movers (e.g. ISO3). `value` is numeric (formatted via H.fmt unless `value_fmt` given, e.g. '12.84M', '132.9'). `standout:true` accents a row that appears on only ONE column (the reference's USA-left / Lebanon-right). `scene.highlight` (name or key, or array) overrides to accent any entity; otherwise movers=amber(up)/cyan(down), everything else grey.
+Notes: `key` joins left↔right↔movers (e.g. a district id). `value` is numeric (formatted via H.fmt unless `value_fmt` given, e.g. '1,480', '78.4'). `standout:true` accents a row that appears on only ONE column (e.g. high-burden-only / high-coverage-only). `scene.highlight` (name or key, or array) overrides to accent any entity; otherwise movers=amber(up)/cyan(down), everything else grey.
 
 **Minimal sample** (`scene.data`):
 ```json
 {
-  "left_head": "By total hosted",
-  "left_sub": "rank 1 = most refugees",
-  "right_head": "Per 1,000 residents",
-  "right_sub": "rank 1 = most burdened",
+  "left_head": "By facility count",
+  "left_sub": "rank 1 = most facilities",
+  "right_head": "By health-burden index",
+  "right_sub": "rank 1 = highest burden",
   "left": [
     {
-      "key": "USA",
-      "name": "United States",
+      "key": "LKO",
+      "name": "Lucknow",
       "rank": 1,
-      "value": 12840000,
-      "value_fmt": "12.84M",
+      "value": 210,
+      "value_fmt": "210",
       "standout": true
     },
     {
-      "key": "DEU",
-      "name": "Germany",
+      "key": "PAT",
+      "name": "Patna",
       "rank": 2,
-      "value": 2700000,
-      "value_fmt": "2.70M"
+      "value": 168,
+      "value_fmt": "168"
     },
     {
-      "key": "IRN",
-      "name": "Iran",
+      "key": "IDR",
+      "name": "Indore",
       "rank": 3,
-      "value": 3450000,
-      "value_fmt": "3.45M"
+      "value": 140,
+      "value_fmt": "140"
     },
     {
-      "key": "TUR",
-      "name": "Türkiye",
+      "key": "PNE",
+      "name": "Pune",
       "rank": 4,
-      "value": 3060000,
-      "value_fmt": "3.06M"
+      "value": 198,
+      "value_fmt": "198"
     },
     {
-      "key": "COL",
-      "name": "Colombia",
+      "key": "CHN",
+      "name": "Chennai",
       "rank": 5,
-      "value": 2880000,
-      "value_fmt": "2.88M"
+      "value": 260,
+      "value_fmt": "260"
     },
     {
-      "key": "PAK",
-      "name": "Pakistan",
+      "key": "JAI",
+      "name": "Jaipur",
       "rank": 6,
-      "value": 2020000,
-      "value_fmt": "2.02M"
+      "value": 155,
+      "value_fmt": "155"
     },
     {
-      "key": "UGA",
-      "name": "Uganda",
+      "key": "BPL",
+      "name": "Bhopal",
       "rank": 7,
-      "value": 1700000,
-      "value_fmt": "1.70M"
+      "value": 132,
+      "value_fmt": "132"
     },
     {
-      "key": "TCD",
-      "name": "Chad",
+      "key": "ARA",
+      "name": "Araria",
       "rank": 8,
-      "value": 1290000,
-      "value_fmt": "1.29M"
+      "value": 4,
+      "value_fmt": "4"
     }
   ],
   "right": [
     {
-      "key": "LBN",
-      "name": "Lebanon",
+      "key": "ARA",
+      "name": "Araria",
       "rank": 1,
-      "value": 132.9,
-      "value_fmt": "132.9",
+      "value": 78.4,
+      "value_fmt": "78.4",
       "standout": true
     },
     {
-      "key": "TCD",
-      "name": "Chad",
+      "key": "KIS",
+      "name": "Kishanganj",
       "rank": 2,
+      "value": 74.1,
+      "value_fmt": "74.1"
+    },
+    {
+      "key": "SRW",
+      "name": "Shrawasti",
+      "rank": 3,
       "value": 71.8,
       "value_fmt": "71.8"
     },
     {
-      "key": "JOR",
-      "name": "Jordan",
-      "rank": 3,
-      "value": 63,
-      "value_fmt": "63.0"
-    },
-    {
-      "key": "TUR",
-      "name": "Türkiye",
+      "key": "PAT",
+      "name": "Patna",
       "rank": 4,
-      "value": 35.6,
-      "value_fmt": "35.6"
+      "value": 44.2,
+      "value_fmt": "44.2"
     },
     {
-      "key": "IRN",
-      "name": "Iran",
+      "key": "BPL",
+      "name": "Bhopal",
       "rank": 5,
-      "value": 38.4,
-      "value_fmt": "38.4"
+      "value": 41.6,
+      "value_fmt": "41.6"
     },
     {
-      "key": "DEU",
-      "name": "Germany",
+      "key": "JAI",
+      "name": "Jaipur",
       "rank": 6,
-      "value": 32,
-      "value_fmt": "32.0"
+      "value": 38.9,
+      "value_fmt": "38.9"
     },
     {
-      "key": "SSD",
-      "name": "South Sudan",
+      "key": "BRW",
+      "name": "Barwani",
       "rank": 7,
-      "value": 30.1,
-      "value_fmt": "30.1"
+      "value": 66.4,
+      "value_fmt": "66.4"
     },
     {
-      "key": "MRT",
-      "name": "Mauritania",
+      "key": "NDB",
+      "name": "Nandurbar",
       "rank": 8,
-      "value": 28.7,
-      "value_fmt": "28.7"
+      "value": 63.9,
+      "value_fmt": "63.9"
     }
   ],
   "movers": [
     {
-      "key": "TCD",
-      "dir": "up"
-    },
-    {
-      "key": "IRN",
-      "dir": "up"
-    },
-    {
-      "key": "DEU",
+      "key": "PAT",
       "dir": "down"
     },
     {
-      "key": "TUR",
+      "key": "BPL",
       "dir": "down"
+    },
+    {
+      "key": "JAI",
+      "dir": "down"
+    },
+    {
+      "key": "ARA",
+      "dir": "up"
     }
   ],
   "annotations": [
     {
       "side": "left",
       "rank": 1,
-      "text": "hosts the most — yet off the per-capita top 12"
+      "text": "most facilities — yet low on the burden ranking"
     },
     {
       "side": "right",
       "rank": 1,
-      "text": "most burdened — yet off the absolute top 12"
+      "text": "highest burden — yet near the bottom for facilities"
     }
   ]
 }
@@ -219,16 +219,16 @@ Notes: `key` joins left↔right↔movers (e.g. ISO3). `value` is numeric (format
     }
 ```
 
-**Notes:** PORT FIDELITY: This is the reference's "slope chart between two ranked columns" (build_dumbbell.py despite the filename writes a slope). Faithfully kept: two vertical axes at xL=370/xR=560, rows by rank (rowH=40, TOP=120), rank ticks in the inner gutter, names+values OUTSIDE each axis (left=anchor end, right=anchor start), connectors ONLY for the 4 shared "movers" drawn behind the dots, italic-serif standout annotations 15px above the named row. Big dots (r6) for movers + standouts, small (r4.5) otherwise.
+**Notes:** PORT FIDELITY: This is the reference's "slope chart between two ranked columns" (the reference builder writes a slope despite the dumbbell filename). Faithfully kept: two vertical axes at xL=370/xR=560, rows by rank (rowH=40, TOP=120), rank ticks in the inner gutter, names+values OUTSIDE each axis (left=anchor end, right=anchor start), connectors ONLY for the 4 shared "movers" drawn behind the dots, italic-serif standout annotations 15px above the named row. Big dots (r6) for movers + standouts, small (r4.5) otherwise.
 
 MOTION: The reference animated connectors via stroke-dashoffset and rows via opacity. Per the contract's non-negotiable rule I dropped stroke-dashoffset — connectors now have FINAL geometry at t=0 and reveal via H.in (opacity) only; rows fade via H.in; annotations fade via H.in with a later delay. A t=0 screenshot shows fully-correct geometry. Partial transparency on connectors uses the stroke-opacity ATTR (.85), not style opacity, so H.in's element-opacity doesn't clobber it.
 
-COLOUR: Default grey (P.grey). Movers get direction colour: up→P.amber, down→P.cyan (the reference used clay/blue; mapped to the engine's amber/cyan accents). scene.highlight (name OR key, string or array) overrides to accent any entity with P.signal. The reference's two hand-picked standouts (USA absolute-only, Lebanon percapita-only) are data-driven here via `standout:true` (or auto-derived in the python_shaper when a key is on only one column).
+COLOUR: Default grey (P.grey). Movers get direction colour: up→P.amber, down→P.cyan (the reference used clay/blue; mapped to the engine's amber/cyan accents). scene.highlight (name OR key, string or array) overrides to accent any entity with P.signal. The two hand-picked standouts (e.g. facility-count-only, burden-only) are data-driven here via `standout:true` (or auto-derived in the python_shaper when a key is on only one column).
 
 CSS: Uses only existing classes — axis-title (headers/subs), vlabel (mono rank ticks + numeric value tspans), clabel (entity names), annot (italic-serif findings). No <style> injected. Axis lines use P.hair to match the engine's .axis stroke.
 
 VIEWBOX: 920 wide; height auto-grows with row count (TOP + n*rowH + BOT). Designed for ~12 rows per column like the reference.
 
-DATA: `key` is the join field across left/right/movers (use ISO3 or the country name). movers MUST list only entities present on BOTH columns; the renderer also filter-guards this (filters movers whose key is missing from either column) so a sloppy spec won't draw a stray connector. value_fmt is preferred for the two different units (M vs per-1000); falls back to H.fmt.
+DATA: `key` is the join field across left/right/movers (use a district id or the district name). movers MUST list only entities present on BOTH columns; the renderer also filter-guards this (filters movers whose key is missing from either column) so a sloppy spec won't draw a stray connector. value_fmt is preferred for the two different units (facility count vs burden index); falls back to H.fmt.
 
 PYTHON_SHAPER: optional — builds the dict from a long DataFrame with one row per entity carrying both metric columns (a_col, b_col) + a key/name column. It independently top-N-sorts each metric, derives ranks, auto-flags standouts (on only one column) and mover direction. a_scale (e.g. 1e6) controls the M-formatting of metric A; b_round controls metric-B decimals. If the agent precomputes the slice it can pass `data` inline and skip this.

@@ -1,7 +1,8 @@
 """Apply the curated India Healthcare Access Genie-space config (idempotent).
 
-The Genie space `01f168ec4bf01d27a00ac8069c1b06b8` is the orchestrator's PRIMARY
-data-retrieval surface (`ask_genie_space`). A bare space (tables only, no
+The Genie space (its `space_id`, set via the `SPACE_ID` env var) is the
+orchestrator's PRIMARY data-retrieval surface (`ask_genie_space`). A bare space
+(tables only, no
 instructions) makes Genie blind-scan the messy Virtue Foundation tables — slow
 and error-prone. This script pushes the curated `serialized_space`:
 
@@ -26,9 +27,9 @@ Two non-obvious serialized-format gotchas (both cost a debug cycle):
      obeys both; this note is so a future hand-edit doesn't regress them.
 
 Usage:
-    python apply.py                       # update the live space (profile=hackathon)
-    PROFILE=hackathon SPACE_ID=... python apply.py
-    python apply.py --verify              # also run every exemplar SQL on the warehouse
+    SPACE_ID=... python apply.py                 # update the live space (profile=hackathon)
+    PROFILE=hackathon SPACE_ID=... SQL_WAREHOUSE_ID=... python apply.py
+    SPACE_ID=... python apply.py --verify        # also run every exemplar SQL on the warehouse
 """
 from __future__ import annotations
 
@@ -43,8 +44,8 @@ HERE = Path(__file__).resolve().parent
 SERIALIZED = HERE / "india_healthcare_access.serialized.json"
 
 PROFILE = os.environ.get("PROFILE", "hackathon")
-SPACE_ID = os.environ.get("SPACE_ID", "01f168ec4bf01d27a00ac8069c1b06b8")
-WAREHOUSE_ID = os.environ.get("SQL_WAREHOUSE_ID", "7a84995ca3aefed0")
+SPACE_ID = os.environ.get("SPACE_ID")
+WAREHOUSE_ID = os.environ.get("SQL_WAREHOUSE_ID")
 
 
 def _sorted_payload() -> str:
@@ -58,6 +59,11 @@ def _sorted_payload() -> str:
 
 
 def main() -> None:
+    if not SPACE_ID:
+        sys.exit("SPACE_ID is required: set the Genie space id via the SPACE_ID env var "
+                 "(e.g. `SPACE_ID=<space_id> python apply.py`).")
+    if "--verify" in sys.argv and not WAREHOUSE_ID:
+        sys.exit("SQL_WAREHOUSE_ID is required with --verify: set it via the SQL_WAREHOUSE_ID env var.")
     w = WorkspaceClient(profile=PROFILE)
     ser = _sorted_payload()
     cur = w.api_client.do("GET", f"/api/2.0/genie/spaces/{SPACE_ID}?include_serialized_space=true")

@@ -415,7 +415,7 @@ def format_plan(res: KgResult, *, sql_cap: int = 2400, other_cap: int = 600,
 
 if __name__ == "__main__":
     import sys
-    q = " ".join(sys.argv[1:]) or "genie space and sql for asylum recognition rate by country of origin, and how to visualize it"
+    q = " ".join(sys.argv[1:]) or "genie space and sql for the district access gap (zero-facility districts) and how to visualize it"
     with Neo4j() as db:
         res = kg_search(db, q)
     print(format_plan(res))

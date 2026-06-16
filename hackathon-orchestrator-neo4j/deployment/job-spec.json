@@ -4,7 +4,7 @@
     {
       "task_key": "deploy",
       "notebook_task": {
-        "notebook_path": "/Workspace/Users/rathes.waran@resonance-analytics.com/hackathon/orchestrator-neo4j/deploy_orchestrator_agent",
+        "notebook_path": "/Workspace/Users/your-email@example.com/hackathon/orchestrator-neo4j/deploy_orchestrator_agent",
         "source": "WORKSPACE",
         "base_parameters": {"DEPLOY_V3": "1"}
       },
@@ -17,7 +17,7 @@
       "spec": {
         "client": "5",
         "dependencies": [
-          "-r /Workspace/Users/rathes.waran@resonance-analytics.com/hackathon/orchestrator-neo4j/requirements.txt"
+          "-r /Workspace/Users/your-email@example.com/hackathon/orchestrator-neo4j/requirements.txt"
         ]
       }
     }

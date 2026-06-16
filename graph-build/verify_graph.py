@@ -2,19 +2,28 @@
 representative Medical-Desert queries + an ontology audit. Read-only."""
 import os, sys, configparser
 from pathlib import Path
-BASE = Path("/Users/rathes/Library/CloudStorage/OneDrive-ResonanceAnalyticsEnterprise/Documents/MSc Business Analytics/05. Analytics in Business/Building A Open Harness Agent/databricks notebook")
-ORCH = BASE / "hackathon-orchestrator-neo4j"
-CREDS = BASE / "neo4j" / "Neo4j-2a3edbfb-Created-2026-06-09.txt"
-for line in CREDS.read_text().splitlines():
-    line = line.strip()
-    if "=" in line and not line.startswith("#"):
-        k, v = line.split("=", 1)
-        if k == "NEO4J_URI": os.environ["NEO4J_URI"] = v
-        elif k == "NEO4J_USERNAME": os.environ["NEO4J_USER"] = v
-        elif k == "NEO4J_PASSWORD": os.environ["NEO4J_PASSWORD"] = v
-        elif k == "NEO4J_DATABASE": os.environ["NEO4J_DATABASE"] = v
+REPO_ROOT = Path(os.environ.get("HACKATHON_REPO_ROOT", Path(__file__).resolve().parent.parent))
+ORCH = REPO_ROOT / "hackathon-orchestrator-neo4j"
+PROFILE = os.environ.get("DATABRICKS_PROFILE", "hackathon")
+
+# Neo4j creds: env vars win; else read a gitignored KEY=VALUE creds file (NEO4J_CREDS_FILE).
+if not (os.environ.get("NEO4J_URI") and os.environ.get("NEO4J_PASSWORD")):
+    _creds = os.environ.get("NEO4J_CREDS_FILE")
+    if not _creds:
+        sys.exit("Set NEO4J_URI/NEO4J_USERNAME/NEO4J_PASSWORD/NEO4J_DATABASE, "
+                 "or NEO4J_CREDS_FILE=<path to a gitignored KEY=VALUE creds file>.")
+    for line in Path(_creds).read_text().splitlines():
+        line = line.strip()
+        if "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            if k == "NEO4J_URI": os.environ["NEO4J_URI"] = v
+            elif k == "NEO4J_USERNAME": os.environ["NEO4J_USER"] = v
+            elif k == "NEO4J_PASSWORD": os.environ["NEO4J_PASSWORD"] = v
+            elif k == "NEO4J_DATABASE": os.environ["NEO4J_DATABASE"] = v
+os.environ.setdefault("NEO4J_USER", os.environ.get("NEO4J_USERNAME", "neo4j"))
+os.environ.setdefault("NEO4J_DATABASE", "neo4j")
 cfg = configparser.ConfigParser(); cfg.read(os.path.expanduser("~/.databrickscfg"))
-host = cfg["hackathon"]["host"].rstrip("/")
+host = cfg[PROFILE]["host"].rstrip("/")
 if not host.startswith("http"): host = "https://" + host
 os.environ["DATABRICKS_HOST"] = host
 os.environ["DATABRICKS_TOKEN"] = cfg["hackathon"]["token"]

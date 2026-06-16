@@ -5,22 +5,31 @@ explorer and recompute pagerank/louvain over TYPED edges only.
 import os, sys, configparser
 import numpy as np
 from pathlib import Path
-BASE = Path("/Users/rathes/Library/CloudStorage/OneDrive-ResonanceAnalyticsEnterprise/Documents/MSc Business Analytics/05. Analytics in Business/Building A Open Harness Agent/databricks notebook")
-ORCH = BASE / "hackathon-orchestrator-neo4j"
-GB = BASE / "hackathon-session-2026-06-15" / "graph_build"
-CREDS = BASE / "neo4j" / "Neo4j-2a3edbfb-Created-2026-06-09.txt"
-for line in CREDS.read_text().splitlines():
-    line = line.strip()
-    if "=" in line and not line.startswith("#"):
-        k, v = line.split("=", 1)
-        if k == "NEO4J_URI": NU = v
-        elif k == "NEO4J_USERNAME": NUSER = v
-        elif k == "NEO4J_PASSWORD": NPW = v
-        elif k == "NEO4J_DATABASE": NDB = v
+REPO_ROOT = Path(os.environ.get("HACKATHON_REPO_ROOT", Path(__file__).resolve().parent.parent))
+ORCH = REPO_ROOT / "hackathon-orchestrator-neo4j"
+GB = Path(__file__).resolve().parent  # this graph-build dir holds the seed JSONs
+PROFILE = os.environ.get("DATABRICKS_PROFILE", "hackathon")
+
+# Neo4j creds: env vars win; else read a gitignored KEY=VALUE creds file (NEO4J_CREDS_FILE).
+NU = os.environ.get("NEO4J_URI"); NUSER = os.environ.get("NEO4J_USERNAME", "neo4j")
+NPW = os.environ.get("NEO4J_PASSWORD"); NDB = os.environ.get("NEO4J_DATABASE", "neo4j")
+if not (NU and NPW):
+    _creds = os.environ.get("NEO4J_CREDS_FILE")
+    if not _creds:
+        sys.exit("Set NEO4J_URI/NEO4J_USERNAME/NEO4J_PASSWORD/NEO4J_DATABASE, "
+                 "or NEO4J_CREDS_FILE=<path to a gitignored KEY=VALUE creds file>.")
+    for line in Path(_creds).read_text().splitlines():
+        line = line.strip()
+        if "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            if k == "NEO4J_URI": NU = v
+            elif k == "NEO4J_USERNAME": NUSER = v
+            elif k == "NEO4J_PASSWORD": NPW = v
+            elif k == "NEO4J_DATABASE": NDB = v
 cfg = configparser.ConfigParser(); cfg.read(os.path.expanduser("~/.databrickscfg"))
-host = cfg["hackathon"]["host"].rstrip("/")
+host = cfg[PROFILE]["host"].rstrip("/")
 if not host.startswith("http"): host = "https://" + host
-os.environ.update(DATABRICKS_HOST=host, DATABRICKS_TOKEN=cfg["hackathon"]["token"],
+os.environ.update(DATABRICKS_HOST=host, DATABRICKS_TOKEN=cfg[PROFILE]["token"],
                   BRAIN_EMBED_BACKEND="databricks", BRAIN_EMBED_ENDPOINT="databricks-gte-large-en",
                   BRAIN_EMBED_BATCH="1", BRAIN_EMBED_PAUSE="0.5")
 sys.path.insert(0, str(ORCH))

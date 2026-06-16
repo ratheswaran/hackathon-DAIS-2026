@@ -3,15 +3,15 @@
 > **Single source of truth: `../../tokens.css`** (reconciled RA-editorial). This
 > file restates the data-vis colour rules in terms of those tokens. The engine
 > (`compose_infographic`) applies them automatically — you do not pass colours.
-> ⚠ The old AIA "Qi" data-vis palette (`digitalred #E00842`, `digitallavender`,
-> health-app `Steps/Heart rate` assignments) is REMOVED — it was leftover AIA
-> brand and must not be used in the hackathon's RA-branded stories.
+> ⚠ Any prior bright-red / lavender / health-app series palette is REMOVED —
+> those legacy brand colours must not be used in the hackathon's RA-branded
+> stories. Use only the `tokens.css` values below.
 
 ## Scope
 
 - Light theme only — warm-neutral editorial canvas (`--paper #FAF6EE` / `--oat #F5EFE3`).
 - Use the `tokens.css` data-vis tokens and their exact hex values.
-- The subject (forced displacement) is grave: muted, no bright reds, no rainbow scales.
+- The subject (people's access to care) is serious: muted, no bright reds, no rainbow scales.
 
 ## Default single-series colour
 
@@ -64,7 +64,7 @@ risk, progress) — never for arbitrary categories.
 
 ## What to avoid
 
-- No rainbow / saturated palettes; no bright reds (subject is grave).
+- No rainbow / saturated palettes; no bright reds (subject is serious).
 - No semantic UI colours as a default chart palette.
 - No 3-D, no pie/donut (low-rank angle/area encodings) — use `ranked_bar` / `kpi_grid`.
 - No randomised category-colour order; keep the sequence stable.

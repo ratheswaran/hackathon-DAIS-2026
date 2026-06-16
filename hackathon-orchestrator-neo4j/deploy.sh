@@ -14,23 +14,18 @@
 #
 # Env overrides (defaults match the Free Edition hackathon workspace):
 #   PROFILE         (default: hackathon-test) — Databricks CLI profile
-#   WORKSPACE_PATH  (default: /Workspace/Users/ra2724@ic.ac.uk/hackathon/orchestrator)
+#   WORKSPACE_PATH  (default: /Workspace/Users/your-email@example.com/hackathon/orchestrator)
 #   ENDPOINT_NAME   (default: agents_workspace-hackathon-orchestrator_agent_v3)
 #   MODEL_NAME      (default: workspace.hackathon.orchestrator_agent_v3)
 #   POLL_TIMEOUT    (default: 1500 seconds)
 #   POLL_INTERVAL   (default: 60 seconds)
 #
-# Memory cross-refs:
-#   freeedition-pin-matrix          - psycopg + langgraph-checkpoint-postgres pins
-#   freeedition-deploy-fixes        - 5 code edits applied to the orchestrator
-#   freeedition-job-submit-pattern  - the API spec this script encodes
-
 set -euo pipefail
 
 # --- defaults --------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROFILE="${PROFILE:-hackathon}"
-WORKSPACE_PATH="${WORKSPACE_PATH:-/Workspace/Users/rathes.waran@resonance-analytics.com/hackathon/orchestrator-neo4j}"
+WORKSPACE_PATH="${WORKSPACE_PATH:-/Workspace/Users/your-email@example.com/hackathon/orchestrator-neo4j}"
 ENDPOINT_NAME="${ENDPOINT_NAME:-agents_workspace-hackathon-orchestrator_agent_neo4j}"
 MODEL_NAME="${MODEL_NAME:-workspace.hackathon.orchestrator_agent_neo4j}"
 POLL_TIMEOUT="${POLL_TIMEOUT:-1500}"
@@ -52,9 +47,9 @@ stage() {
   # -aL resolves symlinks (the `skills` symlink → ../hackathon-skills)
   rsync -aL \
     --exclude '__pycache__' --exclude '*.pyc' \
-    --exclude '.pytest_cache' --exclude 'tests*' --exclude 'lab' \
+    --exclude '.pytest_cache' --exclude 'tests*' --exclude 'evals' --exclude 'lab' \
     --exclude '.venv*' --exclude '.DS_Store' \
-    --exclude 'deploy.sh' --exclude 'smoke_test.sh' --exclude 'DEPLOY.md' \
+    --exclude 'deploy.sh' --exclude 'DEPLOY.md' \
     "$SCRIPT_DIR/" "$STAGE_DIR/"
   log "Staged $(du -sh "$STAGE_DIR" | cut -f1) of sources"
 }

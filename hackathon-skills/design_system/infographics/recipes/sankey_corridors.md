@@ -7,52 +7,43 @@ d = {
 }
 
 - `source`/`target` are 0-based INDEXES into `nodes` (the d3-sankey default nodeId). NOT names.
-- A country that is both an origin and a host MUST appear as TWO separate node entries (one on each side) so the flow reads strictly left→right; the Python shaper does this automatically by emitting per-side nodes.
+- An entity that appears on both the source side and the target side MUST appear as TWO separate node entries (one on each side) so the flow reads strictly left→right; the Python shaper does this automatically by emitting per-side nodes.
 - `other:true` on a node marks the bundled "all other corridors" pseudo-node pair (faint grey, never labelled as the headline, excluded from accent colouring). Optional but recommended so the chart shows the long tail.
-- `side` is optional: if omitted the renderer infers origin (left) vs host (right) from the computed sankey x-position. The shaper sets it explicitly.
-- value = refugee count for that origin→host corridor (raw number; H.fmt renders it K/M/B).
+- `side` is optional: if omitted the renderer infers source (left) vs target (right) from the computed sankey x-position. The shaper sets it explicitly.
+- value = facility count for that source→target corridor (e.g. district → facility-type; raw number; H.fmt renders it K/M/B).
 
-scene fields consumed: scene.title (svg aria-label), scene.highlight (origin NAME string or array of names → those origins' outgoing links accent P.signal, everything else P.grey; if null, the single biggest origin gets P.signal and the rest grey).
+scene fields consumed: scene.title (svg aria-label), scene.highlight (source NAME string or array of names → those sources' outgoing links accent P.signal, everything else P.grey; if null, the single biggest source gets P.signal and the rest grey).
 
 **Minimal sample** (`scene.data`):
 ```json
 {
   "nodes": [
     {
-      "name": "Afghanistan"
+      "name": "Maharashtra"
     },
     {
-      "name": "Syria"
+      "name": "Uttar Pradesh"
     },
     {
-      "name": "Ukraine"
+      "name": "Tamil Nadu"
     },
     {
-      "name": "Venezuela"
+      "name": "Bihar"
     },
     {
-      "name": "South Sudan"
+      "name": "Kerala"
     },
     {
-      "name": "Iran"
+      "name": "Primary health centre"
     },
     {
-      "name": "Pakistan"
+      "name": "Hospital"
     },
     {
-      "name": "Germany"
+      "name": "Diagnostic / imaging"
     },
     {
-      "name": "Turkey"
-    },
-    {
-      "name": "Colombia"
-    },
-    {
-      "name": "Uganda"
-    },
-    {
-      "name": "Poland"
+      "name": "Specialist clinic"
     },
     {
       "name": "all other corridors",
@@ -66,48 +57,48 @@ scene fields consumed: scene.title (svg aria-label), scene.highlight (origin NAM
   "links": [
     {
       "source": 0,
-      "target": 5,
-      "value": 3800000
+      "target": 6,
+      "value": 380
     },
     {
       "source": 0,
+      "target": 7,
+      "value": 218
+    },
+    {
+      "source": 1,
+      "target": 5,
+      "value": 316
+    },
+    {
+      "source": 1,
       "target": 6,
-      "value": 2180000
+      "value": 172
     },
     {
-      "source": 1,
+      "source": 2,
       "target": 8,
-      "value": 3160000
-    },
-    {
-      "source": 1,
-      "target": 7,
-      "value": 716000
+      "value": 118
     },
     {
       "source": 2,
       "target": 7,
-      "value": 1180000
-    },
-    {
-      "source": 2,
-      "target": 11,
-      "value": 957000
+      "value": 96
     },
     {
       "source": 3,
-      "target": 9,
-      "value": 1840000
+      "target": 5,
+      "value": 84
     },
     {
       "source": 4,
-      "target": 10,
-      "value": 920000
+      "target": 8,
+      "value": 92
     },
     {
-      "source": 12,
-      "target": 13,
-      "value": 13200000
+      "source": 9,
+      "target": 10,
+      "value": 1320
     }
   ]
 }
@@ -125,7 +116,7 @@ w = df[[orig_col, host_col, value_col]].copy()
 w[value_col] = pd.to_numeric(w[value_col], errors="coerce")
 w = w.dropna(subset=[orig_col, host_col, value_col])
 w = w[w[value_col] > 0]
-# cross-border only: drop self-loops (origin == host)
+# drop self-loops (source == target) so the flow reads strictly left→right
 w = w[w[orig_col].astype(str).str.strip() != w[host_col].astype(str).str.strip()]
 
 g = (w.groupby([orig_col, host_col], as_index=False)[value_col].sum()
@@ -154,7 +145,7 @@ for _, r in top.iterrows():
     t = node(r[host_col], "host")
     links.append({"source": s, "target": t, "value": int(round(float(r[value_col])))})
 
-# bundle the long tail into one faint origin→host band (omit if nothing left)
+# bundle the long tail into one faint source→target band (omit if nothing left)
 n_drawn = int(len(top))
 if other_val > 0 and n_corr > n_drawn:
     s = node("all other corridors", "orig", other=True)
@@ -164,7 +155,7 @@ if other_val > 0 and n_corr > n_drawn:
 return {"nodes": nodes, "links": links}
 ```
 
-**Notes:** PORT FIDELITY: faithful to build_corridors.py — per-side nodes (orig/host split for dual-role countries), origin labels left of the rect + value below, host labels right, a faint grey bundled "all other corridors" band, column headers, a finding annotation for the biggest single corridor, and a largest-first opacity-only reveal stagger. Adapted to the engine: the reference's clay/region palette is replaced by the RA cobalt palette + highlight-by-colour (links coloured by SOURCE node; the single biggest origin = P.signal by default, everything else P.grey; scene.highlight names which origin(s) get accented). Headers/labels use the allow-list classes (axis-title / clabel / vlabel / annot) instead of the reference's bespoke colhead/nodelabel/nodeval classes.
+**Notes:** PORT FIDELITY: faithful to the reference corridors builder — per-side nodes (source/target split for dual-role entities), source labels left of the rect + value below, target labels right, a faint grey bundled "all other corridors" band, column headers, a finding annotation for the biggest single corridor, and a largest-first opacity-only reveal stagger. Adapted to the engine: the reference's clay/region palette is replaced by the RA cobalt palette + highlight-by-colour (links coloured by SOURCE node; the single biggest source = P.signal by default, everything else P.grey; scene.highlight names which source(s) get accented). Headers/labels use the allow-list classes (axis-title / clabel / vlabel / annot) instead of the reference's bespoke colhead/nodelabel/nodeval classes.
 
 MOTION SAFETY: final link path "d" + stroke-width and node rect width/height are set immediately; the only animation is H.in (opacity). Verified with jsdom that every path has a valid "d" and stroke-width≥1 and every rect has positive geometry at t=0, so headless-Chrome rasterization and backgrounded tabs show the correct Sankey. Partial transparency uses the stroke-opacity / fill-opacity ATTRS (not style.opacity), so H.in's element-opacity animation does not clobber them. Under reduced-motion H.in is a no-op and geometry stays put.
 
@@ -176,4 +167,4 @@ DATA SHAPE GOTCHA: links use INTEGER indices into nodes (d3-sankey default nodeI
 
 LAYOUT: viewBox 720x520 (taller than the engine's other wide charts because Sankey stacks rows vertically; nodePadding 9 / nodeWidth 13 / 150px label gutters each side match the reference). The node-label threshold (6% of the max node value) suppresses clutter on thin tail rows — increase it if a dense deck still overlaps. The python_shaper defaults to top_n=22 drawn corridors (reference default); set scene.top_n lower for a tighter chart.
 
-VOICE: sober, no emoji. Tooltips and the annotation say "refugees"; keep the IDP/asylum-seeker distinction upstream (the shaper does no category mixing — pass it a refugees-only corridor frame).
+VOICE: sober, no emoji. Tooltips and the annotation say "facilities"; keep any category distinctions upstream (the shaper does no category mixing — pass it a single, consistent corridor frame, e.g. district→facility-type for one snapshot). Remember facilities is a ~10k SAMPLE: corridor widths are sampled coverage, not verified supply.

@@ -26,21 +26,19 @@ RECIPES = {
     "projection", "heatmap_matrix", "pyramid", "forest_ci",
     "sankey_corridors", "bar_race", "slope",
 }
-# UNHCR + crisis geography gazetteer (the hub concepts the domains revolve around)
+# India healthcare-access geography gazetteer (the hub concepts the domain revolves around)
 COUNTRIES = {
-    "sudan", "syria", "ukraine", "venezuela", "afghanistan", "germany",
-    "sweden", "south sudan", "myanmar", "somalia", "ethiopia", "colombia",
-    "turkey", "lebanon", "jordan", "uganda", "pakistan", "iran", "bangladesh",
-    "democratic republic of the congo", "drc",
+    "india", "bihar", "kerala", "uttar pradesh", "maharashtra", "rajasthan",
+    "tamil nadu", "karnataka", "gujarat", "madhya pradesh", "west bengal",
+    "odisha", "assam", "jharkhand", "araria", "ladakh",
 }
 DOMAIN_KEYWORDS = {
-    "refugees", "refugee", "idps", "internally displaced", "asylum",
-    "asylum applications", "asylum decisions", "recognition rate",
-    "resettlement", "durable solutions", "repatriation", "naturalisation",
-    "stateless", "statelessness", "demographics", "displacement",
-    "country of origin", "country of asylum", "country of residence",
-    "host country", "stocks", "flows", "forced migration", "protection",
-    "first instance", "appeal", "pending cases", "returns",
+    "facility", "facilities", "health facility", "hospital", "clinic",
+    "medical desert", "zero-facility district", "access gap", "coverage",
+    "district", "pincode", "postal code", "nfhs", "health burden index",
+    "hbi", "anaemia", "maternal", "specialty", "self-reported",
+    "urbanisation", "rural", "haversine", "nearest facility", "risk index",
+    "suppression", "per-capita", "sample",
 }
 # Design-system vocabulary
 DESIGN_KEYWORDS = {
@@ -58,8 +56,8 @@ _WORD = re.compile(r"[a-zA-Z][a-zA-Z\-]+")
 
 # Hand-tuned snake_case identifiers known to be TABLES (vs columns) in the corpus
 KNOWN_TABLES = {
-    "asylum_applications", "asylum_decisions", "solutions", "population",
-    "demographics", "idmc", "countries", "years", "sql_patterns",
+    "facilities", "india_post_pincode_directory",
+    "nfhs_5_district_health_indicators", "sql_patterns",
     "business_context",
 }
 
@@ -133,7 +131,7 @@ def extract_from_text(text: str, *, doc_kind: str = "") -> list[tuple[str, str]]
 def corpus_keyphrases(chunk_texts: list[str], min_df: int = 2, top: int = 60) -> set[str]:
     """Frequency-based bigram/trigram keyphrases that recur across >= min_df chunks.
 
-    Adds emergent domain phrases (e.g. 'recognition rate', 'durable solutions')
+    Adds emergent domain phrases (e.g. 'access gap', 'health burden index')
     that aren't in the hand gazetteer, mirroring how the wiki surfaces salient
     terms. Returned phrases are merged into DOMAIN_KEYWORDS at ingest time.
     """

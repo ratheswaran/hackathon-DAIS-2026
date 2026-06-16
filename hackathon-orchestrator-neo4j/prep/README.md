@@ -25,7 +25,7 @@ python -m prep.profile_catalog --catalog dais_2026 --out prep/out
 ```
 Captures, per table: row count, dtypes, null %, ~cardinality, min/max, top
 categorical values, sample rows. Across the catalog: **candidate join keys** and
-**string-numeric "CAST before aggregating" gotchas** (the `ANP_Paid` trap).
+**string-numeric "CAST before aggregating" gotchas** (e.g. NFHS percentage columns stored as text).
 Writes `profile_<catalog>.json` (machine) + `.md` (read it first).
 
 ### 2 · Seed the knowledge graph

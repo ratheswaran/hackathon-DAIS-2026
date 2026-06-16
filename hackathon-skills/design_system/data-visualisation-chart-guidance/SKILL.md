@@ -1,11 +1,17 @@
 ---
 name: data-visualisation-chart-guidance
-description: Select the right Qi/AIA chart type and define how it should be designed. Use when an agent needs to choose between bar, line, area, pie, donut, bubble, and radar charts; validate whether a proposed chart is appropriate; explain why one chart is a better fit than nearby alternatives; or produce a Qi/AIA-aligned chart specification using approved data-visualisation tokens, colour order, and chart-specific design rules.
+description: Select the right chart type and define how it should be designed. Use when an agent needs to choose between bar, line, area, pie, donut, bubble, and radar charts; validate whether a proposed chart is appropriate; explain why one chart is a better fit than nearby alternatives; or produce an editorial chart specification using approved data-visualisation tokens, colour order, and chart-specific design rules.
 ---
 
 # Data Visualisation Chart Guidance
 
-Use this skill for chart recommendation and chart-spec writing in the Qi/AIA design system.
+Use this skill for chart recommendation and chart-spec writing in the editorial design system.
+
+> **Note:** the chart-choice theory below (Cleveland–McGill ranking, the
+> seven-chart selection matrix) is domain-agnostic and still applies. The
+> legacy Plotly `render_chart` tool it once described no longer exists on this
+> fork — rich charts are composed via `compose_infographic` / `compose_story`
+> (see [`../SKILL.md`](../SKILL.md)). Read the theory here, render there.
 
 This skill is intentionally limited to these seven chart types only:
 - Bar
@@ -71,7 +77,7 @@ A strong answer:
 - Chooses the chart for readability and interpretability.
 - Explains why nearby alternatives are weaker in this case.
 - Gives enough design detail for another designer or agent to produce the chart consistently.
-- References exact Qi/AIA data-visualisation tokens and documented hex values when colour choice matters.
+- References exact editorial data-visualisation tokens and documented hex values when colour choice matters.
 
 A weak answer:
 - Names a chart without explaining the relationship.
@@ -123,42 +129,18 @@ Do not answer with only generic advice when the chart-specific reference provide
 
 ## Data Shape — Long-Format vs Wide-Format
 
-Before calling `render_chart`, inspect the DataFrame shape via
-`describe_dataframe`. Two common shapes need different parameters:
+When composing a multi-series chart, mind the DataFrame shape — the same
+distinction applies regardless of rendering tool:
 
-**Wide format** — one column per series:
-```
-Division  Jan   Feb   Mar   Dec
-R1        25.4  28.5  49.6  0.0
-R2        25.6  28.6  51.5  0.0
-```
-Call: `render_chart(chart_type='line', x='Division', y='Jan,Feb,Mar,Dec')`
-Each y column becomes a trace.
+**Wide format** — one column per series (e.g. one indicator column per year):
+each value column becomes its own series/trace.
 
-**Long format** — one row per (category, x) pair:
-```
-Division  Month  Activity_Ratio
-R1        1      25.4
-R1        2      28.5
-R2        1      25.6
-R2        2      28.6
-```
-Call: `render_chart(chart_type='line', x='Month', y='Activity_Ratio', color_col='Division')`
-Each unique value of `color_col` becomes a trace.
+**Long format** — one row per (category, x) pair: a single categorical column
+distinguishes the series, so you must declare which column carries the series
+identity. Rendering a line/bar/area on long-format data *without* naming that
+series column collapses every row into one trace, so the line zigzags through
+points in row order.
 
-**Never render a line/bar/area on long-format data without `color_col`** — the
-tool would collapse all rows into a single trace and the chart would zigzag
-through every point in row order. The validator catches this and returns a
-`validation_error` with the correct fix.
-
-If `color_col` isn't obvious (mixed long/wide, >1 candidate categorical
-column), pivot to wide format first via `query_stored_dfs`:
-```sql
-SELECT Division,
-       MAX(CASE WHEN Month = 1 THEN Activity_Ratio END) AS Jan,
-       MAX(CASE WHEN Month = 2 THEN Activity_Ratio END) AS Feb,
-       MAX(CASE WHEN Month = 3 THEN Activity_Ratio END) AS Mar
-FROM for_each_division
-GROUP BY Division
-```
-then chart the pivoted result.
+If the series column isn't obvious (mixed long/wide, more than one candidate
+categorical column), pivot to wide format first (one column per series) before
+charting.

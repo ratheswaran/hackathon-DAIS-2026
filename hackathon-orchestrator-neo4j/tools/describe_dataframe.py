@@ -1,14 +1,11 @@
-"""Describe a stored DataFrame (plan group A4).
+"""Describe a stored DataFrame.
 
 Thin wrapper around ``LakebaseVariableStore.describe()``. Returns a
 compact JSON payload containing schema, row_count, basic pandas stats,
-and a 3-row sample. Together with ``query_stored_dfs`` this replaces
-the v1 ``get_dataframe`` tool (plan A5: "do not copy") — the LLM no
-longer pulls raw rows into context for exploration; it pulls a
-describe summary instead and issues SQL queries against the actual
-table via DuckDB-ATTACH-postgres.
-
-Spec: ``deep_agent_ra_v2/plans/functional-dancing-tiger.md`` A4.
+and a 3-row sample. Together with ``query_stored_dfs`` this avoids a
+raw ``get_dataframe`` pull — the LLM no longer pulls raw rows into
+context for exploration; it pulls a describe summary instead and issues
+SQL queries against the actual table via DuckDB-ATTACH-postgres.
 """
 
 from __future__ import annotations

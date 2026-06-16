@@ -1,10 +1,17 @@
 # find_skill graph brain — REBUILT for India healthcare (Medical Desert Planner)
 
 **Date:** 2026-06-15 · **Track:** Medical Desert Planner (DAIS-for-Good 2026, Virtue Foundation)
-**Aura:** `neo4j+s://2a3edbfb.databases.neo4j.io` (creds `neo4j/Neo4j-2a3edbfb-Created-2026-06-09.txt`)
+**Aura:** `neo4j+s://your-aura-instance.databases.neo4j.io`
 **Embeddings:** `databricks-gte-large-en` (1024-dim) via the **event** workspace (`hackathon` CLI profile)
 
-The UNHCR domain was **wiped and replaced** with the India healthcare domain. The
+**Credentials** are read at runtime from the environment, never hardcoded. Set
+`NEO4J_URI` / `NEO4J_USERNAME` / `NEO4J_PASSWORD` / `NEO4J_DATABASE` directly, or point
+`NEO4J_CREDS_FILE` at a **gitignored** local KEY=VALUE creds file (the Aura "download
+credentials" `.txt` works as-is). The Databricks embed token comes from
+`~/.databrickscfg [<DATABRICKS_PROFILE or "hackathon">]`. The repo root is inferred
+repo-relative (override with `HACKATHON_REPO_ROOT`).
+
+The prior (rehearsal) domain was **wiped and replaced** with the India healthcare domain. The
 capability/skill layer (Tools, ChartRecipes, ChartTypes, SlideTypes, DeckGuides,
 DesignRules, Assets) was **kept** — only the domain knowledge changed.
 
@@ -18,8 +25,9 @@ DesignRules, Assets) was **kept** — only the domain knowledge changed.
 ## Pipeline (reproducible)
 
 ```bash
-PY=…/hackathon-orchestrator-neo4j/.venv-test/bin/python   # has neo4j, networkx, numpy, yaml, databricks.sdk
-cd .../graph_build
+# from this graph-build/ dir; PY = a venv with neo4j, networkx, numpy, yaml, databricks.sdk
+PY=../hackathon-orchestrator-neo4j/.venv-test/bin/python
+cd graph-build
 $PY build_domain_seed.py        # static structure + build_domain_dynamic.py -> domain_seed.json (125 nodes)
 $PY run_build.py                # WIPE Aura + load domain_seed.json + skill_nodes.json (293) + embed (batch=64)
 # ^ embed step 429s out on Free-Edition gte-large-en (inputs-per-request limit). If so:
@@ -30,8 +38,8 @@ $PY verify_graph.py             # acceptance test: ontology audit + 8 find_skill
 
 Source-of-truth files:
 - `build_domain_dynamic.py` — the authored domain (Metrics/Rules/SqlPatterns/Findings/Questions/DesignRules + all edges). Numbers are from the **source-verified EDA** (`eda_result.json`: 36 findings, 20 confirmed / 7 corrected / 0 rejected). Corrected numbers were applied.
-- `skill_nodes.json` — the kept capability layer (exported from the old graph, UNHCR domain artifacts filtered out).
-- `../eda/0{1..5}_*.md` — the 5 EDA analyst reports (supply/demand/desert/trust/quality) — methodology + reproducible code.
+- `skill_nodes.json` — the kept capability layer (exported from the prior graph, prior-domain artifacts filtered out).
+- the 5 EDA analyst reports (supply/demand/desert/trust/quality) — methodology + reproducible code, summarized in `eda_result.json`.
 
 ## Key honesty contract (baked into the graph as Rules/DesignRules)
 

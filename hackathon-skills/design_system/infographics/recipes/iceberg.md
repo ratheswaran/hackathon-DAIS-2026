@@ -2,39 +2,39 @@
 
 **Data shape** (`scene.data`):
 d = {
-  above: { label: string, value: number },   // the visible / above-waterline segment (e.g. "Refugees + asylum-seekers abroad")
-  below: { label: string, value: number }     // the hidden / below-waterline mass (e.g. "Internally displaced")
+  above: { label: string, value: number },   // the visible / above-waterline segment (e.g. "Districts with at least one facility")
+  below: { label: string, value: number }     // the hidden / below-waterline mass (e.g. "Districts with zero facilities")
 }
-Values are raw counts in the SAME unit (persons, or millions — the renderer only uses ratios value/(above+below) for the bar split + the % labels, so absolute scale is arbitrary as long as both share it). The bar is always 100% wide: above starts at x=0, below stacks immediately after. Percent labels and the "X% never crossed a border" annotation are computed from the share. scene.highlight (optional) = the label of the segment to accent in signal-cobalt (matched against above.label / below.label); if omitted, above renders signal and below renders neutral grey. scene.value_label (optional) = a small uppercase footer unit string.
+Values are raw counts in the SAME unit (districts, facilities, or millions — the renderer only uses ratios value/(above+below) for the bar split + the % labels, so absolute scale is arbitrary as long as both share it). The bar is always 100% wide: above starts at x=0, below stacks immediately after. Percent labels and the "X% have no facility in the sample" annotation are computed from the share. scene.highlight (optional) = the label of the segment to accent in signal-cobalt (matched against above.label / below.label); if omitted, above renders signal and below renders neutral grey. scene.value_label (optional) = a small uppercase footer unit string.
 
 **Minimal sample** (`scene.data`):
 ```json
 {
-  "title": "The displacement iceberg, end of 2024",
-  "kicker": "UNHCR · Forced displacement",
-  "lede": "The word we reach for — refugee — describes only the visible tip.",
+  "title": "The coverage iceberg, NFHS-5 districts",
+  "kicker": "Virtue Foundation · Healthcare access",
+  "lede": "The facilities we can count describe only the visible tip of need.",
   "scenes": [
     {
       "type": "iceberg",
       "eyebrow": "The reframe",
-      "title": "“Refugee” describes only the tip",
-      "lede": "Refugees and asylum-seekers abroad are barely a third of the displaced; the largest group never crossed a border.",
-      "caption": "Above the waterline: refugees + asylum-seekers. Below: internally displaced people, still inside their own country.",
-      "value_label": "share of all forcibly displaced",
+      "title": "Counted facilities describe only the tip",
+      "lede": "Districts with at least one facility in the sample are barely a third; the largest group has none recorded at all.",
+      "caption": "Above the waterline: districts with at least one sampled facility. Below: districts with zero facilities in the sample (coverage gap, not necessarily true supply).",
+      "value_label": "share of all NFHS-5 districts",
       "data": {
         "above": {
-          "label": "Refugees + asylum-seekers abroad",
-          "value": 43.7
+          "label": "Districts with at least one facility",
+          "value": 453
         },
         "below": {
-          "label": "Internally displaced",
-          "value": 68.3
+          "label": "Districts with zero facilities (sample)",
+          "value": 245
         }
       }
     }
   ],
-  "methodology": "End-of-year stocks, 2024. “Displaced” = refugees + asylum-seekers + IDPs + others of concern; the iceberg split here groups the cross-border population (above) against the internally displaced (below).",
-  "source": "Source: UNHCR Refugee Data Finder (api.unhcr.org/population/v1/), CC BY 4.0."
+  "methodology": "NFHS-5 district frame. Facilities is a ~10k SAMPLE (coverage, not a census); a zero count means no sampled facility, not a verified absence of all care. Joined via the India Post PIN→district crosswalk.",
+  "source": "Source: Virtue Foundation healthcare-access dataset; NFHS-5 district health indicators; India Post PIN directory."
 }
 ```
 
@@ -75,7 +75,7 @@ if cat and val:  # shape B
 return {}
 ```
 
-**Notes:** Ported from renderIceberg in build_flagship.py, simplified to the brief's 2-segment {above, below} shape (the reference used a 4-segment refugees/asylum/IDPs/others bar with the waterline at the abroad-vs-inside boundary; the {above,below} contract collapses that to visible-tip vs hidden-mass, which is the same reframe and the same waterline position). Visual idea preserved: single 100%-width horizontal bar, white % labels inside each segment, dashed waterline rule on the boundary, the "X% never crossed a border" serif annotation under the below-mass, and the "abroad — X% →" tip annotation above the line.
+**Notes:** Ported from renderIceberg in the flagship builder, simplified to the brief's 2-segment {above, below} shape (the reference used a 4-segment stacked bar with the waterline at the visible-vs-hidden boundary; the {above,below} contract collapses that to visible-tip vs hidden-mass, which is the same reframe and the same waterline position). Visual idea preserved: single 100%-width horizontal bar, white % labels inside each segment, dashed waterline rule on the boundary, the "X% have no facility in the sample" serif annotation under the below-mass, and the "covered — X% →" tip annotation above the line.
 
 MOTION: fully reduced-motion / screenshot safe. Every rect has its FINAL width set at t=0; the dashed waterline has its dash array set immediately (NO stroke-dashoffset reveal, unlike the reference which animated the line drawing on); all motion is opacity-only via H.in. Rects use solid fill (no fill-opacity attr), so H.in's style('opacity') animation is the only opacity channel and nothing is clobbered.
 

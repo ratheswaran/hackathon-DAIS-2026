@@ -231,7 +231,7 @@ def render_markdown(profile: dict) -> str:
     gotchas = profile["summary"]["string_numeric_columns"]
     if gotchas:
         L += ["## ⚠ String-numeric columns (CAST before aggregation)",
-              "These look like the `ANP_Paid`/`CASE_Paid` gotcha — stored as STRING but numeric:", ""]
+              "These look like a STRING-but-numeric gotcha — e.g. NFHS percentage columns stored as text — CAST to DOUBLE first:", ""]
         for g in gotchas:
             L.append(f"- `{g['table']}`.`{g['column']}` — {int(g['numeric_string_ratio']*100)}% numeric")
         L.append("")

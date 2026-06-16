@@ -1,13 +1,11 @@
-"""Compact reference payload builder for tool returns (plan group A1).
+"""Compact reference payload builder for tool returns.
 
 Shrinks tool-call results to <=500 tokens by returning variable names +
 schema + tiny previews instead of raw data. Downstream tools like
 ``ask_genie_space``, ``run_spark_sql`` and ``query_stored_dfs`` call
 ``_compact_ref`` after storing their DataFrame to the VariableStore, so
 the LLM sees a compact pass-by-reference payload instead of 100+ rows of
-markdown. This is the core of the ST Phase 1 context-bloat fix.
-
-Spec: ``deep_agent_ra_v2/plans/functional-dancing-tiger.md`` A1 (ST §3).
+markdown. This is the core of the context-bloat fix.
 
 Return shape (success)::
 

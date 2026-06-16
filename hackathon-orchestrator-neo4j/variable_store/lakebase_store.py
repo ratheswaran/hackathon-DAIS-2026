@@ -1,24 +1,21 @@
-"""Lakebase-native VariableStore (plan groups A6b + A8).
+"""Lakebase-native VariableStore.
 
-Replaces the v1 ``VariableStore`` class (``deep_agent_ra/deploy_orchestrator_agent.py``
-lines 545-756) which stored DataFrames as JSON blobs inside the LangGraph
-``PostgresStore`` with a Volumes-Parquet durability fallback. The v2
-class writes each DataFrame as a real Postgres table and keeps metadata
-in a new ``ai_chatbot.variable_store_index`` lookup table. No JSON, no
-Parquet, no LangGraph store dependency on the read path — Postgres IS
+Writes each DataFrame as a real Postgres table and keeps metadata in an
+``ai_chatbot.variable_store_index`` lookup table, rather than storing
+DataFrames as JSON blobs inside the LangGraph ``PostgresStore``. No JSON,
+no Parquet, no LangGraph store dependency on the read path — Postgres IS
 the durability.
 
-**Why:** A6a benchmark (see ``benchmarks/duckdb_model_comparison.py``,
-commit ``3282764``) showed median ``C/A_cold`` = 0.65x on 100K rows —
-Model C (DuckDB ATTACH Postgres) beats the v1 JSON rehydrate path by
-35% on cold reads AND unlocks SQL-level queries across stored DFs via
-``query_stored_dfs`` (plan A6).
+**Why:** a benchmark showed median ``C/A_cold`` = 0.65x on 100K rows —
+the DuckDB-ATTACH-Postgres model beats a JSON rehydrate path by 35% on
+cold reads AND unlocks SQL-level queries across stored DFs via
+``query_stored_dfs``.
 
 **Scoping:** Tables are named ``variable_store_<sha1(user_id::thread_id::name)[:12]>``.
 The scope triple is part of the hash so two users with the same
-``name`` don't collide on the same Postgres table. The v1 class used
-LangGraph store namespaces for scoping — we preserve that boundary by
-encoding it into the table name instead.
+``name`` don't collide on the same Postgres table. The scope boundary
+that LangGraph store namespaces would provide is preserved by encoding
+it into the table name instead.
 
 **Concurrency:** every ``store()`` call runs DROP-CREATE-COPY-UPSERT as
 a single transaction, so concurrent writers to the same
@@ -26,19 +23,16 @@ a single transaction, so concurrent writers to the same
 slots are fully parallel.
 
 **NaN/Inf handling:** COPY chokes on non-finite floats. The sanitizer
-replaces ``NaN``/``±Inf`` with ``NULL`` before the COPY. This matches
-the v1 ``_sanitize_df_for_json`` behavior documented in
-``deep_agent_ra/CLAUDE.md`` under "Databricks Platform Constraints".
+replaces ``NaN``/``±Inf`` with ``NULL`` before the COPY (the
+Postgres-JSON sanitization constraint noted in the project docs).
 
-**Compatibility:** the class accepts v1's ``(store, config)`` constructor
+**Compatibility:** the class accepts a ``(store, config)`` constructor
 signature so the tool factories in ``tools/ask_genie_space.py`` +
 ``tools/run_spark_sql.py`` can keep using ``variable_store_cls(store,
 config)`` unchanged. The ``store`` arg is ignored (kept for signature
 compat); ``config`` still provides ``user_id`` / ``thread_id``. The
 Postgres connection comes from a module-level ``_CONFIG`` set by
 ``configure(connection_factory=...)`` at deploy time.
-
-Spec: ``deep_agent_ra_v2/plans/functional-dancing-tiger.md`` A6b + A8.
 """
 
 from __future__ import annotations

@@ -1,15 +1,14 @@
-"""Model Serving tool-filter + failed-tool-pruning middlewares (plan A9).
+"""Model Serving tool-filter + failed-tool-pruning middlewares.
 
-Copied from ``deep_agent_ra/deploy_orchestrator_agent.py`` Cell 3
-(lines 326-428). Allow-list updated per the plan:
+Allow-list of tools safe to expose to the Model Serving container.
 
-**Added** (v2 tools): ``describe_dataframe``, ``query_stored_dfs``,
-``think_tool``, ``render_chart``, ``save_python_notebook``.
+**Added** analysis tools: ``describe_dataframe``, ``query_stored_dfs``,
+``think_tool``, ``save_python_notebook``.
 
-**Removed** (v1 tools replaced by compact-ref equivalents):
+**Removed** legacy tools replaced by compact-ref equivalents:
 ``get_dataframe``, ``render_visualization``.
 
-``FailedToolPruningMiddleware`` is copied verbatim — no behavior change.
+``FailedToolPruningMiddleware`` introduces no behavior change.
 """
 
 from __future__ import annotations
@@ -45,8 +44,6 @@ class ModelServingToolFilterMiddleware(AgentMiddleware):
         "run_python_code",
         "run_python_notebook",
         "save_python_notebook",
-        # Visualization
-        "render_chart",
         # Variable Store (shared across all agents)
         "store_dataframe",
         "list_dataframes",

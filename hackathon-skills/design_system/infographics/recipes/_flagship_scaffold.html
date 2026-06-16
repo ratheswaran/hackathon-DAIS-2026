@@ -25,9 +25,9 @@
           steps: [
             { prose,                            // the scroll-step text
               view?: {                          // OPTIONAL per-step chart state (the swap):
-                highlight?: "Sweden" | ["Germany","Sweden"],  // which row(s)/series to accent
+                highlight?: "Bihar" | ["Bihar","Kerala"],  // which row(s)/series to accent
                 reveal?: 8,                     // show only first N rows/series (build-up)
-                annotate?: { at: "Sweden"|2023, text: "…" }    // transient callout for this step
+                annotate?: { at: "Bihar"|2021, text: "…" }    // transient callout for this step
               } }
           ] }
       ],
@@ -39,7 +39,7 @@
 -->
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>UNHCR data story</title>
+<title>Healthcare access data story</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
@@ -105,7 +105,7 @@ const T=(sel,ms)=>RM?sel:sel.transition().duration(ms||620).ease(d3.easeCubicInO
 const asArr=v=>v==null?[]:(Array.isArray(v)?v:[v]);
 
 // ---------- header / bigstat ----------
-document.title=DATA.title||'UNHCR data story';
+document.title=DATA.title||'Healthcare access data story';
 const set=(id,t)=>{const e=document.getElementById(id);if(e)e.textContent=t||'';};
 set('kicker',DATA.kicker);set('title',DATA.title);set('lede',DATA.lede);
 if(DATA.bigstat){set('bs-n',DATA.bigstat.value);const l=document.getElementById('bs-l');l.innerHTML='';l.append(document.createTextNode(DATA.bigstat.label||''));if(DATA.bigstat.sub){const s=document.createElement('div');s.style.marginTop='.5rem';s.style.color='var(--mute)';s.textContent=DATA.bigstat.sub;l.appendChild(s);}}

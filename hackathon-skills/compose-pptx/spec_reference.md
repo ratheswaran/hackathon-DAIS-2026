@@ -12,15 +12,15 @@ Slide canvas is **1920 × 1080** (16:9 widescreen, matches PowerPoint
 
 ```python
 compose_deck(
-    title="The Asylum Lottery — DAIS for Good 2026",
+    title="The Care Lottery — DAIS for Good 2026",
     deck_spec=[
-        {"type": "cover",    "title": "The Asylum Lottery", "lede": "...", "eyebrow": "DAIS FOR GOOD · 2026"},
+        {"type": "cover",    "title": "The Care Lottery", "lede": "...", "eyebrow": "DAIS FOR GOOD · 2026"},
         {"type": "data_note", ...},
         {"type": "stat_callout", ...},
         {"type": "kpi_grid",     ...},
         {"type": "chart",        ...},
         {"type": "two_column",   ...},
-        {"type": "closing",      "title": "One Convention, one standard", "lede": "..."},
+        {"type": "closing",      "title": "Close the access gap", "lede": "..."},
     ],
 )
 ```
@@ -51,8 +51,8 @@ compose_deck(
   "type": "cover",
   "bg": "ink",
   "eyebrow": "DAIS FOR GOOD · 2026",
-  "title": "The Asylum Lottery",
-  "lede": "Why identical claims meet opposite fates across Europe."
+  "title": "The Care Lottery",
+  "lede": "Why district health access varies up to 80x across India."
 }
 ```
 
@@ -86,12 +86,12 @@ Use ONCE per major act. Don't use as a "spacer" between content. `signal`
 {
   "type": "stat_callout",
   "eyebrow": "HEADLINE",
-  "title": "Afghan recognition gap",
-  "value": "17x",
-  "unit": "lower",
-  "delta": "Sweden vs Germany",
+  "title": "Districts with zero facilities",
+  "value": "245",
+  "unit": "of 698",
+  "delta": "NFHS-5 districts",
   "delta_dir": "down",
-  "caption": "Year-adjusted odds of protection under the same Convention."
+  "caption": "Sampled facility coverage shows no listed facility in 245 of 698 NFHS-5 districts."
 }
 ```
 
@@ -99,7 +99,7 @@ Use ONCE per major act. Don't use as a "spacer" between content. `signal`
 |-------|------|
 | `value` | The number. Renders at ~130pt Source Serif in cobalt **Signal** (the one emphatic brand moment). Use K/M/B/x suffixes — don't dump 12 digits. |
 | `unit` | Small label after the value (`"%"`, `"M"`, `"lower"`) |
-| `delta` | Optional change figure (`"+12.4% YoY"`, `"Sweden vs Germany"`) |
+| `delta` | Optional change figure (`"+12.4% YoY"`, `"Bihar vs Kerala"`) |
 | `delta_dir` | `"up"` (green) / `"down"` (red) / `"flat"` (slate) |
 | `caption` | One-line interpretation. The number alone is not the insight. |
 
@@ -114,12 +114,12 @@ Use ONCE per major act. Don't use as a "spacer" between content. `signal`
   "eyebrow": "AT A GLANCE",
   "title": "Four signals",
   "kpis": [
-    {"label": "ORIGINS",     "value": "104",  "unit": "ctry", "delta": "+6",   "delta_dir": "up"},
-    {"label": "RECOGNITION", "value": "42",   "unit": "%",    "delta": "-3pp", "delta_dir": "down"},
-    {"label": "BACKLOG",     "value": "1.2",  "unit": "M",    "delta": "+11%", "delta_dir": "up"},
-    {"label": "HOSTS",       "value": "38",   "unit": "",     "delta": "flat", "delta_dir": "flat"}
+    {"label": "DISTRICTS",   "value": "698",  "unit": "",     "delta": "+6",   "delta_dir": "up"},
+    {"label": "ZERO-FAC",    "value": "35",   "unit": "%",    "delta": "-3pp", "delta_dir": "down"},
+    {"label": "FACILITIES",  "value": "10",   "unit": "K",    "delta": "+11%", "delta_dir": "up"},
+    {"label": "WORST HBI",   "value": "78",   "unit": "",     "delta": "flat", "delta_dir": "flat"}
   ],
-  "caption": "EMEA, 2023."
+  "caption": "NFHS-5 districts, sampled facility coverage."
 }
 ```
 
@@ -135,9 +135,9 @@ a cobalt accent tick, uppercase label, and a Source Serif value.
   "title": "Three things to do this quarter",
   "lede": "Ranked by expected impact.",
   "bullets": [
-    "Harmonise country-of-origin guidance across the bloc.",
-    "Audit accelerated procedures in low-recognition corridors.",
-    "Publish an open first-instance recognition dashboard."
+    "Prioritise the high-burden, zero-facility districts first.",
+    "Verify self-reported facility capabilities before referral.",
+    "Publish an open district access-gap dashboard."
   ]
 }
 ```
@@ -152,9 +152,9 @@ read that way.
 {
   "type": "two_column",
   "eyebrow": "FINDINGS · 02",
-  "title": "What moves the odds",
-  "left":  {"heading": "Helps", "bullets": ["Country-of-origin guidance", "Legal representation", "Appeal access"]},
-  "right": {"heading": "Hurts", "bullets": ["Accelerated procedures", "Safe-country lists", "Detention"]}
+  "title": "What moves access",
+  "left":  {"heading": "Helps", "bullets": ["Nearby facility", "Verified specialties", "Public transport links"]},
+  "right": {"heading": "Hurts", "bullets": ["Rural distance", "Unverified claims", "Single-facility districts"]}
 }
 ```
 
@@ -166,14 +166,14 @@ Equal-width columns. ≤4 bullets per side.
 {
   "type": "chart",
   "eyebrow": "CHARTS · 01",
-  "title": "Recognition rate by destination",
+  "title": "Health Burden Index by state",
   "chart": "column",
-  "categories": ["Germany", "Sweden", "France", "Italy", "Spain"],
+  "categories": ["Bihar", "UP", "MP", "Rajasthan", "Kerala"],
   "series": [
-    {"name": "Rate", "values": [96, 40, 62, 55, 71]}
+    {"name": "HBI", "values": [78, 71, 66, 59, 17]}
   ],
-  "value_label": "%",
-  "caption": "Afghans, first instance, 2023. Germany recognises 96%, Sweden 40% — same Convention.",
+  "value_label": "HBI",
+  "caption": "NFHS-5 districts. Bihar HBI 78 vs Kerala 17 — a wide access gap across states.",
   "show_values": true,
   "show_legend": false
 }
@@ -215,17 +215,17 @@ Equal-width columns. ≤4 bullets per side.
   "eyebrow": "ANALYSIS · 02",
   "title": "Diverging trajectories",
   "chart": "line",
-  "categories": ["2019", "2020", "2021", "2022", "2023"],
+  "categories": ["2015", "2017", "2019", "2021", "2023"],
   "series": [
-    {"name": "Germany", "values": [88, 90, 92, 95, 96]},
-    {"name": "Sweden",  "values": [60, 55, 48, 44, 40]}
+    {"name": "Kerala", "values": [22, 20, 19, 18, 17]},
+    {"name": "Bihar",  "values": [70, 72, 74, 76, 78]}
   ],
-  "value_label": "%",
+  "value_label": "HBI",
   "show_legend": true,
   "commentary": [
-    {"label": "Germany held",  "text": "Steady above 90% throughout."},
-    {"label": "Sweden fell",   "text": "Down 20pp over five years."},
-    {"label": "Gap widened",   "text": "Divergence accelerated post-2021."}
+    {"label": "Kerala low",   "text": "Held below 25 throughout."},
+    {"label": "Bihar rose",   "text": "Up 8 points over the window."},
+    {"label": "Gap widened",  "text": "Divergence accelerated post-2019."}
   ]
 }
 ```
@@ -244,19 +244,19 @@ dark (`ink`) background the chart axes + legend auto-switch to white.
 {
   "type": "table",
   "eyebrow": "DATA · 01",
-  "title": "Top hosts by first-instance claims",
-  "headers": ["Country", "Claims", "Rate %"],
+  "title": "Top states by facility count",
+  "headers": ["State", "Facilities", "Zero-fac %"],
   "rows": [
-    ["Germany", "244,132", "96"],
-    ["France",  "137,510", "62"],
-    ["Sweden",  "41,205",  "40"]
+    ["Maharashtra", "1,204", "18"],
+    ["Tamil Nadu",  "  876", "22"],
+    ["Bihar",       "  205", "61"]
   ],
-  "caption": "2023. Header row is cobalt; numeric columns right-aligned with tabular numerals."
+  "caption": "Sampled coverage. Header row is cobalt; numeric columns right-aligned with tabular numerals."
 }
 ```
 
 ≤6 rows × ≤5 cols. The tool right-aligns columns whose header contains a
-unit or `%` (recognises `%`, `THB`, `USD`, `EUR`, `GBP`, `(M)`, `Δ`).
+unit or `%` (recognises `%`, `USD`, `EUR`, `GBP`, `(M)`, `Δ`).
 
 ### `quote`
 
@@ -264,10 +264,10 @@ unit or `%` (recognises `%`, `THB`, `USD`, `EUR`, `GBP`, `(M)`, `Δ`).
 {
   "type": "quote",
   "bg": "cream",
-  "eyebrow": "VOICE · CASEWORKER",
-  "quote": "Same flight, same war, two verdicts.",
-  "attribution": "Asylum caseworker · Berlin",
-  "caption": "Recurring theme across interviews."
+  "eyebrow": "VOICE · FIELD HEALTH WORKER",
+  "quote": "Same need, two districts, very different care.",
+  "attribution": "Community health worker · Bihar",
+  "caption": "Recurring theme across field visits."
 }
 ```
 
@@ -281,9 +281,9 @@ slides. `cream` (warm) or `paper` work well.
   "type": "data_note",
   "eyebrow": "DATA NOTE",
   "title": "Scope",
-  "requested": "2024 full-year",
-  "available": "2014–2023",
-  "reason": "UNHCR Refugee Data Finder lags one annual cycle."
+  "requested": "Facility census",
+  "available": "~10k sampled facilities",
+  "reason": "Facilities is a sample, not a census — read as coverage, not total supply."
 }
 ```
 
@@ -298,9 +298,9 @@ the source doesn't cover. Don't bury it later.
   "eyebrow": "PLAN · NEXT 90 DAYS",
   "title": "Roll-out cadence",
   "steps": [
-    {"label": "Q1", "heading": "Harmonise guidance", "body": "Agree a common country-of-origin baseline."},
-    {"label": "Q2", "heading": "Audit fast-track",   "body": "Flag low-recognition corridors for review."},
-    {"label": "Q3", "heading": "Publish",            "body": "Ship the open recognition dashboard."}
+    {"label": "Q1", "heading": "Rank deserts",  "body": "Score high-burden, zero-facility districts."},
+    {"label": "Q2", "heading": "Verify claims", "body": "Flag unverified specialty claims for review."},
+    {"label": "Q3", "heading": "Publish",       "body": "Ship the open district access-gap dashboard."}
   ]
 }
 ```
@@ -314,8 +314,8 @@ the source doesn't cover. Don't bury it later.
   "type": "closing",
   "bg": "ink",
   "eyebrow": "NEXT STEPS",
-  "title": "One Convention, one standard",
-  "lede": "Owner: Policy · Review: end-Q1"
+  "title": "Close the access gap",
+  "lede": "Owner: Planning · Review: end-Q1"
 }
 ```
 
@@ -341,8 +341,8 @@ Every `stat_callout`, `chart`, `chart_commentary`, `kpi_grid`, and
 `eyebrow`). The number alone is not the insight. The caption names:
 scope, period, and one interpretation.
 
-Bad:  `"caption": "Recognition by country"`  (re-states the title)
-Good: `"caption": "Germany recognises 96% of Afghan claims, Sweden 40% — a 56pp gap under the same Convention."`
+Bad:  `"caption": "Health burden by state"`  (re-states the title)
+Good: `"caption": "Bihar HBI 78 vs Kerala 17 — a wide access gap across NFHS-5 districts."`
 
 ---
 

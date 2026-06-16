@@ -1,18 +1,18 @@
 # Workspace Configuration — HACKATHON-TEST profile (Neo4j knowledge-graph fork)
-# Source workspace: dbc-7837e492-bc52 (Free Edition AWS us-east-2, ra2724@ic.ac.uk)
+# Source workspace: your-workspace (Free Edition AWS us-east-2, your-email@example.com)
 # PARALLEL to hackathon-orchestrator: new serving endpoint + new Apps URL, same
 # workspace. The ONLY functional difference is that the filesystem skills folder
 # is replaced by a Neo4j llm-wiki knowledge graph (find_skill tool).
-# GITIGNORED (carries creds). See workspace_config.example.yml for the template.
+# TEMPLATE — copy to workspace_config.yml (gitignored) and fill in your creds.
 
 databricks:
-  host: "dbc-7837e492-bc52.cloud.databricks.com"
+  host: "your-workspace.cloud.databricks.com"
   token: "dapiXXXXXXXX_REPLACE_ME"
-  workspace_url: "https://dbc-7837e492-bc52.cloud.databricks.com"
+  workspace_url: "https://your-workspace.cloud.databricks.com"
 
 compute:
-  sql_warehouse_id: "bd20d57b1bc41d49"
-  sql_warehouse_http_path: "/sql/1.0/warehouses/bd20d57b1bc41d49"
+  sql_warehouse_id: "your-warehouse-id"
+  sql_warehouse_http_path: "/sql/1.0/warehouses/your-warehouse-id"
   cluster_id: ""  # Free Edition uses serverless; no all-purpose cluster needed
 
 unity_catalog:
@@ -22,14 +22,11 @@ unity_catalog:
   volume_name: "datasets"
 
 tables:
-  population: "population"
-  demographics: "demographics"
-  solutions: "solutions"
-  idmc: "idmc"
-  asylum_applications: "asylum_applications"
-  asylum_decisions: "asylum_decisions"
-  countries: "countries"
-  years: "years"
+  # India healthcare-access dataset (read-only data tables).
+  facilities: "facilities"
+  india_post_pincode_directory: "india_post_pincode_directory"
+  nfhs_5_district_health_indicators: "nfhs_5_district_health_indicators"
+  # Agent infrastructure tables.
   checkpoints: "lg_checkpoints"
   writes: "lg_writes"
   audit_log: "agent_fs_log"
@@ -57,16 +54,17 @@ mlflow:
   uc_model_name: "workspace.hackathon.orchestrator_agent_neo4j"
 
 workspace:
-  user_path: "/Workspace/Users/ra2724@ic.ac.uk"
+  user_path: "/Workspace/Users/your-email@example.com"
   notebook_dir: "hackathon/deep-agent-neo4j"
-  genie_parent_folder: "/Workspace/Users/ra2724@ic.ac.uk/hackathon"
+  genie_parent_folder: "/Workspace/Users/your-email@example.com/hackathon"
 
 lakebase:
-  url: "postgresql://chatbot_svc:REPLACE_LAKEBASE_PASSWORD@ep-crimson-dew-d8kmdlbq.database.us-east-2.cloud.databricks.com:5432/databricks_postgres?sslmode=require"
-  regional_gateway: "ep-crimson-dew-d8kmdlbq.database.us-east-2.cloud.databricks.com"
-  fallback_ip: "18.97.131.208"
+  url: "postgresql://chatbot_svc:REPLACE_LAKEBASE_PASSWORD@ep-your-lakebase.database.us-east-2.cloud.databricks.com:5432/databricks_postgres?sslmode=require"
+  regional_gateway: "ep-your-lakebase.database.us-east-2.cloud.databricks.com"
+  fallback_ip: "<lakebase-gateway-ip>"
   scratch_schema: "ai_chatbot"
-  data_schemas: ["unhcr"]
+  # Read-only data schema(s) exposed under the /tables/ virtual FS.
+  data_schemas: ["health"]
 
 secrets:
   scope_name: "agent-secrets"
@@ -79,10 +77,10 @@ secrets:
 # Free-Edition dry-run set inject_plaintext: false   # set true only for a quick dry-run
 # endpoint env vars instead (like LAKEBASE_URL above).
 neo4j:
-  uri: "neo4j+s://2a3edbfb.databases.neo4j.io"
-  user: "2a3edbfb"
+  uri: "neo4j+s://your-aura-instance.databases.neo4j.io"
+  user: "your-aura-instance"
   password: "REPLACE_NEO4J_PASSWORD"
-  database: "2a3edbfb"
+  database: "your-aura-instance"
   embed_endpoint: "databricks-gte-large-en"
   result_k: 8
   render_graph: true

@@ -5,6 +5,6 @@ env:
   - name: DATABRICKS_SERVING_ENDPOINT
     valueFrom: serving-endpoint
   - name: POSTGRES_URL
-    value: "postgresql://chatbot_svc:${LAKEBASE_PASSWORD}@ep-floral-smoke-d850fl6g.database.us-east-2.cloud.databricks.com:5432/databricks_postgres?sslmode=require"
+    value: "postgresql://chatbot_svc:${LAKEBASE_PASSWORD}@ep-your-lakebase.database.us-east-2.cloud.databricks.com:5432/databricks_postgres?sslmode=require"
   - name: NODE_ENV
     value: "production"

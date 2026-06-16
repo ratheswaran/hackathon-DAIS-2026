@@ -1,17 +1,14 @@
-"""Ephemeral notebook execution tool (plan group B2, second half).
+"""Ephemeral notebook execution tool.
 
-Split from the v1 ``run_python_notebook`` which combined save + execute.
-The v2 version auto-names notebooks under ``agent_generated/_ephemeral/``
-and always executes via serverless Jobs API. The notebook is a transient
+Auto-names notebooks under ``agent_generated/_ephemeral/`` and always
+executes via the serverless Jobs API. The notebook is a transient
 artifact — the user doesn't see it unless they go looking for it.
 
 For saving shareable notebooks, use ``save_python_notebook`` instead.
 
-Keeps the VariableStore preamble injection + writeback parsing from v1
-so ``variable_store.get()``/``.store()`` work inside the remote
+Injects the VariableStore preamble + writeback parsing so
+``variable_store.get()``/``.store()`` work inside the remote
 execution context.
-
-Spec: ``deep_agent_ra_v2/plans/functional-dancing-tiger.md`` B2.
 """
 
 from __future__ import annotations

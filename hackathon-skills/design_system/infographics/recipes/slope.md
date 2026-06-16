@@ -25,40 +25,40 @@ d = {
 **Minimal sample** (`scene.data`):
 ```json
 {
-  "left_label": "Raw rate",
-  "right_label": "Origin-adjusted",
+  "left_label": "Raw coverage",
+  "right_label": "Urbanisation-adjusted",
   "y_format": "pct",
   "note": "Where lines cross, the ranking lied.",
   "rows": [
     {
-      "name": "Germany",
+      "name": "Maharashtra",
       "left": 0.71,
       "right": 0.66,
       "or": 1,
       "sr": 4
     },
     {
-      "name": "Sweden",
+      "name": "Tamil Nadu",
       "left": 0.58,
       "right": 0.55
     },
     {
-      "name": "France",
+      "name": "Karnataka",
       "left": 0.49,
       "right": 0.52
     },
     {
-      "name": "Netherlands",
+      "name": "Gujarat",
       "left": 0.44,
       "right": 0.47
     },
     {
-      "name": "Greece",
+      "name": "Rajasthan",
       "left": 0.4,
       "right": 0.43
     },
     {
-      "name": "Italy",
+      "name": "Bihar",
       "left": 0.32,
       "right": 0.69,
       "or": 7,
@@ -107,12 +107,12 @@ return {
 }
 ```
 
-**Notes:** Port of renderSimpson() from build_flagship.py (lines 530-550) into the scene-engine contract. Faithful to the reference visual: two x-positions via d3.scalePoint, one line per entity connecting left->right, endpoint circles at both ends, percent y-axis, italic-serif rank-reversal annotation ("#or -> #sr") and an entity name label on the highlighted line(s). Crossing lines are the whole point (Simpson's paradox / rank reversal).
+**Notes:** Port of the reference Simpson's-paradox renderer into the scene-engine contract. Faithful to the reference visual: two x-positions via d3.scalePoint, one line per entity connecting left->right, endpoint circles at both ends, percent y-axis, italic-serif rank-reversal annotation ("#or -> #sr") and an entity name label on the highlighted line(s). Crossing lines are the whole point (Simpson's paradox / rank reversal).
 
 MOTION: fully compliant. All final geometry (lines, circles, labels) is drawn immediately at correct coordinates; H.in animates OPACITY only. Partial transparency on neutral lines uses the stroke-opacity ATTR (0.7), not style opacity, so H.in's element-opacity tween never clobbers it. Correct at t=0 under headless-Chrome rasterization and reduced-motion.
 
-HIGHLIGHT-BY-COLOUR: neutral P.grey by default; only names in scene.highlight (string or array) get P.signal via H.hue, thicker stroke, larger dots, plus value labels + name label + the rank annotation. Neutrals stay quiet (no labels) to keep the crossing legible — matches the reference, which labelled only Italy.
+HIGHLIGHT-BY-COLOUR: neutral P.grey by default; only names in scene.highlight (string or array) get P.signal via H.hue, thicker stroke, larger dots, plus value labels + name label + the rank annotation. Neutrals stay quiet (no labels) to keep the crossing legible — matches the reference, which labelled only the one crossing line.
 
-CSS: uses only existing classes (axis, vlabel, clabel, annot) and CSS vars/P hexes. No injected <style>. value y-axis assumed 0..1 fractions when y_format="pct" (the reference's recognition rates); pass y_format:"num" + a value_label scene field if you have absolute numbers.
+CSS: uses only existing classes (axis, vlabel, clabel, annot) and CSS vars/P hexes. No injected <style>. value y-axis assumed 0..1 fractions when y_format="pct" (the reference's coverage rates); pass y_format:"num" + a value_label scene field if you have absolute numbers.
 
 The python_shaper is OPTIONAL and additive — slope rows are usually best passed inline as scene.data (the reference precomputes overall/std rates + ranks that SQL alone can't produce). If you do drive it from a DataFrame, mapping keys: name_col, left_col, right_col, optional left_label/right_label, rank_left_col, rank_right_col, y_format. Note: this shaper is NOT yet wired into _shape_scene_data() in compose_infographic.py — to enable DataFrame-driven slope scenes, add a `t == "slope"` branch there calling this body (or just rely on inline scene.data, which already works via the existing `scene.get("data") is not None` short-circuit).

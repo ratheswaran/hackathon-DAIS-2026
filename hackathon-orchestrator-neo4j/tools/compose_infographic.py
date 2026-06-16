@@ -235,21 +235,15 @@ const H = {
   svg(root, vbW, vbH, label){ return root.append('svg')
     .attr('viewBox',`0 0 ${vbW} ${vbH}`).attr('preserveAspectRatio','xMidYMid meet')
     .attr('role','img').attr('aria-label',label||''); },
-  // editorial short names for long official country labels (axis space is scarce)
+  // editorial short names for long official place labels (axis space is scarce)
   shortName(s){ s=String(s==null?'':s);
-    const MAP={'United Kingdom of Great Britain and Northern Ireland':'United Kingdom',
-      'United States of America':'United States','Iran (Islamic Rep. of)':'Iran',
-      'Venezuela (Bolivarian Republic of)':'Venezuela','Syrian Arab Rep.':'Syria',
-      'Syrian Arab Republic':'Syria','Dem. Rep. of the Congo':'DR Congo',
-      'Democratic Republic of the Congo':'DR Congo','United Rep. of Tanzania':'Tanzania',
-      'United Republic of Tanzania':'Tanzania','Russian Federation':'Russia',
-      'Netherlands (Kingdom of the)':'Netherlands','Bolivia (Plurinational State of)':'Bolivia',
-      'Rep. of Moldova':'Moldova','Republic of Moldova':'Moldova','Rep. of Korea':'South Korea',
-      "Dem. People's Rep. of Korea":'North Korea',"Lao People's Dem. Rep.":'Laos',
-      'Serbia and Kosovo: S/RES/1244 (1999)':'Serbia & Kosovo','State of Palestine':'Palestine',
-      'China, Hong Kong SAR':'Hong Kong','Bosnia and Herzegovina':'Bosnia & Herz.'};
+    const MAP={'Andaman and Nicobar Islands':'Andaman & Nicobar',
+      'Dadra and Nagar Haveli and Daman and Diu':'Dadra & Nagar Haveli',
+      'National Capital Territory of Delhi':'Delhi',
+      'Jammu and Kashmir':'Jammu & Kashmir',
+      'The Dangs':'Dangs','Andhra Pradesh':'Andhra Pradesh'};
     if(MAP[s]) return MAP[s];
-    return s.replace(/\s*\((Kingdom|Islamic Rep\.|Bolivarian Republic|Plurinational State) of(?: the)?\)\s*/,'');
+    return s.replace(/\s+District$/i,'').replace(/^The\s+/,'');
   },
   trunc(s,n){ s=String(s==null?'':s); return s.length>n ? s.slice(0,n-1).replace(/[\s,;:·-]+$/,'')+'…' : s; },
 };
@@ -310,7 +304,7 @@ RENDERERS.line_multi = function(root, d, P, H, scene){
   if(!all.length){ g.append('text').attr('class','clabel').attr('x',iw/2).attr('y',ih/2).attr('text-anchor','middle').attr('fill',P.mute).text('No data'); return; }
   const x=d3.scaleLinear().domain(d3.extent(all,p=>p.x)).range([0,iw]);
   // y-domain: lines may ZOOM (bars may not). When the data sits far above
-  // zero (min > 25% of max — e.g. recognition rates 30–100%), forcing a zero
+  // zero (min > 25% of max — e.g. coverage rates 30–100%), forcing a zero
   // baseline crushes every series into the top band and the end labels
   // collide; zoom to a nice floor under the min instead and SAY SO on the
   // axis. d.y0 explicitly overrides the baseline; negative data still
@@ -576,7 +570,7 @@ RENDERERS.heatmap_matrix = function(root, d, P, H, scene){
       const vmax=d3.max(d.rows,r=>numOf(r[valKey]))||1;
       const isRate=vmax<=1.0001;
       cells=d.rows.map(r=>({o:String(r[rk]), d:String(r[ck]),
-        trr:isRate?numOf(r[valKey]):numOf(r[valKey])/vmax,
+        v:isRate?numOf(r[valKey]):numOf(r[valKey])/vmax,
         raw:numOf(r[valKey]), scaled:!isRate}));
     }
   }
@@ -585,6 +579,8 @@ RENDERERS.heatmap_matrix = function(root, d, P, H, scene){
       .text('[heatmap_matrix: needs {origins, dests, cells} or long-format {rows}] — no drawable data');
     return;
   }
+  // Normalise the cell value key: prefer `v`, accept legacy alias.
+  cells.forEach(c=>{ if(c.v==null && c.t!=null) c.v=c.t; });
   const anyScaled = cells.some(c=>c.scaled);
   const oname={}, dname={};
   origins.forEach(o=>{ oname[o.iso]=o.name; });
@@ -593,7 +589,7 @@ RENDERERS.heatmap_matrix = function(root, d, P, H, scene){
   const cellMin = (d.cell_min!=null)?d.cell_min:300;
 
   // Editorially shorten + truncate axis labels (full name survives as an SVG
-  // <title> tooltip) so long official country names can't escape the canvas
+  // <title> tooltip) so long official place names can't escape the canvas
   // or collide with neighbouring headers.
   const dlabel={}, olabel={};
   Dd.forEach(k=>{ dlabel[k]=H.trunc(H.shortName(dname[k]||k),14); });
@@ -607,7 +603,7 @@ RENDERERS.heatmap_matrix = function(root, d, P, H, scene){
   const mTop=Math.max(70,Math.min(150,Math.round(26+0.67*(8+maxDL*6.2))));
   const W=1040, Hh=700, m={top:mTop,right:152,bottom:48,left:118};
   const iw=W-m.left-m.right, ih=Hh-m.top-m.bottom;
-  const svg=H.svg(root,W,Hh,scene.title||'Recognition-rate matrix by nationality and destination');
+  const svg=H.svg(root,W,Hh,scene.title||'Value matrix by row and column category');
   const g=svg.append('g').attr('transform',`translate(${m.left},${m.top})`);
 
   const x=d3.scaleBand().domain(Dd).range([0,iw]).padding(.06);
@@ -654,16 +650,16 @@ RENDERERS.heatmap_matrix = function(root, d, P, H, scene){
     const cell=g.append('g');
     cell.append('rect').attr('x',x(dk)).attr('y',y(o))
       .attr('width',x.bandwidth()).attr('height',y.bandwidth()).attr('rx',2)
-      .attr('fill', c?color(c.trr):'url(#hm-hatch)')
+      .attr('fill', c?color(c.v):'url(#hm-hatch)')
       .attr('stroke',P.paper).attr('stroke-width',1);
     if(c){
       // dark cell (deep cobalt) → light text; pale cell → ink text
-      const dark = c.trr>0.45;
+      const dark = c.v>0.45;
       cell.append('text').attr('class','vlabel')
         .attr('x',x(dk)+x.bandwidth()/2).attr('y',y(o)+y.bandwidth()/2+3.5)
         .attr('text-anchor','middle').style('font-size','9.5px')
         .style('fill', dark?P.paper:P.ink)
-        .text(c.scaled ? H.fmt(c.raw) : Math.round(c.trr*100)+'%');
+        .text(c.scaled ? H.fmt(c.raw) : Math.round(c.v*100)+'%');
     }
     H.in(cell, 380, 80+ (ri*22) + (k%4)*18); k++;
   }));
@@ -701,13 +697,13 @@ RENDERERS.heatmap_matrix = function(root, d, P, H, scene){
       .style('font-size','10px').style('fill',P.mute).text(p[0]));
   lg.append('text').attr('class','axis-title').attr('x',0).attr('y',-6)
     .text(scene.value_label ? ('low ◀ '+String(scene.value_label)+' ▶ high').toUpperCase()
-                            : (anyScaled ? 'LOW ◀ VALUE ▶ HIGH' : 'strict ◀ recognition rate ▶ generous'));
+                            : (anyScaled ? 'LOW ◀ VALUE ▶ HIGH' : 'LOW ◀ RATE ▶ HIGH'));
 
   // suppressed-cell note — only when cells are actually missing/hatched
   if(cells.length < O.length*Dd.length){
     lg.append('text').attr('class','annot').attr('x',iw).attr('y',-6)
       .attr('text-anchor','end').style('fill',P.mute).style('font-size','11px')
-      .text(anyScaled ? 'hatched = no data' : 'hatched = fewer than '+H.fmt(cellMin)+' decisions');
+      .text(anyScaled ? 'hatched = no data' : 'hatched = fewer than '+H.fmt(cellMin)+' records');
   }
 };
 
@@ -720,11 +716,11 @@ RENDERERS.bubble_scatter = function(root, d, P, H, scene){
   const pickF=(o,keys)=>{for(const k of keys){if(o&&o[k]!=null&&o[k]!=='')return o[k];}return null;};
   const raw=(d.points&&d.points.length?d.points:(d.rows||[]));
   const pts = raw.map(o=>({
-      name: H.shortName(String(pickF(o,['name','host','country','label','entity','iso'])||'')),
-      name_full: String(pickF(o,['name','host','country','label','entity','iso'])||''),
+      name: H.shortName(String(pickF(o,['name','state','district','label','entity','iso'])||'')),
+      name_full: String(pickF(o,['name','state','district','label','entity','iso'])||''),
       gdp: numOf(pickF(o,['gdp','gdp_per_capita','gdp_per_capita_usd','gdp_pc','x'])),
-      per1000: numOf(pickF(o,['per1000','refugees_per_1000_residents','per_1000','refugees_per_1000','burden_per_1000','y'])),
-      hosted: numOf(pickF(o,['hosted','hosted_refugees','refugees','refugees_hosted','total_hosted','size','n'])),
+      per1000: numOf(pickF(o,['per1000','per_1000','facilities_per_1000','rate','burden_per_1000','y'])),
+      hosted: numOf(pickF(o,['hosted','facility_count','facilities','count','total','size','n'])),
       region: String(pickF(o,['region','group'])||'Other'),
       note: o&&o.note,
     })).filter(p=>p.gdp>0 && p.per1000>0 && p.hosted>0);
@@ -894,7 +890,7 @@ RENDERERS.choropleth = function(root, d, P, H, scene){
       .attr('offset',(t*100)+'%').attr('stop-color',color(t)));
     const lgnd = svg.append('g').attr('transform','translate(18,'+(Hh-30)+')');
     lgnd.append('text').attr('class','axis-title').attr('x',0).attr('y',-8)
-      .text((scene.value_label||'recognition rate').toUpperCase());
+      .text((scene.value_label||'value').toUpperCase());
     lgnd.append('rect').attr('width',220).attr('height',9).attr('rx',2)
       .attr('fill','url(#'+uid+')').attr('stroke',P.hair);
     [['0%',0],['50%',110],['100%',220]].forEach(p=>lgnd.append('text')
@@ -1311,9 +1307,9 @@ RENDERERS.bar_race = function(root, d, P, H, scene){
 // ── iceberg ──
 RENDERERS.iceberg = function(root, d, P, H, scene){
   // Iceberg waterline reframe: one 100%-width horizontal bar split into an
-  // above-waterline segment (visible abroad) and a below-waterline mass
-  // (e.g. internally displaced). A dashed waterline rule sits on the boundary;
-  // serif annotations carry the reframe ("X% never crossed a border").
+  // above-waterline segment (the visible, reported part) and a below-waterline
+  // mass (the hidden remainder). A dashed waterline rule sits on the boundary;
+  // serif annotations carry the reframe ("X% never show up in the count").
   // Final geometry is drawn immediately; motion is opacity-only (H.in).
   const above = d.above || {label:'Above', value:0};
   const below = d.below || {label:'Below', value:0};
@@ -1535,8 +1531,8 @@ RENDERERS.sankey_corridors = function(root, d, P, H, scene){
 
   // ── column headers (mono caps, axis-title class) ──
   const origNode = graph.nodes.find(n=>n.side==='orig');
-  g.append('text').attr('class','axis-title').attr('x', origNode? origNode.x0 : 0).attr('y',-12).text('ORIGIN');
-  g.append('text').attr('class','axis-title').attr('text-anchor','end').attr('x',iw).attr('y',-12).text('HOST COUNTRY');
+  g.append('text').attr('class','axis-title').attr('x', origNode? origNode.x0 : 0).attr('y',-12).text(String(d.source_label||'SOURCE').toUpperCase());
+  g.append('text').attr('class','axis-title').attr('text-anchor','end').attr('x',iw).attr('y',-12).text(String(d.target_label||'DESTINATION').toUpperCase());
 
   // ── links: draw FINAL geometry now; fade in (opacity only via H.in) ──
   const linkGen = d3.sankeyLinkHorizontal();
@@ -1551,7 +1547,7 @@ RENDERERS.sankey_corridors = function(root, d, P, H, scene){
       .attr('stroke-opacity', isOther ? 0.30 : 0.50)   // partial transparency via ATTR (H.in owns 'opacity')
       .attr('stroke-width', Math.max(1, lk.width));
     path.append('title').text(
-      (lk.source.name||'')+' → '+(lk.target.name||'')+': '+H.fmt(lk.value)+' refugees');
+      (lk.source.name||'')+' → '+(lk.target.name||'')+': '+H.fmt(lk.value)+(d.value_unit?(' '+d.value_unit):''));
     H.in(path, 520, 120 + i*55);                        // largest-first stagger
   });
 
@@ -1992,8 +1988,9 @@ def build_compose_infographic_tool(*, workspace_client: Any, variable_store_cls:
             "`variable_name`+`mapping` and the tool shapes the slice from the stored DataFrame. "
             "A `stat` scene's data MUST carry a numeric `value` (or `value_fmt`); use `headline` "
             "only for a words-as-stat callout. For bubble_scatter give points as "
-            "{name,gdp,per1000,hosted,region}. DATA-SHAPE CONTRACTS: heatmap_matrix is ONLY for a "
-            "rate matrix — {origins:[{iso,name}], dests:[{iso,name}], cells:[{o,d,trr}]}; "
+            "{name,x,y,size,region}. DATA-SHAPE CONTRACTS: heatmap_matrix is ONLY for a "
+            "value matrix — {origins:[{iso,name}], dests:[{iso,name}], cells:[{o,d,v}]} "
+            "(`o`=row key, `d`=column key, `v`=cell value 0–1 or raw); "
             "age-sex/demographic breakdowns use `pyramid` ({bands:[{age,female,male}]} or long-format "
             "{rows:[{age_band,sex,value}]}), NEVER heatmap_matrix. If your data doesn't fit an "
             "archetype's contract, pick a simpler archetype (ranked_bar/line_multi) instead of "

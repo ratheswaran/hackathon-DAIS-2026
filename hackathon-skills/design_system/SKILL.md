@@ -11,23 +11,23 @@ description: >
 
 # Hackathon Design System
 
-> **DRY-RUN ARTIFACT.** Replaces the AIA Qi design system from `deep_agent_ra_v2/skills/design_system/`
-> for the hackathon-test deploy. The actual hackathon submission will inherit
-> directly from the four Claude design skills below — there is no separate
-> brand to preserve. This file mainly enforces *voice* and pins the editorial
-> palette so the orchestrator's chart output looks editorial, not corporate.
+> **DRY-RUN ARTIFACT.** Editorial design system for the hackathon agent's
+> visual output. The actual hackathon submission inherits directly from the
+> four Claude design skills below — there is no separate brand to preserve.
+> This file mainly enforces *voice* and pins the editorial palette so the
+> orchestrator's chart output looks editorial, not corporate.
 
-## Voice + tone (rule R10 from unhcr-displacement)
+## Voice + tone
 
-UNHCR data is human suffering. Agent voice is **sober**:
+The subject is real people's access to care. Agent voice is **sober**:
 
 - No emoji.
 - No clickbait phrasings ("you won't believe…", "shocking", "crisis explodes 🚨").
-- No triumphalist framing of "top" rankings — they are tragedies.
+- No triumphalist framing of "top" rankings — they describe gaps in care.
 - Plain prose; the numbers carry the weight.
 - Lead with human framing in plain text BEFORE the chart, not after:
-  "1.11 million people from Sudan are recorded as having sought protection
-   in Chad as of end-2024."
+  "245 of the surveyed districts have no facility in this coverage sample,
+   leaving residents to travel for routine care."
 
 ## Underlying Claude skills
 
@@ -79,7 +79,7 @@ You do **not** pass colours to the engine — it applies them. Reference:
 
 Fonts: **Source Serif 4** (display: hero, titles, stat values, quotes) ·
 **Manrope** (body / UI / axes) · **JetBrains Mono** (numbers, captions).
-NO bright reds, NO rainbow scales — the subject is grave. ⚠ Earlier clay/olive
+NO bright reds, NO rainbow scales — the subject is people's access to care. ⚠ Earlier clay/olive
 editorial and pure-cobalt-on-white palettes are SUPERSEDED — use `tokens.css`.
 
 ## Chart selection — question class → scene archetype
@@ -90,16 +90,16 @@ Prefer position/length encodings; **never pie/donut/3-D** (low-rank angle/area).
 
 | Question class | Archetype |
 |---|---|
-| Single KPI ("how many refugees from X?") | plain text, or `stat` if it needs weight |
+| Single KPI ("how many facilities in district X?") | plain text, or `stat` if it needs weight |
 | A few headline numbers + deltas | `kpi_grid` |
 | Top-N leaderboard | `ranked_bar` (highlight the named entity) |
 | Time series / comparison | `line_multi` |
 | Composition over time (absolute / share) | `stacked_area` / `stacked_area_share` |
 | Concentration / inequality | `lorenz_gini` |
-| Origin × year/destination intensity | `heatmap_matrix` (% printed in cell) |
-| Recognition fairness + uncertainty | `forest_ci` (odds ratios + CIs) |
+| District × indicator intensity | `heatmap_matrix` (% printed in cell) |
+| Access-gap odds + uncertainty | `forest_ci` (odds ratios + CIs) |
 | Correlation / honest null | `bubble_scatter` (log–log + OLS) |
-| Geographic pattern | `choropleth` (Europe-framed) |
+| Geographic pattern | `choropleth` (India-district-framed) |
 | Two-state gap / rank reversal | `dumbbell` / `slope` |
 | Age–sex structure | `pyramid` |
 | Changing ranks over time | `bar_race` |
@@ -111,7 +111,7 @@ Prefer position/length encodings; **never pie/donut/3-D** (low-rank angle/area).
 ## Number formatting
 
 - No scientific notation in user-facing numbers.
-- People: comma-thousands. Use K/M suffix at ≥ 100,000 for axis labels only:
+- Counts: comma-thousands. Use K/M suffix at ≥ 100,000 for axis labels only:
   - 14,340,000 in body text
   - 14.3M on a chart axis
 - Percentages: 1 or 2 decimal places, `%` suffix. "94.06%" not "0.9406".
@@ -120,23 +120,25 @@ Prefer position/length encodings; **never pie/donut/3-D** (low-rank angle/area).
 
 ## Methodology + AI-disclosure footer (data-journalism skill)
 
-Every analytical answer ends with a methodology footer:
+Every analytical answer ends with a methodology footer. The compose tools
+inject the canonical source line automatically — do not hand-write a
+contradictory one. The shape is:
 
 ```
 ─────
-Source: UNHCR Refugee Data Finder (api.unhcr.org/population/v1/), snapshot
-pulled 2026-05-06. Licensed under CC BY 4.0.
-Methodology: [annual end-year stocks | flows | demographics cell-suppressed
-< 5]. All figures rounded to nearest whole person.
-AI-disclosure: Answer composed by an LLM agent. Numbers retrieved by SQL
-under the user's identity; figures verified against UNHCR's published Global
-Trends totals where available.
+Source: Virtue Foundation dataset (facilities, india_post_pincode_directory,
+nfhs_5_district_health_indicators).
+Methodology: [facility coverage from a ~10k sample, NOT a census | NFHS-5
+district health indicators | India Post PIN → district crosswalk]. Facility
+service claims are self-reported. No per-capita rates (no population in source).
+AI-disclosure: Answer composed by an LLM agent. Numbers retrieved by SQL under
+the user's identity; figures verified against the source tables where available.
 ─────
 ```
 
 Compact form (chat replies):
 
-> *Source: UNHCR RDF (2026-05-06). License: CC BY 4.0. AI-composed.*
+> *Source: Virtue Foundation dataset. Coverage sample, not a census. AI-composed.*
 
 ## Reference files
 

@@ -14,15 +14,15 @@ The two-toned female=signal/male=slate encoding is intrinsic (it is the chart's 
 ```json
 {
   "type": "pyramid",
-  "title": "Population pyramid — forcibly displaced, 2024",
-  "eyebrow": "UNHCR · Demographics",
-  "lede": "Almost half are children. Among displaced people whose age is recorded, 45% are under 18 — against roughly 30% worldwide.",
+  "title": "Anaemia prevalence by age and sex — high-burden districts",
+  "eyebrow": "NFHS-5 · Demographics",
+  "lede": "The burden skews young and female. Among surveyed people in high-burden districts, women and girls carry the larger share at every reproductive-age band.",
   "highlight": "female",
-  "caption": "Female (left) and male (right) by age band. Source: UNHCR Refugee Data Finder.",
+  "caption": "Female (left) and male (right) by age band, illustrative shares. Source: NFHS-5 district health indicators (sample).",
   "annotation": {
-    "text": "← almost half under 18",
+    "text": "← women & girls carry more at every reproductive-age band",
     "side": "left",
-    "band_index": 4
+    "band_index": 3
   },
   "data": {
     "unit": "M",
@@ -86,7 +86,7 @@ bands = [
 return {"bands": bands, "unit": unit}
 ```
 
-**Notes:** Faithful port of build_flagship.py renderPyramid: female-left / male-right diverging bars, symmetric linear x-scale domain [-maxV, maxV] with maxV = 1.12 * max(any cell), centred age-band labels, "Female"/"Male" side headers above the axes, abs-value axis ticks with a unit suffix.
+**Notes:** Faithful port of the reference flagship renderPyramid: female-left / male-right diverging bars, symmetric linear x-scale domain [-maxV, maxV] with maxV = 1.12 * max(any cell), centred age-band labels, "Female"/"Male" side headers above the axes, abs-value axis ticks with a unit suffix.
 
 DEVIATIONS / decisions:
 - Reference colours were clay(female)/blue(male) from its own palette. Mapped into the engine palette: female=P.signal (cobalt primary), male=P.slate. This two-tone split IS the chart's encoding, so it is intentionally NOT collapsed to a single highlight colour. scene.highlight === 'female' reproduces the reference's `highlightFemale` mode (dims the male side via fill-opacity 0.30); 'male' dims the other side. With no highlight, both sides render at fill-opacity 0.92 (matching the reference resting state).

@@ -75,7 +75,7 @@ logger = logging.getLogger(__name__)
 # Constants — Resonance Analytics brand palette + slide canvas
 # ---------------------------------------------------------------------------
 
-# Hackathon free-edition catalog (NOT uc_test). Matches compose_document /
+# Hackathon free-edition catalog. Matches compose_document /
 # compose_infographic so all three land in the same documents folder.
 _VOLUME_ROOT = "/Volumes/workspace/ai_ops/agent_scratch/documents"
 

@@ -199,8 +199,8 @@ if not WORKSPACE_URL.startswith("https://"):
 def _parse_workspace_host(host: str) -> tuple[str, str] | tuple[None, None]:
     """Return (workspace_id, shard) parsed from a Databricks host string.
 
-    Accepts e.g. ``adb-4211764109525145.5.azuredatabricks.net`` and returns
-    ``("4211764109525145", "5")``. Returns ``(None, None)`` on non-matching
+    Accepts e.g. ``adb-<workspace-id>.5.azuredatabricks.net`` and returns
+    ``("<workspace-id>", "5")``. Returns ``(None, None)`` on non-matching
     hosts (e.g. custom domains, lab workspaces with different naming).
     """
     if not host:
@@ -289,7 +289,7 @@ USER_PREFS_NUM_RESULTS = int(os.environ.get(
 # `agent-secrets` secret scope, mirroring the SAP GraphRAG reference). The
 # query embedding uses the SAME Databricks FM endpoint the graph was ingested
 # with (default databricks-gte-large-en, 1024-dim) so query/index vectors
-# match and no torch ships in the serving image. See [[neo4j-skills-brain]].
+# match and no torch ships in the serving image. See the Neo4j skills-graph design.
 _neo4j_cfg = _CFG.get("neo4j", {}) or {}
 # brain/config.py reads NEO4J_URI/USER/PASSWORD/DATABASE directly from env; we
 # only seed defaults here so local runs (config.yml) work without secrets.
@@ -319,7 +319,7 @@ _obo_workspace_client = None  # OBO-mode — minted with ModelServingUserCredent
                               # so per-call API uses the forwarded user token.
                               # Used by Genie / SQL-warehouse / notebook-write
                               # tools so row-level security flows to the user.
-                              # See [[obo-dual-client-pattern]].
+                              # See the OBO dual-client pattern.
 _current_user_email = None
 _uc_catalog_names: set = set()  # populated by _init_db() from UC catalogs.list()
 
@@ -342,7 +342,7 @@ def _user_workspace_client():
     (Genie, SQL warehouse, Workspace notebook write/run). The OBO client is
     backed by ``ModelServingUserCredentials()`` which reads
     ``X-Forwarded-Access-Token`` per call, so a single cached instance
-    correctly serves N concurrent users — see [[obo-dual-client-pattern]].
+    correctly serves N concurrent users — see the OBO dual-client pattern.
 
     Falls back to the SP client when:
       - Running locally (no Model Serving runtime, OBO bridge unavailable).
@@ -468,20 +468,25 @@ class SemanticCache:
 
 
 def _extract_tables_from_skills(skills_dir: Path) -> str:
-    """Scan skill markdown files for table definitions and return a formatted list.
+    """Scan any bundled skill markdown for table definitions and return a list.
 
     Parses lines like ``### N. `catalog.schema.table` `` followed by
-    ``**Description**: ...`` from business_context.md (or any .md file under
+    ``**Description**: ...`` from a business_context.md (or any .md file under
     each skill directory).  Returns a bullet list suitable for prompt injection,
     e.g.::
 
-        - `uc_test.th_poc.agent_manpower` — agent manpower
+        - `workspace.hackathon.facilities` — healthcare facilities
+
+    NOTE: domain knowledge (the table inventory, schemas, gotchas) is now served
+    at runtime by the find_skill graph + the Genie space rather than bundled
+    domain skills, so this scanner usually finds nothing and returns the
+    find_skill fallback below — that's expected.
     """
     table_header_re = re.compile(r"^###\s+\d+\.\s+`([^`]+)`")
     tables: list[str] = []
 
     if not skills_dir.exists():
-        return "(skill tables not found — read /skills/ at runtime)"
+        return _SKILL_TABLES_FALLBACK
 
     for md_file in sorted(skills_dir.rglob("*.md")):
         if md_file.name.lower() in ("skill.md", "sql_patterns.md"):
@@ -509,8 +514,17 @@ def _extract_tables_from_skills(skills_dir: Path) -> str:
                     break
             tables.append(f"  - `{table_name}` — {desc}" if desc else f"  - `{table_name}`")
 
-    return "\n".join(tables) if tables else "(no tables found in skills — read /skills/ at runtime)"
+    return "\n".join(tables) if tables else _SKILL_TABLES_FALLBACK
 
+
+# When no tables are bundled (the normal case — domain knowledge is served by
+# the find_skill graph + Genie space), inject a directive instead of an empty
+# allow-list so the prompt never reads "Only use the following tables:" with
+# nothing after it.
+_SKILL_TABLES_FALLBACK = (
+    "  - (call find_skill first — it returns the table inventory, schemas, "
+    "and gotchas for the active domain; do not assume a fixed table set)"
+)
 
 # Pre-extract tables for prompt injection (resolved again at agent init if skills_dir changes)
 _SKILL_TABLES_TEXT = _extract_tables_from_skills(SKILLS_DIR)
@@ -778,7 +792,9 @@ class VariableStore:
         """Volumes directory for this thread's DataFrames."""
         thread_id = self._ns[-1] if len(self._ns) > 2 else "default"
         email = _get_current_user_email()
-        return f"/Volumes/uc_test/ai_ops/agent_scratch/data/{email}/{thread_id}" 
+        # Volume root is config-driven (_VOLUME_PATH); never hardcode a UC catalog.
+        base = globals().get("_VOLUME_PATH", "/Volumes/workspace/hackathon/agent_scratch")
+        return f"{base}/data/{email}/{thread_id}"
 
     def _data_path(self, name: str) -> str:
         """Volumes path for a persisted DataFrame Parquet file."""
@@ -1557,8 +1573,8 @@ def _save_notebook_to_workspace(code, name, description):
     The user is ``CAN_MANAGE`` on their own ``/Workspace/Users/<email>/`` —
     they can mkdirs + upload there if their forwarded token carries the
     Workspace API scopes (``workspace.workspace`` is the only Apps-issuable
-    scope that maps; see [[obo-workspace-scope-unmappable]] / wiki guide
-    [[v3-stabilisation-2026-04-29]] for the historical scope-claim issue).
+    scope that maps; see the OBO workspace-scope mapping note / wiki guide
+    the stabilisation notes for the historical scope-claim issue).
     OBO upload was broken in 2026-04 because ``workspace.workspace`` did
     not satisfy the IMPORT API's ``workspace`` claim; we still try OBO
     first because (a) Databricks may have fixed the mapping, (b) when it
@@ -1574,7 +1590,7 @@ def _save_notebook_to_workspace(code, name, description):
     the ``admins`` group or per-user CAN_MANAGE grants are made.
 
     All failures are surfaced at WARNING so they appear in the Logs API
-    (see [[modelserving-logs-warning-only]]).
+    (see the Model Serving warning-level-logs note).
     """
     _user_client = _user_workspace_client()
     _have_obo = _user_client is not _workspace_client and _user_client is not None
@@ -1883,7 +1899,7 @@ def run_python_code(
 # =============================================================================
 # The v1 render_visualization function, CHART_TYPES, _choose_chart_type,
 # _PLOTLY_BAR/HBAR/LINE/PIE/SCATTER, and _PLOTLY_BODIES have been deleted.
-# Chart rendering now uses qi_theme helpers and writes HTML to Volumes.
+# Chart rendering now uses the editorial theme helpers and writes HTML to Volumes.
 # See tools/render_chart.py for the replacement.
 CHART_TYPES_REMOVED_PLACEHOLDER = True  # Marker for grep — remove after B7 test migration
 
@@ -1892,15 +1908,15 @@ CHART_TYPES_REMOVED_PLACEHOLDER = True  # Marker for grep — remove after B7 te
 # MAGIC %md
 # MAGIC ## Cell 5: System Prompts
 # MAGIC
-# MAGIC Prompt templates + factory functions live in
-# MAGIC ``deep_agent_ra_v2/subagents/prompts.py`` (extracted in plan group D0).
+# MAGIC Prompt templates + factory functions live in this package's
+# MAGIC ``subagents/prompts.py``.
 # MAGIC This cell binds runtime values (``current_date``, ``volume_path``,
 # MAGIC ``scratch_schema``, ``skill_tables_text``) and assigns the three prompt
 # MAGIC strings used by Cell 7's ``create_production_agent``.
 
 # COMMAND ----------
 
-# --- Ensure deep_agent_ra_v2/ is importable so we can load subagents/ ---
+# --- Ensure this package is importable so we can load subagents/ ---
 # Mirrors the sys.path shim used for backend.py in Cell 6. __file__ is
 # available when the notebook is imported as a Python module (e.g. MLflow
 # log_model), and is None when run interactively — in which case the
@@ -1930,9 +1946,9 @@ from subagents import (
     build_data_viz_prompt,
 )
 
-# --- v2 tool + variable store + middleware imports (plan B3) ---
+# --- tool + variable store + middleware imports ---
 # The sys.path shim above already covers tools/, variable_store/, and
-# middleware/ — they're siblings of subagents/ under deep_agent_ra_v2/.
+# middleware/ — they're siblings of subagents/ in this package.
 from variable_store import LakebaseVariableStore
 from tools.think_tool import think_tool
 from tools.ask_genie_space import build_ask_genie_space_tool
@@ -1964,7 +1980,7 @@ from tools.find_skill import build_find_skill_tool
 # substituted from `config["configurable"]["langgraph_user_id"]` at
 # tool-invocation time so writes are scoped per OBO-resolved user. Reads
 # happen separately via _retrieve_user_prefs() in predict_stream — the
-# agent doesn't get a search tool. See [[langmem-user-preferences-pattern]].
+# agent doesn't get a search tool. See the user-preferences memory pattern.
 try:
     from langmem import create_manage_memory_tool
     save_user_preference = create_manage_memory_tool(
@@ -2035,10 +2051,12 @@ except ImportError:
 # Module-level global for DuckDB-postgres DSN — set in _init_checkpointer
 _DUCKDB_LAKEBASE_DSN = ""
 
+# Volume path + scratch schema are config-driven; the fallbacks below are
+# neutral placeholders — never hardcode a real UC catalog.
 _VOLUME_PATH = _CFG.get("agent", {}).get(
-    "volume_path", "/Volumes/uc_test/ai_ops/agent_scratch"
+    "volume_path", "/Volumes/workspace/hackathon/agent_scratch"
 )
-_SCRATCH_SCHEMA = _CFG.get("agent", {}).get("scratch_schema", "uc_test.ai_ops")
+_SCRATCH_SCHEMA = _CFG.get("agent", {}).get("scratch_schema", "workspace.hackathon")
 
 ORCHESTRATOR_PROMPT = build_orchestrator_prompt(
     current_date=current_date,
@@ -2055,7 +2073,7 @@ PYTHON_ANALYST_PROMPT = build_python_analyst_prompt(
 
 DATA_VIZ_PROMPT = build_data_viz_prompt(current_date=current_date)
 
-_ORIGINAL_CELL5_PROMPT_BODIES_REMOVED_IN_D0 = True  # marker for future B4 rewrite
+_ORIGINAL_CELL5_PROMPT_BODIES_EXTERNALIZED = True  # prompt bodies now in subagents/prompts.py
 
 # COMMAND ----------
 
@@ -2065,8 +2083,8 @@ _ORIGINAL_CELL5_PROMPT_BODIES_REMOVED_IN_D0 = True  # marker for future B4 rewri
 # COMMAND ----------
 
 # --- Import DatabricksVolumesBackend ---
-# NOTE (v2 fork): v1's `databricks_backend.py` was renamed to `backend.py` in
-# deep_agent_ra_v2/. Module name is `backend` accordingly.
+# NOTE: the Volumes backend module is `backend.py` in this package; the module
+# name is `backend` accordingly.
 _file_path_for_backend = globals().get("__file__")
 _backend_imported = False
 if _file_path_for_backend:
@@ -2284,7 +2302,7 @@ class OrchestratorResponsesAgent(ResponsesAgent):
         on Postgres — pinned `langgraph-checkpoint-postgres==2.0.2`, the last
         version before `from psycopg import Capabilities` was added, which
         works against psycopg 3.1.19 (the Free-Edition-libpq-safe version).
-        See [[freeedition-pin-matrix]] and [[hackathon-orchestrator-memory-not-firing]].
+        See the dependency pin matrix and the memory-not-firing note.
 
         Deferred from __init__ because LAKEBASE_URL may not be available
         during log_model validation. Called on first predict_stream request.
@@ -2309,7 +2327,7 @@ class OrchestratorResponsesAgent(ResponsesAgent):
             )
         # Resolve IP via DoH for serverless/Model Serving environments.
         # On Free Edition Autoscaling the public DNS resolves directly, so
-        # this is mostly a no-op there (see [[lakebase-autoscaling-quirks]]),
+        # this is mostly a no-op there (see the Lakebase autoscaling notes),
         # but keep it for parity with work workspace.
         _lakebase_url = self._resolve_lakebase_url(_lakebase_url)
 
@@ -2393,7 +2411,7 @@ class OrchestratorResponsesAgent(ResponsesAgent):
           the env doesn't support OBO (local notebook validation), the
           client is left as None and tools fall back to the SP client.
 
-        See [[obo-dual-client-pattern]] for why a single cached OBO client
+        See the OBO dual-client pattern for why a single cached OBO client
         safely handles concurrent users (per-call header reads).
         """
         with self._db_init_lock:
@@ -2449,7 +2467,7 @@ class OrchestratorResponsesAgent(ResponsesAgent):
             except Exception as e:
                 logger.warning(f"Could not resolve user email: {e}")
             try:
-                _workspace_client.files.create_directory("/Volumes/uc_test/ai_ops/agent_scratch/data")
+                _workspace_client.files.create_directory(f"{_VOLUME_PATH}/data")
             except Exception:
                 pass  # Already exists
             logger.info("Lazy DB initialization complete")
@@ -2473,7 +2491,7 @@ class OrchestratorResponsesAgent(ResponsesAgent):
         ``list_dataframes``) are kept as-is — they now go through ``LakebaseVariableStore`` via
         the Cell 5 alias ``VariableStore = LakebaseVariableStore``.
 
-        Subagent builders live in ``deep_agent_ra_v2/subagents/`` (D0).
+        Subagent builders live in this package's ``subagents/``.
         Passing ``store=memory_store`` is still required for the DeepAgents
         ``InjectedStore()`` injection mechanism, even though
         ``LakebaseVariableStore`` ignores it internally.
@@ -2568,7 +2586,7 @@ class OrchestratorResponsesAgent(ResponsesAgent):
         # FM endpoint the graph was ingested with (no torch in the image).
         # Shared by the orchestrator AND both subagents — the brain ranks all
         # 8 skills, so the prompts (not a skill= prefix) steer each agent's
-        # focus. See [[neo4j-skills-brain]] + tools/find_skill.py.
+        # focus. See the Neo4j skills-graph design + tools/find_skill.py.
         _find_skill = build_find_skill_tool(
             embedding_endpoint=FIND_SKILL_EMBED_ENDPOINT,
             result_k=FIND_SKILL_RESULT_K,
@@ -2893,7 +2911,7 @@ class OrchestratorResponsesAgent(ResponsesAgent):
         # --- User preferences (per-user, every turn) ---
         # Reads the langmem-managed namespace ("user_prefs", <user_id>) under
         # the OBO-resolved identity. Never quotes recalled facts — see
-        # [[langmem-user-preferences-pattern]] + the orchestrator prompt's
+        # the user-preferences memory pattern + the orchestrator prompt's
         # "User Preferences" section. Skipped silently for default_user
         # (no OBO identity resolved).
         if USER_PREFS_ENABLED and memory_store is not None:
@@ -3189,10 +3207,10 @@ def _deploy_v2_enabled() -> bool:
     return str(flag).lower() in ("1", "true", "yes")
 
 
-# DEPLOY_V3: separate UC model (orchestrator_agent_v3) + auto-derived endpoint
-# (agents_uc_test-th_poc-orchestrator_agent_v3). Implies the broader OBO scope
-# set; tool-side OBO clients are gated by the env var below at request time.
-# v2 endpoint stays untouched as the rollback baseline.
+# DEPLOY_V3: separate UC model + auto-derived endpoint (UC model name and
+# endpoint name are both config-driven; never hardcode a UC catalog). Implies
+# the broader OBO scope set; tool-side OBO clients are gated by the env var
+# below at request time. The v2 endpoint stays untouched as the rollback baseline.
 def _deploy_v3_enabled() -> bool:
     flag = os.environ.get("DEPLOY_V3", "")
     if not flag:
@@ -3208,10 +3226,9 @@ def _deploy_enabled() -> bool:
 
 
 def _resolve_uc_model_name() -> str:
-    # Always read from workspace_config.yml — the prior hardcoded
-    # `uc_test.th_poc.orchestrator_agent_v3` was the work-workspace
-    # convention and breaks on workspaces with different catalog/schema
-    # names (e.g. Free Edition uses `workspace.hackathon.*`).
+    # Always read from workspace_config.yml — the catalog/schema/model prefix is
+    # derived from config and never hardcoded to a UC catalog, so this works
+    # across workspaces (e.g. Free Edition uses `workspace.hackathon.*`).
     return _CFG.get("mlflow", {}).get("uc_model_name", "")
 
 
@@ -3262,7 +3279,7 @@ if _deploy_enabled() and not mlflow.active_run():
         resources.append(DatabricksSQLWarehouse(warehouse_id=SQL_WAREHOUSE_ID))
 
     input_example = {
-        "input": [{"role": "user", "content": "What is the total ANP by division for 2021?"}],
+        "input": [{"role": "user", "content": "Which districts have the most healthcare facilities?"}],
         "context": {"conversation_id": "example-123"},
     }
 
@@ -3340,8 +3357,8 @@ if _deploy_enabled() and not mlflow.active_run():
                 # before `from psycopg import Capabilities` was added (2.0.3+).
                 # Compatible with psycopg 3.1.19, the Free-Edition-libpq-safe
                 # version. Restores durable LangGraph checkpoint + langmem
-                # PostgresStore against Lakebase. See [[freeedition-pin-matrix]]
-                # + [[hackathon-orchestrator-memory-not-firing]].
+                # PostgresStore against Lakebase. See the dependency pin matrix
+                # + the memory-not-firing note.
                 "langgraph-checkpoint-postgres==2.0.2",
                 "psycopg==3.1.19",
                 "psycopg-binary==3.1.19",
@@ -3415,7 +3432,7 @@ if _deploy_enabled() and not mlflow.active_run():
     # secret keys: `sp-client-id` + `sp-client-secret`. The OBO migration
     # removes the previously-injected `DATABRICKS_TOKEN` so per-user tool
     # calls flow as the calling user via ModelServingUserCredentials() —
-    # see [[obo-dual-client-pattern]].
+    # see the OBO dual-client pattern.
     try:
         _sp_client_id = dbutils.secrets.get("agent-secrets", "sp-client-id")  # noqa: F821
         _sp_client_secret = dbutils.secrets.get("agent-secrets", "sp-client-secret")  # noqa: F821
@@ -3442,13 +3459,13 @@ if _deploy_enabled() and not mlflow.active_run():
         if _deploy_v3_enabled()
         else _CFG.get("mlflow", {}).get("experiment_name", "")
     )
-    # APP_URL — same pattern. workspace_config.yml has `app.name=aia-deepagent-v2`
-    # so the derived URL always points at v2 unless we override per endpoint.
-    # Discovered 2026-04-29 when the user's "Open chart" link from a chart
-    # rendered on the v3 app sent them to https://aia-deepagent-v2-…/api/charts/…
-    # because render_chart was emitting the v2-derived URL. Override on v3.
-    # neo4j fork: read the app name from config so the new endpoint's chart /
-    # graph URLs point at the NEW parallel app, not the production one.
+    # APP_URL — same pattern. If workspace_config.yml's `app.name` points at a
+    # different app, the derived URL would steer chart links to the wrong app
+    # (e.g. "Open chart" from a chart rendered on this endpoint resolving to a
+    # <prior-app-name> URL because render_chart emitted the other app's URL),
+    # so we override it per endpoint.
+    # Read the app name from config so the endpoint's chart / graph URLs point
+    # at the parallel app for this build, not any production one.
     _v3_app_name = _APP_CFG.get("name") or "neo4j-skills-agent-ui"
     # Explicit app.url wins — _derive_app_url only knows the Azure URL shape
     # and returns None on AWS hosts (dbc-*.cloud.databricks.com), which would
@@ -3469,7 +3486,7 @@ if _deploy_enabled() and not mlflow.active_run():
         # MLflow client-side HTTP timeout (default 120s). Raise to 300s
         # so the serving container's own MLflow client calls don't bail
         # before the 297s server-side cap. Paired with the Apps-side
-        # heartbeat/resume fix — see [[long-running-query-timeout]].
+        # heartbeat/resume fix — see the long-running-query timeout fix.
         "MLFLOW_HTTP_REQUEST_TIMEOUT": "300",
         # Episodic memory is removed for the hackathon build (module-level
         # EPISODIC_VS_ENABLED is hardcoded False and never reads this var).
@@ -3480,7 +3497,7 @@ if _deploy_enabled() and not mlflow.active_run():
         # to crack open the model artifact. Tool name in the model is
         # `save_user_preference`; reads happen automatically in
         # predict_stream via _retrieve_user_prefs(), no agent tool call.
-        # See [[langmem-user-preferences-pattern]].
+        # See the user-preferences memory pattern.
         "USER_PREFS_ENABLED": "true" if USER_PREFS_ENABLED else "false",
         "USER_PREFS_NUM_RESULTS": str(USER_PREFS_NUM_RESULTS),
         # Neo4j skills-brain (find_skill). Query embedding endpoint + knobs.
@@ -3518,8 +3535,8 @@ if _deploy_enabled() and not mlflow.active_run():
         # container has no Databricks creds and SP-side tool calls all 401.
         _env_vars["DATABRICKS_TOKEN"] = DATABRICKS_TOKEN
     if _deploy_v3_enabled() and _v3_app_url:
-        # Steers chart_url emission at render_chart toward the v3 app so
-        # the user's "Open chart" link doesn't resolve to aia-deepagent-v2.
+        # Steers chart_url emission at render_chart toward this build's app so
+        # the user's "Open chart" link doesn't resolve to a <prior-app-name> URL.
         _env_vars["APP_URL"] = _v3_app_url
 
     # Free Edition enforces a workspace-wide scale-to-zero policy on Model
@@ -3606,14 +3623,14 @@ if _deploy_enabled() and not mlflow.active_run():
     # one block. Single update_endpoint call because the prior two-call
     # variant flipped inference_table on but left usage_tracking_config
     # at enabled=false on the live config (probably a config-merge race
-    # between the two sequential updates). Reusing the existing live
-    # table_name_prefix `orchestrator_agent_v3` so tables don't fragment.
+    # between the two sequential updates). The table_name_prefix is derived
+    # from the config-driven UC model name so tables don't fragment.
     if _deploy_v3_enabled():
         print("\nEnabling AI Gateway (inference tables + usage tracking)...")
         _wait_endpoint_ready(endpoint_name)
         try:
-            # Inference table catalog/schema/prefix derived from the UC model
-            # name so this works across workspaces (was hardcoded to uc_test.th_poc).
+            # Inference table catalog/schema/prefix derived from the config-driven
+            # UC model name so this works across workspaces; never hardcode a UC catalog.
             _parts = uc_model_name.split(".")
             _it_catalog = _parts[0] if len(_parts) >= 1 else "main"
             _it_schema = _parts[1] if len(_parts) >= 2 else "default"

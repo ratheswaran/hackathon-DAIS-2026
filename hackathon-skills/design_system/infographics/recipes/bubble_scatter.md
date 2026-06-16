@@ -2,156 +2,156 @@
 
 **Data shape** (`scene.data`):
 d = {
-  points: [                       // one per hosting country
-    { name: "Lebanon",            // short display label (already shortened)
-      region: "Asia",             // region bucket → colour (must be in `regions`)
-      gdp: 4136,                  // GDP per capita, US$ (>0; log x)
-      per1000: 134.5,             // refugees hosted per 1,000 residents (>0; log y)
-      hosted: 815000,            // total refugees hosted → bubble area
+  points: [                       // one per district
+    { name: "Araria",             // short display label (already shortened)
+      region: "East",             // region bucket → colour (must be in `regions`)
+      gdp: 78.4,                  // health-burden index, HBI (>0; log x) — the "need" axis
+      per1000: 0.3,               // facility coverage per district (>0; log y) — the "supply" axis
+      hosted: 320,               // sampled facilities in the district → bubble area
       note: true },               // truthy → label this point (notable outlier)
     ...
   ],
-  regions: ["Africa","Asia","Europe","Americas"],  // optional; legend + colour domain. If omitted, derived from points (in first-seen order).
+  regions: ["North","South","East","West"],  // optional; legend + colour domain. If omitted, derived from points (in first-seen order).
   intercept: -2.1,  // OLS log-log fit: log10(per1000) = intercept + slope*log10(gdp). Both optional; omit → no fit line.
   slope: 0.18,
   r: 0.22,          // Pearson r on log scales (optional → r annotation)
   r2: 0.05,         // R² (optional)
   p: 0.041,         // p-value for slope (optional)
-  x_label: "GDP per capita, US$ (log scale)",        // optional axis title override
-  y_label: "refugees hosted per 1,000 residents (log)" // optional
+  x_label: "health-burden index (log scale)",        // optional axis title override
+  y_label: "facility coverage (log)"                  // optional
 }
-Notes: colour ENCODES region (SERIES ordinal over `regions`), NOT highlight-by-colour. scene.highlight (string or array of point names) optionally adds a label to those points (in addition to any with note:true). Points with non-positive gdp/per1000/hosted are dropped (log scale).
+Notes: colour ENCODES region (SERIES ordinal over `regions`), NOT highlight-by-colour. scene.highlight (string or array of point names) optionally adds a label to those points (in addition to any with note:true). Points with non-positive gdp/per1000/hosted are dropped (log scale). NB: facilities is a ~10k SAMPLE, so the y-axis is COVERAGE not true supply, and there is no per-capita (no population in the dataset).
 
 **Minimal sample** (`scene.data`):
 ```json
 {
   "points": [
     {
-      "name": "Lebanon",
-      "region": "Asia",
-      "gdp": 4136,
-      "per1000": 134.5,
-      "hosted": 815000,
+      "name": "Araria",
+      "region": "East",
+      "gdp": 78.4,
+      "per1000": 0.6,
+      "hosted": 4,
       "note": true
     },
     {
-      "name": "Jordan",
-      "region": "Asia",
-      "gdp": 4204,
-      "per1000": 64.2,
-      "hosted": 700000,
+      "name": "Kishanganj",
+      "region": "East",
+      "gdp": 74.1,
+      "per1000": 0.4,
+      "hosted": 3,
       "note": true
     },
     {
-      "name": "Chad",
-      "region": "Africa",
-      "gdp": 716,
-      "per1000": 71.8,
-      "hosted": 1200000,
+      "name": "Shrawasti",
+      "region": "North",
+      "gdp": 71.8,
+      "per1000": 0.5,
+      "hosted": 3,
       "note": true
     },
     {
-      "name": "Uganda",
-      "region": "Africa",
-      "gdp": 964,
-      "per1000": 33.4,
-      "hosted": 1600000,
+      "name": "Barwani",
+      "region": "West",
+      "gdp": 66.4,
+      "per1000": 1.1,
+      "hosted": 7,
       "note": true
     },
     {
-      "name": "Türkiye",
-      "region": "Asia",
-      "gdp": 13383,
-      "per1000": 38.9,
-      "hosted": 3300000,
+      "name": "Nandurbar",
+      "region": "West",
+      "gdp": 63.9,
+      "per1000": 2.0,
+      "hosted": 12,
       "note": true
     },
     {
-      "name": "Germany",
-      "region": "Europe",
-      "gdp": 52746,
-      "per1000": 30.5,
-      "hosted": 2550000,
+      "name": "Lucknow",
+      "region": "North",
+      "gdp": 39.5,
+      "per1000": 18.3,
+      "hosted": 210,
       "note": true
     },
     {
-      "name": "Iran",
-      "region": "Asia",
-      "gdp": 4388,
-      "per1000": 41.2,
-      "hosted": 3760000,
+      "name": "Patna",
+      "region": "East",
+      "gdp": 44.2,
+      "per1000": 14.1,
+      "hosted": 168,
       "note": false
     },
     {
-      "name": "Pakistan",
-      "region": "Asia",
-      "gdp": 1568,
-      "per1000": 8.4,
-      "hosted": 2020000,
+      "name": "Indore",
+      "region": "West",
+      "gdp": 36.8,
+      "per1000": 12.6,
+      "hosted": 140,
       "note": false
     },
     {
-      "name": "France",
-      "region": "Europe",
-      "gdp": 44408,
-      "per1000": 9.1,
-      "hosted": 620000,
+      "name": "Chennai",
+      "region": "South",
+      "gdp": 28.4,
+      "per1000": 22.7,
+      "hosted": 260,
       "note": false
     },
     {
-      "name": "USA",
-      "region": "Americas",
-      "gdp": 81695,
-      "per1000": 1.2,
-      "hosted": 421000,
+      "name": "Mumbai",
+      "region": "West",
+      "gdp": 24.1,
+      "per1000": 31.2,
+      "hosted": 380,
       "note": true
     },
     {
-      "name": "Colombia",
-      "region": "Americas",
-      "gdp": 6624,
-      "per1000": 56.7,
-      "hosted": 2890000,
+      "name": "Coimbatore",
+      "region": "South",
+      "gdp": 26.7,
+      "per1000": 9.8,
+      "hosted": 96,
       "note": false
     },
     {
-      "name": "Ethiopia",
-      "region": "Africa",
-      "gdp": 1027,
-      "per1000": 8.3,
-      "hosted": 1020000,
+      "name": "Thiruvananthapuram",
+      "region": "South",
+      "gdp": 16.9,
+      "per1000": 19.4,
+      "hosted": 220,
       "note": false
     },
     {
-      "name": "Kenya",
-      "region": "Africa",
-      "gdp": 2110,
-      "per1000": 14.6,
-      "hosted": 770000,
+      "name": "Ernakulam",
+      "region": "South",
+      "gdp": 18.2,
+      "per1000": 24.0,
+      "hosted": 290,
       "note": false
     },
     {
-      "name": "Poland",
-      "region": "Europe",
-      "gdp": 22057,
-      "per1000": 25.4,
-      "hosted": 950000,
+      "name": "Pune",
+      "region": "West",
+      "gdp": 25.5,
+      "per1000": 16.7,
+      "hosted": 198,
       "note": false
     }
   ],
   "regions": [
-    "Africa",
-    "Asia",
-    "Europe",
-    "Americas"
+    "North",
+    "South",
+    "East",
+    "West"
   ],
   "intercept": 1.45,
-  "slope": 0.06,
-  "r": 0.22,
-  "r2": 0.05,
+  "slope": -0.06,
+  "r": -0.19,
+  "r2": 0.04,
   "p": 0.041,
-  "x_label": "GDP per capita, US$ (log scale)",
-  "y_label": "refugees hosted per 1,000 residents (log)"
+  "x_label": "health-burden index (log scale)",
+  "y_label": "facility coverage (log)"
 }
 ```
 
@@ -205,7 +205,7 @@ for k in ("intercept", "slope", "r", "r2", "p", "x_label", "y_label"):
 return out
 ```
 
-**Notes:** Faithful port of build_bubble.py. Key fidelity points and deltas vs the reference:
+**Notes:** Faithful port of the reference bubble builder. Key fidelity points and deltas vs the reference:
 
 1. COLOUR ENCODES REGION (d3.scaleOrdinal over SERIES), NOT the engine's usual highlight-by-colour. This matches the reference exactly (region ramp). scene.highlight is repurposed: it only adds a label to the named point(s), on top of any point with note:true. If you want zero region colouring you'd need a different archetype.
 
