@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 
 import { SidebarToggle } from '@/components/sidebar-toggle';
-import { TriangleAlert, Waypoints } from 'lucide-react';
+import { MapPinned, TriangleAlert, Waypoints } from 'lucide-react';
 import { useConfig } from '@/hooks/use-config';
 import {
   Tooltip,
@@ -119,6 +119,24 @@ export function ChatHeader({
         )}
 
         <div className="ml-auto flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href="/india_medical_deserts.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-[6px] border border-border-1 bg-bg-elev-1 px-2 py-1 text-[11px] text-fg-2 transition-colors duration-[120ms] hover:text-fg-1"
+                >
+                  <MapPinned className="h-3 w-3" />
+                  <span className="hidden sm:inline">Medical deserts</span>
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Open the India medical-desert map (district access gaps).</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
