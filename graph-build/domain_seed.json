@@ -1,0 +1,3617 @@
+{
+  "nodes": [
+    {
+      "type": "Domain",
+      "name": "india-healthcare-access",
+      "content": "India healthcare ACCESS domain (DAIS-for-Good 2026, Virtue Foundation). The 'Medical Desert Planner': join SUPPLY (10k geocoded facilities) against DEMAND (NFHS-5 district health burden) through the India Post PIN crosswalk to find where the highest-risk gaps in care are. One Genie space backs all three tables. Honesty contract: the facility table is a ~10k SAMPLE, never a census \u2014 facility counts are dataset COVERAGE, not absolute supply; cite the source text for any facility claim; communicate uncertainty.",
+      "props": {
+        "summary": "India healthcare access \u2014 supply (facilities) x demand (NFHS-5 burden) x geo (PIN) to map medical deserts."
+      }
+    },
+    {
+      "type": "GenieSpace",
+      "name": "India Healthcare Access Space",
+      "content": "Genie space over the three Virtue Foundation tables. Ask natural-language questions; it writes Spark SQL over `databricks_virtue_foundation_dataset_dais_2026`.`virtue_foundation_dataset`.*. Tables: facilities (supply), nfhs_5_district_health_indicators (demand burden), india_post_pincode_directory (PIN->district->state crosswalk). Use for ANY question about facility supply, district health burden, or access gaps / medical deserts that join across them. The facility<->district bridge is facilities.address_zipOrPostcode (a 6-digit PIN) -> pincode dir (modal district per pincode) -> NFHS district_name.",
+      "props": {
+        "space_id": "REPLACE_WITH_SPACE_ID_ON_EVENT_DAY",
+        "when_to_use": "India healthcare: facility supply/composition/trust, NFHS-5 district health burden, PIN geography, and medical-desert (supply x demand) joins.",
+        "summary": "One Genie space over facilities + NFHS-5 + PIN directory."
+      }
+    },
+    {
+      "type": "Table",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "content": "Table `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 10,088 rows; 10,000 are address_country='India' (FILTER to India; 88 junk rows are CSV-misparsed). SUPPLY side. One row per facility (unique_id; 11 dup ids + cluster_id groups). 99.7% geocoded (latitude/longitude doubles). facilityTypeId: hospital 5,637 / clinic 3,782 / dentist 490. operatorTypeId ~88% private. Rich self-reported free-text: specialties / procedure / equipment / capability (~98% present) \u2014 these are SCRAPED CLAIMS, not verified. Thin proof: numberDoctors 36% / capacity 25% / yearEstablished 48% / recency_of_page_update 35%. address_zipOrPostcode holds a 6-digit PIN (the join bridge to district).",
+      "props": {
+        "fq_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "row_count": "10088",
+        "primary_key": "unique_id",
+        "grain": "one row per facility (unique_id)",
+        "summary": "10,000 India healthcare facilities (supply): type, operator, geocode, uneven free-text claims."
+      }
+    },
+    {
+      "type": "Table",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "content": "Table `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators` \u2014 706 rows (698 distinct districts; some district names repeat across states). DEMAND side: NFHS-5 (field period 2019-21) district fact sheets, 107 health indicators across household conditions, maternal/reproductive health, child health & vaccination, nutrition, anaemia, NCDs, cancer screening, tobacco/alcohol. Grain = district (district_name + state_ut). ~24 indicator columns are STRING-but-numeric (CAST before aggregating); '*' = suppressed (NULL, not 0); '(29.5)' = estimate from 25-49 unweighted cases. Massive inequality across districts.",
+      "props": {
+        "fq_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+        "row_count": "706",
+        "primary_key": "district_name, state_ut",
+        "grain": "one row per district (district_name + state_ut)",
+        "summary": "NFHS-5 (2019-21) district health burden: anaemia, stunting, births, vaccination, insurance, NCDs."
+      }
+    },
+    {
+      "type": "Table",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "content": "Table `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory` \u2014 165,627 rows. India Post PIN-code directory: the geo CROSSWALK that bridges a facility's PIN to an NFHS district. Grain = POST OFFICE, not PIN: a single pincode fans out to many rows and can map to >1 district \u2014 DEDUP to the MODAL district per pincode before joining (a raw join on pincode fans rows out). 19,586 unique PINs, 750 districts, 37 states. latitude/longitude are strings with ~12,600 'NA' \u2014 not every post office is geocoded.",
+      "props": {
+        "fq_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+        "row_count": "165627",
+        "primary_key": "(post office row; pincode not unique)",
+        "grain": "one row per post office",
+        "summary": "India Post PIN->district->state crosswalk; the facility-PIN to NFHS-district bridge (dedup to modal district)."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.unique_id",
+      "content": "Column `unique_id` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. Facility primary key. 10,088 rows / 10,077 distinct -> 11 dups; see cluster_id for dedup groups.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "Facility primary key. 10,088 rows / 10,077 distinct -> 11 dups; see cluster_id for dedup groups."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.address_zipOrPostcode",
+      "content": "Column `address_zipOrPostcode` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. Holds a 6-digit PIN. THE join bridge to district via the PIN directory. String-numeric \u2014 extract \\d{6}. 97.8% parseable.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "Holds a 6-digit PIN. THE join bridge to district via the PIN directory. String-numeric \u2014 extract \\d{6}. 97.8% parseable."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.address_stateOrRegion",
+      "content": "Column `address_stateOrRegion` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. Free-text state \u2014 polluted (234 distinct vs 36 real). Normalize UPPER/strip before any state rollup.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "Free-text state \u2014 polluted (234 distinct vs 36 real). Normalize UPPER/strip before any state rollup."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.address_city",
+      "content": "Column `address_city` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. City; 100% present but spelling varies; weaker join key than PIN.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "City; 100% present but spelling varies; weaker join key than PIN."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.latitude",
+      "content": "Column `latitude` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 double. Geocode (99.7% present). Enables point-in-polygon district assignment if boundaries are available.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "double",
+        "notes": "Geocode (99.7% present). Enables point-in-polygon district assignment if boundaries are available."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.longitude",
+      "content": "Column `longitude` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 double. Geocode (99.7% present).",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "double",
+        "notes": "Geocode (99.7% present)."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.facilityTypeId",
+      "content": "Column `facilityTypeId` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. hospital / clinic / dentist / ... (some junk values). Supply composition.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "hospital / clinic / dentist / ... (some junk values). Supply composition."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.operatorTypeId",
+      "content": "Column `operatorTypeId` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. private (~88%) / public (~5%) / null. Public-supply gap signal.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "private (~88%) / public (~5%) / null. Public-supply gap signal."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.specialties",
+      "content": "Column `specialties` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. Self-reported JSON-ish claim list (~98% present). A CLAIM, not verified \u2014 cite as source text.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "Self-reported JSON-ish claim list (~98% present). A CLAIM, not verified \u2014 cite as source text."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.equipment",
+      "content": "Column `equipment` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. Self-reported equipment claim text (~98%). Search for advanced kit (MRI/CT/ICU/dialysis) \u2014 but it is a CLAIM.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "Self-reported equipment claim text (~98%). Search for advanced kit (MRI/CT/ICU/dialysis) \u2014 but it is a CLAIM."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.capability",
+      "content": "Column `capability` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. Self-reported capability claim text (~99%). Trust must corroborate against proof fields.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "Self-reported capability claim text (~99%). Trust must corroborate against proof fields."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.numberDoctors",
+      "content": "Column `numberDoctors` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. Proof field \u2014 only 36% present; string-numeric. Sparse corroboration of claims.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "Proof field \u2014 only 36% present; string-numeric. Sparse corroboration of claims."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.capacity",
+      "content": "Column `capacity` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. Proof field (beds) \u2014 only 25% present; string-numeric.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "Proof field (beds) \u2014 only 25% present; string-numeric."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.recency_of_page_update",
+      "content": "Column `recency_of_page_update` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities` \u2014 string. Freshness signal \u2014 only 35% present. Stale/absent => lower trust.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+        "dtype": "string",
+        "notes": "Freshness signal \u2014 only 35% present. Stale/absent => lower trust."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.district_name",
+      "content": "Column `district_name` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators` \u2014 string. Join key to the PIN crosswalk (normalize UPPER/strip). 698 distinct in 706 rows.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+        "dtype": "string",
+        "notes": "Join key to the PIN crosswalk (normalize UPPER/strip). 698 distinct in 706 rows."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.state_ut",
+      "content": "Column `state_ut` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators` \u2014 string. State/UT (36). Second half of the district grain; use for state rollups.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+        "dtype": "string",
+        "notes": "State/UT (36). Second half of the district grain; use for state rollups."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.all_w15_49_who_are_anaemic_pct",
+      "content": "Column `all_w15_49_who_are_anaemic_pct` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators` \u2014 double. Women 15-49 anaemic %. Headline burden indicator (range ~15-94%).",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+        "dtype": "double",
+        "notes": "Women 15-49 anaemic %. Headline burden indicator (range ~15-94%)."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.child_6_59m_who_are_anaemic_lt_11_0_g_dl_22_pct",
+      "content": "Column `child_6_59m_who_are_anaemic_lt_11_0_g_dl_22_pct` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators` \u2014 string. Child 6-59m anaemic %. STRING-numeric -> CAST. Range ~25-96%.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+        "dtype": "string",
+        "notes": "Child 6-59m anaemic %. STRING-numeric -> CAST. Range ~25-96%."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.child_u5_who_are_stunted_height_for_age_18_pct",
+      "content": "Column `child_u5_who_are_stunted_height_for_age_18_pct` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators` \u2014 string. Child under-5 stunting %. STRING-numeric -> CAST. Range ~13-61%.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+        "dtype": "string",
+        "notes": "Child under-5 stunting %. STRING-numeric -> CAST. Range ~13-61%."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.institutional_birth_5y_pct",
+      "content": "Column `institutional_birth_5y_pct` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators` \u2014 double. Institutional birth %. Care-access indicator (range ~21-100%).",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+        "dtype": "double",
+        "notes": "Institutional birth %. Care-access indicator (range ~21-100%)."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.hh_member_covered_health_insurance_pct",
+      "content": "Column `hh_member_covered_health_insurance_pct` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators` \u2014 double. Household with any health insurance %. Range ~1-98%.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+        "dtype": "double",
+        "notes": "Household with any health insurance %. Range ~1-98%."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.child_12_23m_fully_vaccinated_based_on_information_from_vax_pct",
+      "content": "Column `child_12_23m_fully_vaccinated_based_on_information_from_vax_pct` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators` \u2014 string. Full immunization % (12-23m). STRING-numeric -> CAST.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+        "dtype": "string",
+        "notes": "Full immunization % (12-23m). STRING-numeric -> CAST."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory.pincode",
+      "content": "Column `pincode` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory` \u2014 int64. 6-digit PIN. Join key from facility.address_zipOrPostcode. NOT unique (post-office grain) \u2014 dedup to modal district.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+        "dtype": "int64",
+        "notes": "6-digit PIN. Join key from facility.address_zipOrPostcode. NOT unique (post-office grain) \u2014 dedup to modal district."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory.district",
+      "content": "Column `district` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory` \u2014 string. District for the post office \u2014 the bridge value to NFHS district_name (after normalization).",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+        "dtype": "string",
+        "notes": "District for the post office \u2014 the bridge value to NFHS district_name (after normalization)."
+      }
+    },
+    {
+      "type": "Column",
+      "name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory.statename",
+      "content": "Column `statename` on `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory` \u2014 string. State for the post office.",
+      "props": {
+        "table": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+        "dtype": "string",
+        "notes": "State for the post office."
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "facilities_total",
+      "content": "Count of India facilities = COUNT over facilities WHERE address_country='India' (10,000 rows; 88 junk rows excluded). DEDUP first: 11 unique_id values repeat as byte-identical rows -> 9,989 DISTINCT facilities. DATASET COVERAGE, not census (FDR lists 47k+).",
+      "props": {
+        "definition": "In-dataset India facility count (9,989 distinct after dedup)",
+        "formula": "COUNT(DISTINCT unique_id) WHERE address_country='India'",
+        "unit": "facilities"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "private_share",
+      "content": "Private operator share = private / (operators excluding the literal 'null' string). 88.4% of all India rows / 94.9% of the 9,313 with a known operator. Public+government just 4.7%.",
+      "props": {
+        "definition": "Share of facilities operated privately",
+        "formula": "COUNT_IF(operatorTypeId='private') / COUNT_IF(operatorTypeId<>'null')",
+        "unit": "ratio"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "facility_geocoding_rate",
+      "content": "Share of facilities with both latitude & longitude = 99.7% (9,970/10,000); 99.64% inside India's bbox. Clean doubles \u2014 map directly, no geocoding step.",
+      "props": {
+        "definition": "Share of facilities with usable lat/lon",
+        "formula": "AVG(latitude IS NOT NULL AND longitude IS NOT NULL)",
+        "unit": "ratio"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "facility_supply_concentration",
+      "content": "Across-state Gini of facility coverage = 0.609 (top-5 states 49.8%, top-10 73.7%). Concentration of DATASET COVERAGE, not real supply.",
+      "props": {
+        "definition": "Gini of facilities per state",
+        "formula": "gini(facilities_by_state)",
+        "unit": "gini 0..1"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "health_burden_index",
+      "content": "HBI = mean of per-district percentile ranks (0=lowest burden, 50=median, 100=highest) across 10 NFHS-5 indicators: anaemia (women+child), stunting, wasting, underweight, and the inverse of institutional birth, 4+ANC, full immunization, insurance, improved sanitation. RELATIVE rank, NOT a clinical prevalence.",
+      "props": {
+        "definition": "Relative district health-burden composite (NFHS-5 2019-21)",
+        "formula": "mean(percentile_rank(indicator_i), inverting higher-is-better)",
+        "unit": "0..100 percentile composite"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "women_anaemia_rate",
+      "content": "all_w15_49_who_are_anaemic_pct. Median district 57.2%, range 14.9% (Kohima) to 93.5% (Leh/Ladakh). Over half of districts have a majority of women anaemic.",
+      "props": {
+        "definition": "% women 15-49 anaemic (NFHS-5)",
+        "formula": "AVG over district",
+        "unit": "percent"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "child_stunting_rate",
+      "content": "child_u5_who_are_stunted_height_for_age_18_pct (STRING->CAST). Median 32.8%, range 13.2% (Jagatsinghapur) to 60.6% (Pashchimi Singhbhum, also worst on underweight 62.4%).",
+      "props": {
+        "definition": "% under-5 stunted (NFHS-5)",
+        "formula": "AVG(CAST(...))",
+        "unit": "percent"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "institutional_birth_rate",
+      "content": "institutional_birth_5y_pct. Median 92.2%, range 21.4% (Mon, Nagaland) to 100% (South Goa). Care-access proxy.",
+      "props": {
+        "definition": "% births in a facility (NFHS-5)",
+        "formula": "AVG over district",
+        "unit": "percent"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "full_immunization_rate",
+      "content": "child_12_23m_fully_vaccinated... (STRING->CAST). Median 85.0%, min 45.0% (Ukhrul). Heavy suppression \u2014 22 '*' districts + 323 parenthesized estimates: treat tail as low-confidence.",
+      "props": {
+        "definition": "% children 12-23m fully immunized (NFHS-5)",
+        "formula": "AVG(CAST(...))",
+        "unit": "percent"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "health_insurance_coverage",
+      "content": "hh_member_covered_health_insurance_pct. Range 1.2% (South Andaman) to 97.8% (Barmer) = 81.5x spread \u2014 the widest 'care lottery' indicator.",
+      "props": {
+        "definition": "% households with any health insurance (NFHS-5)",
+        "formula": "AVG over district",
+        "unit": "percent"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "facilities_per_district",
+      "content": "Count of dataset facilities resolved to an NFHS district via the PIN crosswalk. Mean 11.6, median 2, max 325 (Pune). 245 districts = 0. COVERAGE, not supply.",
+      "props": {
+        "definition": "In-dataset facility count per NFHS district",
+        "formula": "COUNT(facility) GROUP BY resolved_district",
+        "unit": "facilities"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "desert_score",
+      "content": "Desert score = high health_burden_index x low facilities_per_district. Ranks high-need + few/zero-coverage districts. Top-15 led by Araria (Bihar, 0 facilities, score 3.73).",
+      "props": {
+        "definition": "Composite of demand burden and supply scarcity",
+        "formula": "z(health_burden_index) - z(log1p(facilities_per_district))",
+        "unit": "z-composite"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "burden_supply_correlation",
+      "content": "Spearman correlation of district burden vs facility coverage = NEGATIVE, rho ~ -0.2 to -0.27 (p<1e-8). High-burden tertile averages 5.5 facilities vs ~14.6 for the rest \u2014 supply does NOT follow need.",
+      "props": {
+        "definition": "Correlation between health burden and facility coverage",
+        "formula": "spearman(health_burden_index, facilities_per_district)",
+        "unit": "rho -1..1"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "facility_trust_score",
+      "content": "Transparent additive 0-100 score over 8 corroboration signals: recent_update 25, has_doctors 20, has_website 15, has_capacity 15, has_phone 10, affiliated_staff 5, social_2plus 5, rich_desc 5. Median facility scores just 45; 50.9% below 50. Auditable analyst design, NOT learned, NOT real-world quality.",
+      "props": {
+        "definition": "Evidence-corroboration score per facility",
+        "formula": "sum(weighted corroboration signals), max 100",
+        "unit": "0..100"
+      }
+    },
+    {
+      "type": "Metric",
+      "name": "unverifiable_claim_rate",
+      "content": "Share of facilities making an advanced-capability claim (MRI/CT/ICU/cancer/cardiac/dialysis/NICU/transplant in equipment/capability text) with NO doctor count, NO capacity, AND no recent update = 1,219 (12.2% of all India, 29.9% of the 4,077 advanced-claimers).",
+      "props": {
+        "definition": "Advanced claims with zero hard corroboration",
+        "formula": "COUNT(advanced_claim AND no_doctors AND no_capacity AND stale) / COUNT(*)",
+        "unit": "ratio"
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-india-filter",
+      "content": "Always filter facilities to address_country='India' (= address_countryCode='IN'); 88 of 10,088 rows are CSV-misparse junk (coordinates/JSON/free-text/'kie'/None in the country column). Leaves exactly 10,000 analyzable rows.",
+      "props": {
+        "rule_id": "R-FAC-1",
+        "severity": "high",
+        "statement": "Filter address_country='India' on facilities; 88 junk rows otherwise.",
+        "rationale": "Misparsed CSV rows carry coordinates/JSON in the country field and pollute every facility metric."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-facility-dedup",
+      "content": "facilities.unique_id is NOT unique: 11 IDs each appear twice as BYTE-IDENTICAL rows (confirmed exact dupes, also flagged by cluster_id's 11 size-2 clusters). SELECT DISTINCT unique_id (or drop_duplicates) collapses 10,000 -> 9,989 facilities. Safe \u2014 exact re-scrapes, no merge logic needed; do it before any facility COUNT or rate so totals aren't inflated by ~0.1%.",
+      "props": {
+        "rule_id": "R-FAC-0",
+        "severity": "high",
+        "statement": "facilities.unique_id repeats 11x as exact-duplicate rows \u2014 dedup (DISTINCT unique_id) to 9,989 before counting.",
+        "rationale": "11 byte-identical re-scrapes inflate every facility count if not deduped; cluster_id confirms they are the same physical site."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-coverage-not-census",
+      "content": "THE honesty contract. The facilities table is a ~10k web-discovered SAMPLE, not a census (India's FDR lists 47k+). Every facility count / desert / gap claim must be framed as in-dataset COVERAGE, never absolute supply. A zero-facility district = zero in THIS dataset (a coverage/outreach gap), NOT 'no care exists'. NO per-capita anywhere (no population column in the 3 tables). Cite the source TEXT field for any facility capability claim. Communicating this uncertainty is itself scored by the rubric.",
+      "props": {
+        "rule_id": "R-HONESTY",
+        "severity": "critical",
+        "statement": "Facility counts are dataset coverage, not supply; no per-capita; cite source text; state uncertainty.",
+        "rationale": "Presenting a sample coverage gap as proven absence of care is the central failure mode the 'Medical Desert Planner' track tests."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-string-null-sentinel",
+      "content": "Missing values in facilities are the literal string 'null' (also 'none'/'NA'/''), NOT SQL NULL. Strip these before any fill-rate, presence, or aggregation. numberDoctors looks 99.7% populated but is real for only 36.2%; capacity 25.0%; recency 35.4%. A naive COUNT(col) overstates evidence ~3x.",
+      "props": {
+        "rule_id": "R-FAC-2",
+        "severity": "critical",
+        "statement": "Treat literal 'null'/'none'/'NA'/'' as missing before counting or aggregating facility fields.",
+        "rationale": "The dataset encodes missing as a string sentinel; SQL NULL checks miss it entirely."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-cast-facility-numeric",
+      "content": "facilities numberDoctors, capacity, address_zipOrPostcode, distinct_social_media_presence_count and number_of_facts_about_the_organization are STRING-but-numeric. Strip ()/* then try_cast(... AS DOUBLE) (errors->NULL), and require value>0 before treating as evidence.",
+      "props": {
+        "rule_id": "R-FAC-3",
+        "severity": "high",
+        "statement": "CAST facility string-numeric cols (strip ()*, try_cast) and require >0 before use.",
+        "rationale": "Aggregating a STRING column errors or sorts lexically; the sentinel 'null' also poisons casts."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-normalize-state",
+      "content": "address_stateOrRegion is polluted: 234 distinct values (city names + spelling variants + junk) vs 36 real states/UTs. Normalize UPPER/strip/[^A-Z0-9 &]->space + an alias map (Tamilnadu->Tamil Nadu, Orissa->Odisha, UP/U P->Uttar Pradesh, Chattisgarh->Chhattisgarh; city names->drop) before any state rollup. 96.9% map cleanly.",
+      "props": {
+        "rule_id": "R-FAC-4",
+        "severity": "high",
+        "statement": "Normalize + alias-map address_stateOrRegion before any state-level aggregation.",
+        "rationale": "Raw state strings double-count and scatter facilities across 234 spurious categories."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-operatortype-null-string",
+      "content": "operatorTypeId contains a literal STRING 'null' (687 India rows) distinct from real NULL. Replace 'null'->missing before computing private/public share, or 'null' is counted as its own operator category.",
+      "props": {
+        "rule_id": "R-FAC-5",
+        "severity": "medium",
+        "statement": "Replace literal 'null' in operatorTypeId before computing operator shares.",
+        "rationale": "Otherwise the missing sentinel ranks as the 3rd-largest 'operator type'."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-drop-constant-orgtype",
+      "content": "organization_type is the constant 'facility' for all 10,000 India rows \u2014 no analytical signal. Do not group or facet by it.",
+      "props": {
+        "rule_id": "R-FAC-6",
+        "severity": "low",
+        "statement": "organization_type is constant 'facility' \u2014 never group by it.",
+        "rationale": "A constant column adds noise and a useless facet."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-claims-self-reported",
+      "content": "Every facility attribute (specialties, equipment, capability, procedure, description, numberDoctors, capacity) is self-reported SCRAPED free text. Never present a claim as verified fact; cite the source field name when stating a capability. A 'null' proof field = undisclosed, not proof the capability is fake (risk-to-verify, not misrepresentation).",
+      "props": {
+        "rule_id": "R-TRUST-1",
+        "severity": "critical",
+        "statement": "Facility claims are self-reported scraped text \u2014 cite the field, never assert as verified.",
+        "rationale": "The Trust/Referral use cases require citing evidence and communicating uncertainty, not trusting scraped claims."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-recency-date-caveat",
+      "content": "recency_of_page_update spans 2003-2027 and contains future-dated stamps (scrape artifacts). Parse with errors->coerce; treat a date>today as 'recent' rather than dropping it; disclose the parse rule when reporting recency-based trust.",
+      "props": {
+        "rule_id": "R-TRUST-2",
+        "severity": "medium",
+        "statement": "recency_of_page_update has future-dated scrape artifacts \u2014 coerce-parse and disclose.",
+        "rationale": "Dropping future dates silently discards real (if odd) freshness signals."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-nfhs-cast",
+      "content": "49 of 107 NFHS-5 indicator columns are stored STRING-but-numeric. Always CAST after stripping ()/* and whitespace: pd.to_numeric(s.str.replace(r'[()*]','',regex=True).str.strip(),errors='coerce') or try_cast(regexp_replace(col,'[()*]','') AS DOUBLE). Casting raw fails or zeroes out.",
+      "props": {
+        "rule_id": "R-NFHS-1",
+        "severity": "high",
+        "statement": "CAST the 49 string-numeric NFHS columns (strip ()*) before aggregating.",
+        "rationale": "Direct aggregation of a STRING percentage column errors or sorts lexically."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-nfhs-suppressed-star",
+      "content": "A '*' in any NFHS-5 cell means the estimate was suppressed (sample too small). Treat as NULL, exclude from means/counts \u2014 NEVER as zero (zero fabricates 'perfect'/'zero-burden' districts). 4,125 cells across 29 columns are suppressed.",
+      "props": {
+        "rule_id": "R-NFHS-2",
+        "severity": "high",
+        "statement": "NFHS '*' = suppressed = NULL, never zero.",
+        "rationale": "Coercing '*' to 0 invents perfect or zero-burden districts."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-nfhs-parenthesized-estimate",
+      "content": "A parenthesized value like '(29.5)' is an estimate from 25-49 unweighted cases. Strip the parens to use it, but FLAG it low-confidence and never quote it as a headline. 5,068 cells across 48 columns are parenthesized (full immunization has 323).",
+      "props": {
+        "rule_id": "R-NFHS-3",
+        "severity": "medium",
+        "statement": "NFHS '(x.x)' = low-sample estimate \u2014 usable but never a headline.",
+        "rationale": "25-49 unweighted cases give wide confidence intervals; tail districts are unreliable."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-nfhs5-vintage",
+      "content": "NFHS-5 fieldwork was 2019-21. Always label these district indicators as the 2019-21 baseline, never current-year/2024. This vintage pre-dates the facilities supply table; NFHS-6 (2023-24) is separate and not directly comparable.",
+      "props": {
+        "rule_id": "R-NFHS-4",
+        "severity": "medium",
+        "statement": "Label NFHS-5 indicators as the 2019-21 baseline, not current.",
+        "rationale": "Mixing NFHS-5 demand with later supply or treating it as 'now' misstates the timeline."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-hbi-relative-percentile",
+      "content": "health_burden_index is a RELATIVE percentile-rank composite (0=lowest burden, 50=median, 100=highest), not a prevalence. Always describe it as a relative ranking and state its 10 component indicators and the inversion of the 5 higher-is-better ones.",
+      "props": {
+        "rule_id": "R-NFHS-5",
+        "severity": "medium",
+        "statement": "HBI is a relative percentile composite \u2014 describe as ranking, list components.",
+        "rationale": "Readers misread a 78 as '78% of people' instead of '78th-percentile burden district'."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-demand-not-supply",
+      "content": "NFHS-5 indicators measure health NEED (demand) only \u2014 they say nothing about facility supply. A 'medical desert' claim REQUIRES joining high burden to LOW in-dataset facility coverage; and facility counts are dataset coverage (a ~10k sample), never a census.",
+      "props": {
+        "rule_id": "R-NFHS-6",
+        "severity": "high",
+        "statement": "NFHS = demand only; 'desert' needs the burden x low-coverage join.",
+        "rationale": "High burden alone is need, not a desert; a desert is need unmet by supply."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-pin-fanout-dedup",
+      "content": "india_post_pincode_directory is post-office grain (8.5 rows/PIN; 165,627 rows / 19,586 PINs) and 1,478 PINs (7.55%) fan out to >1 district (max 4). DEDUP to the MODAL (district, statename) per pincode before joining facilities, or facility counts inflate ~8x. Its 'NA'-string coords (7.25%) cast to NULL silently.",
+      "props": {
+        "rule_id": "R-PIN-1",
+        "severity": "critical",
+        "statement": "Dedup pincode dir to the modal (district,state) per PIN before joining; raw join fans out ~8x.",
+        "rationale": "A raw pincode join multiplies every facility into ~8 post-office rows."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-district-name-normalization",
+      "content": "Normalize district names UPPER->trim->collapse whitespace->drop non-[A-Z0-9 &] on BOTH sides of the facility<->NFHS join. Recovers 81.2% of India facilities; the ~19% miss is spelling/transliteration drift (a true spatial point-in-polygon join would recover more). 704/706 NFHS names carry trailing whitespace.",
+      "props": {
+        "rule_id": "R-PIN-2",
+        "severity": "high",
+        "statement": "Normalize (UPPER/trim/collapse) district names both sides before joining; 81.2% recovery.",
+        "rationale": "Trailing whitespace and transliteration variants make exact-string joins silently fail."
+      }
+    },
+    {
+      "type": "Rule",
+      "name": "R-district-state-collision",
+      "content": "Name-only district join collides 8 normalized names across states (Aurangabad=Bihar+Maharashtra, Bijapur=Chhattisgarh+Karnataka, Balrampur, Bilaspur, Chandel, Hamirpur, Pratapgarh, Raigarh). Summing on district name alone double-counts these (+85 rows). Key on (normalized state, district) or do a spatial join.",
+      "props": {
+        "rule_id": "R-PIN-3",
+        "severity": "high",
+        "statement": "Key district joins on (state, district) \u2014 8 names collide across states.",
+        "rationale": "Joining on district name alone double-counts the 8 cross-state homonyms."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "facilities-clean-india-count",
+      "content": "When to use: how many facilities (and how clean) \u2014 the dataset universe.\n\n```sql\nSELECT COUNT(*) AS total,\n       COUNT_IF(address_country='India') AS india_rows,\n       COUNT_IF(address_country<>'India' OR address_country IS NULL) AS junk_rows,\n       COUNT(DISTINCT unique_id) AS distinct_ids\nFROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities;\n-- 10,088 total -> 10,000 India, 88 junk, 9,989 distinct (11 dup ids)\n```",
+      "props": {
+        "question": "How many facilities are in the India dataset and how clean is it?",
+        "notes": "Honor R-india-filter; counts are dataset coverage (R-coverage-not-census)."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "facility-composition-by-type-operator",
+      "content": "When to use: facility type & operator mix.\n\n```sql\nSELECT facilityTypeId, COUNT(*) AS n\nFROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities\nWHERE address_country='India' GROUP BY facilityTypeId ORDER BY n DESC;\n-- hospital 5,637 / clinic 3,782 / dentist 490\nSELECT CASE WHEN operatorTypeId='null' THEN NULL ELSE operatorTypeId END AS operator, COUNT(*) AS n\nFROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities\nWHERE address_country='India' GROUP BY 1 ORDER BY n DESC;\n-- private 8,842 (88.4%) vs public+government 471 (4.7%)\n```",
+      "props": {
+        "question": "What kinds of facilities are these and who operates them?",
+        "notes": "Replace literal 'null' (R-operatortype-null-string); don't facet organization_type (R-drop-constant-orgtype)."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "facility-supply-concentration-by-state",
+      "content": "When to use: how concentrated is facility coverage across states.\n\n```sql\n-- Normalize state upstream (R-normalize-state). Top states + share:\nSELECT address_stateOrRegion AS state, COUNT(*) AS facilities,\n       ROUND(100.0*COUNT(*)/SUM(COUNT(*)) OVER (), 1) AS pct\nFROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities\nWHERE address_country='India'\nGROUP BY address_stateOrRegion ORDER BY facilities DESC LIMIT 10;\n-- Maharashtra 1,575 (16.3%), Gujarat 981, UP 933, TN 802, Karnataka 529; top-5=49.8%, top-10=73.7%, Gini 0.609\n```",
+      "props": {
+        "question": "How concentrated is facility coverage across Indian states?",
+        "notes": "Concentration of dataset coverage, not real supply (R-coverage-not-census)."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "nfhs-burden-cast-preamble",
+      "content": "When to use: ANY NFHS-5 indicator aggregation \u2014 the CAST/suppression preamble.\n\n```sql\n-- '*' = suppressed (NULL not 0); '(x.x)' = low-sample estimate; many cols are STRING.\nSELECT district_name, state_ut,\n       try_cast(regexp_replace(child_u5_who_are_stunted_height_for_age_18_pct,'[()*]','') AS DOUBLE) AS stunting_pct,\n       try_cast(regexp_replace(child_6_59m_who_are_anaemic_lt_11_0_g_dl_22_pct,'[()*]','') AS DOUBLE) AS child_anaemia_pct\nFROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators;\n-- try_cast returns NULL for '*'/garbage; never coerce '*' to 0\n```",
+      "props": {
+        "question": "How do I correctly aggregate NFHS-5 indicators given the CAST/suppression gotchas?",
+        "notes": "Honors R-nfhs-cast, R-nfhs-suppressed-star, R-nfhs-parenthesized-estimate."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "nfhs-worst-burden-districts",
+      "content": "When to use: which districts have the highest health need (demand side).\n\n```sql\n-- Per-indicator percentile ranks -> composite HBI (see health_burden_index). Single-indicator example:\nSELECT district_name, state_ut,\n       try_cast(regexp_replace(child_6_59m_who_are_anaemic_lt_11_0_g_dl_22_pct,'[()*]','') AS DOUBLE) AS child_anaemia\nFROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators\nWHERE child_6_59m_who_are_anaemic_lt_11_0_g_dl_22_pct <> '*'\nORDER BY child_anaemia DESC LIMIT 15;\n-- HBI top: Araria 89.7, Lakhisarai 88.0, Nalanda 86.4; 10 of 15 worst are Bihar\n```",
+      "props": {
+        "question": "Which districts have the highest overall health burden / greatest need?",
+        "notes": "HBI is a relative percentile composite (R-hbi-relative-percentile); demand only (R-demand-not-supply)."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "nfhs-state-burden-rollup",
+      "content": "When to use: state-level health burden (key on TRIM district+state).\n\n```sql\nSELECT TRIM(state_ut) AS state, COUNT(*) AS districts,\n       ROUND(AVG(<district HBI>), 1) AS mean_burden\nFROM ( /* district HBI subquery */ )\nGROUP BY TRIM(state_ut) HAVING COUNT(*)>=3 ORDER BY mean_burden DESC;\n-- Bihar 78.4 (n=38) vs Kerala 16.9 (n=14): a 61.5-pt gulf (4.6x). Jharkhand 69.8, UP 61.6 worst after Bihar.\n```",
+      "props": {
+        "question": "Which states have the highest district health burden?",
+        "notes": "Key on (TRIM state, district) \u2014 R-district-state-collision; 'Maharastra' misspelling in source."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "care-lottery-spread",
+      "content": "When to use: how unequal is access across districts (the 'care lottery').\n\n```sql\nSELECT 'health_insurance' AS indicator, MIN(v) AS min_pct, MAX(v) AS max_pct, ROUND(MAX(v)/NULLIF(MIN(v),0),1) AS spread_x\nFROM (SELECT try_cast(hh_member_covered_health_insurance_pct AS DOUBLE) AS v\n      FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators) WHERE v IS NOT NULL;\n-- insurance 1.2->97.8 (81.5x); 4+ANC 4.4->98.7 (22.4x); women anaemia 14.9->93.5 (6.3x); institutional birth 21.4->100 (4.7x)\n```",
+      "props": {
+        "question": "How unequal is health access across districts?",
+        "notes": "Report p10-p90 alongside min-max (single extreme districts are small UTs)."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "facility-to-district-join",
+      "content": "When to use: the SUPPLY<->DEMAND bridge \u2014 resolve facilities to an NFHS district (THE join).\n\n```sql\nWITH pin_modal AS (  -- dedup post-office grain to modal (district,state) per PIN (R-pin-fanout-dedup)\n  SELECT pincode,\n         FIRST(district) OVER (PARTITION BY pincode ORDER BY cnt DESC) AS district,\n         FIRST(statename) OVER (PARTITION BY pincode ORDER BY cnt DESC) AS statename\n  FROM (SELECT pincode, district, statename, COUNT(*) cnt\n        FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory\n        GROUP BY pincode, district, statename)),\nfac AS (\n  SELECT unique_id, CAST(regexp_extract(address_zipOrPostcode,'([0-9]{6})',1) AS INT) AS pin\n  FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities\n  WHERE address_country='India')\nSELECT f.unique_id, upper(trim(p.district)) AS district_norm, p.statename\nFROM fac f LEFT JOIN pin_modal p ON f.pin = p.pincode;\n-- coverage: 97.7% parseable PIN -> 95.7% PIN-district -> 81.2% match an NFHS district by normalized name\n```",
+      "props": {
+        "question": "How do I join facilities to NFHS districts (supply to demand)?",
+        "notes": "Honors R-pin-fanout-dedup, R-district-name-normalization, R-district-state-collision; join ceiling 81.2%."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "zero-facility-districts",
+      "content": "When to use: the medical-desert COVERAGE GAP headline.\n\n```sql\n-- facilities resolved to district (facility-to-district-join) RIGHT JOINed to all NFHS districts\nSELECT n.district_name, n.state_ut, COUNT(f.unique_id) AS facilities\nFROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators n\nLEFT JOIN resolved_facilities f ON upper(trim(n.district_name)) = f.district_norm\nGROUP BY n.district_name, n.state_ut;\n-- ~245 of 698 districts (35%) have ZERO facilities in this dataset; mean 11.6, median 2, max 325 (Pune)\n```",
+      "props": {
+        "question": "How many districts have no facilities in the dataset (coverage gaps)?",
+        "notes": "Zero = zero in THIS sample, not absence of care (R-coverage-not-census)."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "desert-score-ranking",
+      "content": "When to use: rank the priority medical-desert districts (high burden x low coverage).\n\n```sql\nSELECT district, state, burden_index, facilities,\n       (zscore(burden_index) - zscore(ln(1+facilities))) AS desert_score\nFROM district_burden_supply\nORDER BY desert_score DESC LIMIT 15;\n-- Araria(Bihar,0 fac,3.73), Pakur(JH,0), Lakhisarai(Bihar,0), Jamui(Bihar,0), Sahibganj(JH,0); 13/15 Bihar+Jharkhand, 13 zero-facility\n```",
+      "props": {
+        "question": "Which high-need districts should a planner prioritise as medical deserts?",
+        "notes": "desert_score combines demand + supply; coverage caveat applies."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "burden-supply-correlation",
+      "content": "When to use: does facility supply follow need? (the analytical twist).\n\n```sql\n-- correlate district burden vs facility coverage; tertile means\nSELECT corr(burden_index, facilities) AS pearson,  -- use spearman on ranks in code\n       AVG(CASE WHEN burden_tertile='high' THEN facilities END) AS high_burden_mean,\n       AVG(CASE WHEN burden_tertile<>'high' THEN facilities END) AS rest_mean\nFROM district_burden_supply;\n-- Spearman rho ~ -0.2 to -0.27 (p<1e-8, NEGATIVE); high-burden tertile 5.5 facilities vs ~14.6 for the rest\n```",
+      "props": {
+        "question": "Does facility supply follow health need across districts?",
+        "notes": "Mismatch is descriptive evidence of inequity, not causal/discrimination."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "coverage-concentration-gini",
+      "content": "When to use: how concentrated is facility coverage across districts.\n\n```sql\n-- Gini + top-k share of facilities-per-district\nSELECT district, facilities FROM district_facility_counts ORDER BY facilities DESC;\n-- Gini 0.821; top-10 districts (Pune 325, Ahmadabad 320, Mumbai Suburban 273, Chennai 272 ...) = 28.3%; top-50 = 63.8%\n```",
+      "props": {
+        "question": "How concentrated is facility coverage across districts?",
+        "notes": "Concentration of dataset coverage; compounds rural/tribal gaps."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "facility-trust-score",
+      "content": "When to use: score how well a facility's claims are corroborated.\n\n```sql\nWITH s AS (SELECT *,\n  CASE WHEN try_cast(numberDoctors AS DOUBLE)>0 THEN 1 ELSE 0 END AS has_doctors,\n  CASE WHEN try_cast(capacity AS DOUBLE)>0 THEN 1 ELSE 0 END AS has_capacity,\n  CASE WHEN officialWebsite NOT IN ('null','') AND officialWebsite IS NOT NULL THEN 1 ELSE 0 END AS has_website\n  FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India')\nSELECT unique_id, name,\n  25*recent + 20*has_doctors + 15*has_website + 15*has_capacity + 10*has_phone + 5*affiliated + 5*social2 + 5*rich_desc AS trust_score\nFROM s;\n-- median 45/100; 50.9% below 50 (hard-proof signals are thin). Strip literal 'null' first (R-string-null-sentinel).\n```",
+      "props": {
+        "question": "How trustworthy / well-corroborated is a facility's listing?",
+        "notes": "Score = data corroboration, not care quality; auditable weights (R-claims-self-reported)."
+      }
+    },
+    {
+      "type": "SqlPattern",
+      "name": "unverifiable-advanced-claims",
+      "content": "When to use: find facilities claiming advanced care they can't back up.\n\n```sql\nSELECT unique_id, name, equipment, capability\nFROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities\nWHERE address_country='India'\n  AND (lower(equipment) RLIKE '\\\\b(mri|ct scan|icu|cancer|oncolog|cardiac|cathlab|dialysis|nicu|transplant)\\\\b'\n    OR lower(capability) RLIKE '\\\\b(mri|ct|icu|cancer|cardiac|dialysis|nicu|transplant)\\\\b')\n  AND (numberDoctors='null' OR numberDoctors IS NULL)\n  AND (capacity='null' OR capacity IS NULL);\n-- 1,219 facilities (12.2% of all India, 29.9% of the 4,077 advanced-claimers) make advanced claims with zero hard proof\n```",
+      "props": {
+        "question": "Which facilities make advanced-care claims they cannot back up?",
+        "notes": "Word-boundary regex; 'null' proof = undisclosed, treat as risk-to-verify (R-claims-self-reported)."
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "the-care-lottery",
+      "content": "Within ONE country, a child's healthcare odds are decided by district, not by need. Health-insurance coverage ranges 1.2% to 97.8% across districts (81.5x), 4+ antenatal visits 4.4% to 98.7% (22.4x), women's anaemia 14.9% to 93.5% (6.3x), institutional birth 21.4% to 100% (4.7x). Where you're born dominates your access. The master narrative \u2014 'same country, opposite odds.'",
+      "props": {
+        "claim": "District health access varies up to 81.5x within India \u2014 where you live decides your odds.",
+        "evidence": "NFHS-5 2019-21, 706 districts: insurance 1.2->97.8% (81.5x), 4+ANC 4.4->98.7% (22.4x), women anaemia 14.9->93.5% (6.3x)",
+        "why": "Outcomes track district of birth, not individual need \u2014 the structural 'care lottery'.",
+        "window": "NFHS-5 2019-21, all 706 districts"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "medical-deserts-zero-coverage",
+      "content": "About 245 of 698 NFHS districts (35%) have ZERO facilities in this dataset \u2014 and the worst-need places are the emptiest. The five highest child-anaemia districts (Leh/Ladakh 95.5%, Sukma 91.4%, Lahul & Spiti 91.0%, Dantewada 89.9%, Tawang 89.6%) ALL have zero dataset facilities. Framed honestly as a data-COVERAGE gap, which is itself the signal: the highest-need places are invisible to data-driven planning.",
+      "props": {
+        "claim": "~245 of 698 districts (35%) have zero facilities in this dataset; the 5 worst child-anaemia districts all have zero.",
+        "evidence": "PIN-crosswalk join; 244-245 zero-coverage districts; Leh/Ladakh 95.5%, Sukma 91.4%, Lahul&Spiti 91.0%, Dantewada 89.9%, Tawang 89.6% all 0 facilities",
+        "why": "Web-scraped sample is biased to urban/private orgs, so the highest-need rural/tribal districts are absent.",
+        "window": "facilities sample (~10k) joined to NFHS-5 districts"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "supply-does-not-follow-need",
+      "content": "The analytical twist: you'd expect facilities to follow burden, but they don't. Burden vs dataset facility coverage is significantly NEGATIVELY correlated (Spearman rho ~ -0.2 to -0.27, p<1e-8). The highest-burden tertile averages just 5.5 facilities/district vs ~14.6 for the rest; zero-facility share rises from 28.8% (low burden) to 40.9% (high burden). A descriptive mismatch between need and coverage \u2014 not proof of cause.",
+      "props": {
+        "claim": "Health burden and facility coverage are negatively correlated (rho ~ -0.2, p<1e-8): supply does not follow need.",
+        "evidence": "Spearman rho -0.2..-0.27 (p<1e-8, n=706); high-burden tertile 5.5 facilities vs ~14.6; zero-fac share 28.8%->40.9%",
+        "why": "Coverage concentrates in metros; the rural high-burden districts are under-sampled \u2014 inequity in who the data even sees.",
+        "window": "district burden index vs in-dataset facility coverage"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "top-desert-districts-bihar-jharkhand",
+      "content": "The priority deserts cluster in Bihar and Jharkhand. The 15 highest desert-score districts (high burden, <=2 facilities) are led by Araria (Bihar; 0 facilities; child anaemia 75.8%; only 25.8% of mothers get 4+ ANC visits), Pakur, Lakhisarai, Jamui and Sahibganj \u2014 13 of 15 are in Bihar/Jharkhand and 13 have zero dataset facilities.",
+      "props": {
+        "claim": "13 of the 15 worst medical-desert districts are in Bihar/Jharkhand; 13 have zero facilities.",
+        "evidence": "desert_score top-15: Araria(Bihar,0,3.73), Pakur(JH,0), Lakhisarai(Bihar,0), Jamui(Bihar,0), Sahibganj(JH,0)...",
+        "why": "Bihar/Jharkhand combine the highest health burden with the thinnest dataset coverage.",
+        "window": "desert_score ranking over matched NFHS districts"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "the-burden-belt",
+      "content": "Need concentrates in the east-central belt. On the 10-indicator HBI, Araria (Bihar) is the single highest-burden district at 89.7/100, and 10 of the 15 worst are in Bihar; rolled to state, Bihar averages 78.4 vs Kerala 16.9 \u2014 a 61.5-point gulf (4.6x). Jharkhand (69.8) and Uttar Pradesh (61.6) follow.",
+      "props": {
+        "claim": "Bihar is India's highest-burden state (HBI 78.4) vs Kerala's 16.9 \u2014 a 4.6x gulf; Araria is the worst district (89.7).",
+        "evidence": "HBI: Araria 89.7 (top of 706), 10 of 15 worst in Bihar; state means Bihar 78.4 (n=38), Jharkhand 69.8, UP 61.6, Kerala 16.9 (n=14)",
+        "why": "Compounding deprivation (anaemia+stunting+low ANC+low insurance) clusters in the eastern Gangetic plain.",
+        "window": "NFHS-5 2019-21 HBI, district + state rollup"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "the-southern-advantage",
+      "content": "The mirror image: the 15 lowest-burden districts in India are entirely in the deep south \u2014 Kanniyakumari (Tamil Nadu) lowest at HBI 9.4, then a wall of Kerala districts (Kozhikode 10.7, Pathanamthitta 11.3, Thrissur 12.0). A best-15 sweep by one region is itself the inequality story.",
+      "props": {
+        "claim": "The 15 lowest-burden districts are all in the deep south; Kanniyakumari is lowest (HBI 9.4).",
+        "evidence": "HBI best-15: Kanniyakumari(TN) 9.4, Kozhikode(KL) 10.7, Pathanamthitta(KL) 11.3, Thrissur(KL) 12.0, Kasaragod 12.4...",
+        "why": "Kerala/Tamil Nadu's decades of health-system investment show up as a southern wall at the good end.",
+        "window": "NFHS-5 2019-21 HBI"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "women-anaemia-majority",
+      "content": "Anaemia among women 15-49 has a median of 57.2% \u2014 over half of all districts have a MAJORITY of women anaemic \u2014 ranging 14.9% (Kohima, Nagaland) to 93.5% (Leh/Ladakh). Child anaemia is worse (median 67.7%, max 95.5%, also Leh/Ladakh).",
+      "props": {
+        "claim": "The median district has 57% of women anaemic; child anaemia medians 68% and peaks at 95.5%.",
+        "evidence": "women anaemia n=706: min 14.9 (Kohima), median 57.2, max 93.5 (Leh/Ladakh); child anaemia median 67.7, max 95.5",
+        "why": "Anaemia is the most widespread NFHS burden \u2014 a majority-of-women crisis, not a tail problem.",
+        "window": "NFHS-5 2019-21"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "child-malnutrition-stunting",
+      "content": "The median district stunts a third of its young children (32.8%), ranging 13.2% (Jagatsinghapur, Odisha) to 60.6% (Pashchimi Singhbhum, Jharkhand \u2014 also worst on underweight at 62.4%). Stunting/wasting/underweight share worst districts, so they are not independent signals.",
+      "props": {
+        "claim": "Under-5 stunting medians 32.8% and peaks at 60.6% (Pashchimi Singhbhum, Jharkhand).",
+        "evidence": "stunting n=706: 13.2 (Jagatsinghapur) -> 60.6 (Pashchimi Singhbhum), median 32.8; underweight max 62.4 (same district)",
+        "why": "Chronic child undernutrition concentrates in the same eastern tribal belt as anaemia.",
+        "window": "NFHS-5 2019-21"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "private-skew-public-gap",
+      "content": "The supply we can see is overwhelmingly private. 88.4% of India facilities are private vs 4.7% public/government (an 18.8:1 ratio of known operators), and 94.2% are hospitals or clinics. A planner relying on this dataset sees mostly the private market, so public-sector gaps look worse than reality.",
+      "props": {
+        "claim": "88% of dataset facilities are private vs 5% public \u2014 an 18.8:1 skew that hides public supply.",
+        "evidence": "operatorTypeId (known): private 8,842 (94.9% of 9,313 known), public+government 471; facilityTypeId hospital 56.4% + clinic 37.8%",
+        "why": "Web-scraped discovery favours private orgs with a digital footprint, undercounting public clinics.",
+        "window": "facilities sample, India"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "supply-concentration",
+      "content": "Coverage is hoarded by a handful of states and metros. The top-5 states hold 49.8% of dataset facilities (Maharashtra alone 16.3%) and the top-10 hold 73.7% (across-state Gini 0.609); across districts the Gini is 0.821, with the top-10 districts (Pune 325, Ahmadabad 320, Mumbai Suburban 273, Chennai 272...) holding 28.3% and the top-50 holding 63.8%. The northeast is nearly absent (Sikkim 4, Arunachal 3, Mizoram few).",
+      "props": {
+        "claim": "Top-5 states hold ~50% of dataset facilities; district coverage Gini is 0.821 (top-50 districts = 63.8%).",
+        "evidence": "state Gini 0.609 (top-5 49.8%, Maharashtra 16.3%, top-10 73.7%); district Gini 0.821 (top-10 28.3%, top-50 63.8%)",
+        "why": "Dataset coverage concentrates in dense urban/private markets, compounding rural/tribal blind spots.",
+        "window": "facilities sample resolved to states/districts"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "claims-rich-proof-thin",
+      "content": "Facilities say a lot and prove little. Claim text is near-complete (description 100%, specialties 99.7%, capability 99.4%) but hard proof is sparse: numberDoctors real for only 36.3%, capacity 25.2%, recency 35.4% (the raw 99.7% is the literal-'null' sentinel). The median facility scores just 45/100 on the trust score; 50.9% fall below 50.",
+      "props": {
+        "claim": "Facility claims are ~99% present but hard proof (doctors 36%, capacity 25%) is thin; median trust 45/100.",
+        "evidence": "present: specialties 99.7%, capability 99.4%; real-fill: numberDoctors 36.3%, capacity 25.2%, recency 35.4%; trust median 45, 50.9% below 50",
+        "why": "The data is scraped self-report \u2014 believability, not capability; a planner must verify before acting.",
+        "window": "facilities sample, India"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "unverifiable-advanced-claims",
+      "content": "1,219 facilities (12.2% of all India, 29.9% of the 4,077 making advanced-capability claims) advertise MRI/CT/ICU/cancer/cardiac/dialysis/NICU/transplant capability yet expose NO doctor count, NO bed capacity, and no recent page update. Treat as risk-to-verify, not proof of misrepresentation \u2014 but never send a patient on an unverified advanced claim.",
+      "props": {
+        "claim": "1,219 facilities (29.9% of advanced-claimers) advertise advanced care with zero hard corroboration.",
+        "evidence": "advanced-claimers 4,077 (40.8%); unverifiable (claim AND no doctors AND no capacity AND stale) 1,219; 37.8% of claimers have no hard proof",
+        "why": "Self-reported scraped claims with no corroboration are the highest patient-safety risk in a referral.",
+        "window": "facilities sample, India; word-boundary capability regex"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "the-data-readiness-tax",
+      "content": "Before a planner can trust any number, the data needs work: 88 junk rows + 11 duplicate IDs in facilities; missing encoded as the string 'null' (so numberDoctors is real for 36%, not 99.7%); 49 NFHS columns are string-numeric with 26.6% of cells suppressed ('*') or low-sample estimates; 8 district names collide across states; the PIN directory fans out ~8x. None of it is optional.",
+      "props": {
+        "claim": "Trusting this data requires fixing string-'null' sentinels, 49 CAST columns, 26.6% suppressed cells, PIN fan-out, and 8 colliding district names.",
+        "evidence": "facilities: 88 junk, 11 dup ids, 'null' sentinel (doctors 99.7%->36%); NFHS: 49 string cols, 9,193/34,594 cells (26.6%) suppressed/estimated; PIN: 8.5 rows/PIN, 1,478 multi-district",
+        "why": "Every desert/trust claim is only as honest as the cleaning behind it \u2014 the 'communicate uncertainty' rubric.",
+        "window": "all 3 tables"
+      }
+    },
+    {
+      "type": "Finding",
+      "name": "geocoding-ready-to-map",
+      "content": "The good news: 99.7% of facilities have clean lat/lon (99.64% inside India's bbox) and 97.7% carry a parseable 6-digit PIN, so facilities map directly with no geocoding step \u2014 the supply layer is map-ready even where the demand join needs name normalization.",
+      "props": {
+        "claim": "99.7% of facilities are geocoded and 97.7% have a parseable PIN \u2014 the supply layer is map-ready.",
+        "evidence": "lat+lon present 9,970/10,000 (99.7%), 99.64% in-bbox; parseable PIN 97.7%",
+        "why": "Clean coordinates let a planner dot-map supply against the burden choropleth immediately.",
+        "window": "facilities sample, India"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Where are India's medical deserts (high need, low coverage)?",
+      "content": "The flagship Medical Desert Planner question. Joins NFHS burden to in-dataset facility coverage to rank high-need low-coverage districts.",
+      "props": {
+        "intent": "desert_priority_ranking"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Which districts have zero facilities in the dataset?",
+      "content": "The coverage-gap headline: ~245 of 698 NFHS districts have no facility in this sample.",
+      "props": {
+        "intent": "coverage_gap_count"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Does facility supply follow health need across India?",
+      "content": "The analytical twist: burden vs coverage correlation (negative, supply does not follow need).",
+      "props": {
+        "intent": "equity_correlation"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Which districts have the highest health burden?",
+      "content": "Demand-side ranking via the HBI composite (Araria 89.7; 10 of 15 worst in Bihar).",
+      "props": {
+        "intent": "burden_ranking"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Which states have the best and worst health outcomes?",
+      "content": "State HBI rollup: Bihar 78.4 worst vs Kerala 16.9 best.",
+      "props": {
+        "intent": "state_burden_view"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "How unequal is healthcare access across India?",
+      "content": "The care-lottery spread: up to 81.5x district variation in insurance, 22.4x in 4+ANC.",
+      "props": {
+        "intent": "inequality_spread"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Where is anaemia / child malnutrition worst?",
+      "content": "Single-indicator district ranking (women anaemia median 57%, stunting peaks 60.6%).",
+      "props": {
+        "intent": "indicator_worst_districts"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Can I trust this facility's claims?",
+      "content": "Facility trust score over 8 corroboration signals; cite the source text field.",
+      "props": {
+        "intent": "facility_trust_lookup"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Which facilities claim advanced care they can't back up?",
+      "content": "Unverifiable advanced-claim filter (1,219 facilities; MRI/CT/ICU/cancer with no proof).",
+      "props": {
+        "intent": "unverifiable_claims"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "How concentrated is facility coverage?",
+      "content": "Gini + top-k share across states (0.609) and districts (0.821).",
+      "props": {
+        "intent": "coverage_concentration"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "What kinds of facilities are in the dataset and who runs them?",
+      "content": "Composition: hospital 56% / clinic 38%; 88% private.",
+      "props": {
+        "intent": "composition_lookup"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "What must be fixed before I can trust this data?",
+      "content": "The data-readiness punch list: string-'null' sentinels, 49 CAST cols, 26.6% suppressed NFHS cells, PIN fan-out, colliding district names.",
+      "props": {
+        "intent": "data_readiness"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "How do facilities map to districts?",
+      "content": "The PIN-crosswalk join methodology (facility PIN -> modal district -> NFHS).",
+      "props": {
+        "intent": "data_retrieval"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Brief me on a district",
+      "content": "District profile: burden indicators + dataset facility coverage + trust caveat.",
+      "props": {
+        "intent": "district_briefing"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Build a data story / infographic on India's medical deserts",
+      "content": "Produce the 'Care Lottery' scrollytelling/infographic spine (burden choropleth -> deserts -> lottery -> supply-vs-need -> trust -> close).",
+      "props": {
+        "intent": "deliverable_story"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Build a deck on the medical desert findings",
+      "content": "Produce a PPTX deck from the verified desert findings.",
+      "props": {
+        "intent": "deliverable_deck"
+      }
+    },
+    {
+      "type": "Question",
+      "name": "Map facility supply against district health burden",
+      "content": "Supply points (dot layer) over a demand choropleth + the supply-vs-need bubble.",
+      "props": {
+        "intent": "deliverable_map"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Choropleth shows rates, not totals",
+      "content": "On a district map fill polygons with a RATE/PREVALENCE (e.g. % child anaemia), never a raw count or facility count \u2014 a count choropleth mostly visualises the size of the geographic unit. Use proportional symbols for any magnitude. [[choropleth-map]]",
+      "props": {
+        "statement": "On a district map fill polygons with a RATE/PREVALENCE (e.g. % child anaemia), never a raw count or facility count \u2014 a count choropleth mostly visualises the size of the geographic unit. Use proportional symbols for any magnitude. [[choropleth-map]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Sequential ramp for burden; diverging only at a real midpoint",
+      "content": "Use a single-hue SEQUENTIAL ramp for an ordered burden measure (lightness is perceptually ordered); reserve a two-hue DIVERGING ramp for measures that cross a meaningful midpoint (need-vs-supply z-score around 0). Never rainbow. [[colour-encoding]]",
+      "props": {
+        "statement": "Use a single-hue SEQUENTIAL ramp for an ordered burden measure (lightness is perceptually ordered); reserve a two-hue DIVERGING ramp for measures that cross a meaningful midpoint (need-vs-supply z-score around 0). Never rainbow. [[colour-encoding]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Facility points are a dot/proportional-symbol layer, not a fill",
+      "content": "Render the ~10k facilities as a POINT layer over the demand choropleth, visually distinct from the fill underneath \u2014 never conflate supply count with demand shading. [[choropleth-map]] Spatial tab",
+      "props": {
+        "statement": "Render the ~10k facilities as a POINT layer over the demand choropleth, visually distinct from the fill underneath \u2014 never conflate supply count with demand shading. [[choropleth-map]] Spatial tab"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "MAUP & ecological fallacy at the district grain",
+      "content": "Aggregating to district is a Modifiable-Areal-Unit choice: a pattern can weaken or reverse at a finer grain, and a district average does NOT describe any individual within it. State every claim as 'this district, at this grain'. [[simpsons-paradox]] [[confounding]]",
+      "props": {
+        "statement": "Aggregating to district is a Modifiable-Areal-Unit choice: a pattern can weaken or reverse at a finer grain, and a district average does NOT describe any individual within it. State every claim as 'this district, at this grain'. [[simpsons-paradox]] [[confounding]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Always show the denominator",
+      "content": "Never map or rank a facility count or a burden alone \u2014 pair it with its base geography and survey size. The 3 tables carry NO population, so frame supply as count-vs-burden, with NFHS women_15_49_interviewed only as a caveated survey-size proxy. [[choropleth-map]]",
+      "props": {
+        "statement": "Never map or rank a facility count or a burden alone \u2014 pair it with its base geography and survey size. The 3 tables carry NO population, so frame supply as count-vs-burden, with NFHS women_15_49_interviewed only as a caveated survey-size proxy. [[choropleth-map]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Render suppressed and estimated cells honestly",
+      "content": "NFHS '*' suppressed cells render as an explicit DISTINCT category (hatched 'data suppressed'), never as 0 or the lightest ramp colour; flag parenthesized '(x.x)' estimates (25-49 cases) as low-reliability. [[confidence-interval]]",
+      "props": {
+        "statement": "NFHS '*' suppressed cells render as an explicit DISTINCT category (hatched 'data suppressed'), never as 0 or the lightest ramp colour; flag parenthesized '(x.x)' estimates (25-49 cases) as low-reliability. [[confidence-interval]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Sample, not census \u2014 label coverage",
+      "content": "The facilities table is a ~10k SAMPLE (India has 47k+ in the FDR), so a low count is DATASET COVERAGE, not absolute scarcity. Label every desert/gap claim 'in-dataset coverage' and answer 'who is NOT in this sample?'. [[sampling-bias]]",
+      "props": {
+        "statement": "The facilities table is a ~10k SAMPLE (India has 47k+ in the FDR), so a low count is DATASET COVERAGE, not absolute scarcity. Label every desert/gap claim 'in-dataset coverage' and answer 'who is NOT in this sample?'. [[sampling-bias]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Volume-filter rate maps to kill small-sample extremes",
+      "content": "A district can show an extreme burden or perfect ratio purely on a tiny sample; pair any rate map or ranked bar with a minimum-volume filter or annotate n. [[choropleth-map]] [[confidence-interval]]",
+      "props": {
+        "statement": "A district can show an extreme burden or perfect ratio purely on a tiny sample; pair any rate map or ranked bar with a minimum-volume filter or annotate n. [[choropleth-map]] [[confidence-interval]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Small multiples for many indicators on a shared scale",
+      "content": "With 100+ NFHS indicators, use small multiples / a Trellis of identically-scaled mini-maps or ranked bars (same colour breaks, same axis across panels), never one multi-hue map. [[no-unjustified-3d]] [[sensible-scales]]",
+      "props": {
+        "statement": "With 100+ NFHS indicators, use small multiples / a Trellis of identically-scaled mini-maps or ranked bars (same colour breaks, same axis across panels), never one multi-hue map. [[no-unjustified-3d]] [[sensible-scales]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Pair a burden choropleth with a companion ranked bar",
+      "content": "Colour saturation is rank 5/5 in the Cleveland-McGill hierarchy \u2014 readers can't decode precise values from a shade \u2014 so always pair the map (WHERE) with a ranked bar of the worst districts (HOW MUCH, position/length). [[cleveland-mcgill-encoding-hierarchy]]",
+      "props": {
+        "statement": "Colour saturation is rank 5/5 in the Cleveland-McGill hierarchy \u2014 readers can't decode precise values from a shade \u2014 so always pair the map (WHERE) with a ranked bar of the worst districts (HOW MUCH, position/length). [[cleveland-mcgill-encoding-hierarchy]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "State the choropleth class-binning and show breakpoints",
+      "content": "Class breaks change the story: quantile bins even out counts but hide magnitude; equal-interval preserves magnitude but can empty bins under skew. State which binning you used, show breakpoints in the legend, keep the same breaks across small multiples. [[sensible-scales]]",
+      "props": {
+        "statement": "Class breaks change the story: quantile bins even out counts but hide magnitude; equal-interval preserves magnitude but can empty bins under skew. State which binning you used, show breakpoints in the legend, keep the same breaks across small multiples. [[sensible-scales]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Supply-vs-need bubble needs a reference line",
+      "content": "On the need-vs-coverage bubble (x=burden, y=coverage) add the expected/diagonal reference line and label the high-need-low-coverage quadrant as the 'medical desert' region \u2014 the eye reads position-to-a-reference far better than a bare cloud. [[scatter-plot]]",
+      "props": {
+        "statement": "On the need-vs-coverage bubble (x=burden, y=coverage) add the expected/diagonal reference line and label the high-need-low-coverage quadrant as the 'medical desert' region \u2014 the eye reads position-to-a-reference far better than a bare cloud. [[scatter-plot]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Hunt confounders before calling a district a desert",
+      "content": "A low in-dataset count can be driven by data-collection coverage, urban/rural split, or private/public mix rather than true absence of care \u2014 name the lurking variable and scope the claim. [[confounding]] [[spurious-correlation]]",
+      "props": {
+        "statement": "A low in-dataset count can be driven by data-collection coverage, urban/rural split, or private/public mix rather than true absence of care \u2014 name the lurking variable and scope the claim. [[confounding]] [[spurious-correlation]]"
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Human-anchor device \u2014 carry one district through the story",
+      "content": "Carry ONE real district as the human anchor \u2014 Sukma, Chhattisgarh (~91% children anaemic, ZERO dataset facilities) \u2014 open on it, return to it in the desert/lottery/closing scenes, contrast against Chennai (55%, 272 facilities). The reader follows a place, not a table.",
+      "props": {
+        "statement": "Carry ONE real district as the human anchor \u2014 Sukma, Chhattisgarh (~91% children anaemic, ZERO dataset facilities) \u2014 open on it, return to it in the desert/lottery/closing scenes, contrast against Chennai (55%, 272 facilities). The reader follows a place, not a table."
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Lead the bubble scene with the expectation, then break it",
+      "content": "The analytical payload is the reversal: you'd expect facilities to follow burden, but they don't (rho ~ -0.2; high-burden districts average fewer facilities). State the expectation first, then break it; claim 'mismatch between need and coverage', never 'discrimination'.",
+      "props": {
+        "statement": "The analytical payload is the reversal: you'd expect facilities to follow burden, but they don't (rho ~ -0.2; high-burden districts average fewer facilities). State the expectation first, then break it; claim 'mismatch between need and coverage', never 'discrimination'."
+      }
+    },
+    {
+      "type": "DesignRule",
+      "name": "Split 'claimed' vs 'proven' in the trust scene",
+      "content": "Visually split what facilities CLAIM (specialties/equipment ~99%) from what's PROVEN (doctors 36%, capacity 25%) so a planner never sends a patient on an unverified claim; cite the source TEXT field for any specific facility claim.",
+      "props": {
+        "statement": "Visually split what facilities CLAIM (specialties/equipment ~99%) from what's PROVEN (doctors 36%, capacity 25%) so a planner never sends a patient on an unverified claim; cite the source TEXT field for any specific facility claim."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "SERVED_BY",
+      "from_type": "Domain",
+      "from_name": "india-healthcare-access",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "HAS_TABLE",
+      "from_type": "Domain",
+      "from_name": "india-healthcare-access",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "HAS_TABLE",
+      "from_type": "GenieSpace",
+      "from_name": "India Healthcare Access Space",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "HAS_TABLE",
+      "from_type": "Domain",
+      "from_name": "india-healthcare-access",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "HAS_TABLE",
+      "from_type": "GenieSpace",
+      "from_name": "India Healthcare Access Space",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "HAS_TABLE",
+      "from_type": "Domain",
+      "from_name": "india-healthcare-access",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "props": {}
+    },
+    {
+      "type": "HAS_TABLE",
+      "from_type": "GenieSpace",
+      "from_name": "India Healthcare Access Space",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "props": {}
+    },
+    {
+      "type": "JOINS_ON",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "props": {
+        "via": "facilities.address_zipOrPostcode (6-digit PIN) = pincode"
+      }
+    },
+    {
+      "type": "JOINS_ON",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {
+        "via": "normalized district (modal per PIN) = nfhs district_name"
+      }
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.unique_id",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.address_zipOrPostcode",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.address_stateOrRegion",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.address_city",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.latitude",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.longitude",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.facilityTypeId",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.operatorTypeId",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.specialties",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.equipment",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.capability",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.numberDoctors",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.capacity",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.recency_of_page_update",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.district_name",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.state_ut",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.all_w15_49_who_are_anaemic_pct",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.child_6_59m_who_are_anaemic_lt_11_0_g_dl_22_pct",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.child_u5_who_are_stunted_height_for_age_18_pct",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.institutional_birth_5y_pct",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.hh_member_covered_health_insurance_pct",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators.child_12_23m_fully_vaccinated_based_on_information_from_vax_pct",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory.pincode",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory.district",
+      "props": {}
+    },
+    {
+      "type": "HAS_COLUMN",
+      "from_type": "Table",
+      "from_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory.statename",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "facilities_total",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "private_share",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "facility_geocoding_rate",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "facility_supply_concentration",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "facility_trust_score",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "unverifiable_claim_rate",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "health_burden_index",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "women_anaemia_rate",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "child_stunting_rate",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "institutional_birth_rate",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "full_immunization_rate",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "health_insurance_coverage",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "facilities_per_district",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "facilities_per_district",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "facilities_per_district",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "desert_score",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "desert_score",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "burden_supply_correlation",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "COMPUTED_FROM",
+      "from_type": "Metric",
+      "from_name": "burden_supply_correlation",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "facilities-clean-india-count",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "facilities-clean-india-count",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facilities-clean-india-count",
+      "to_type": "Rule",
+      "to_name": "R-india-filter",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facilities-clean-india-count",
+      "to_type": "Rule",
+      "to_name": "R-coverage-not-census",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "facilities-clean-india-count",
+      "to_type": "Metric",
+      "to_name": "facilities_total",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "facilities-clean-india-count",
+      "to_type": "ChartRecipe",
+      "to_name": "stat",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "facilities-clean-india-count",
+      "to_type": "ChartRecipe",
+      "to_name": "count_up",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "facilities-clean-india-count",
+      "to_type": "Question",
+      "to_name": "What kinds of facilities are in the dataset and who runs them?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "facility-composition-by-type-operator",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "facility-composition-by-type-operator",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-composition-by-type-operator",
+      "to_type": "Rule",
+      "to_name": "R-operatortype-null-string",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-composition-by-type-operator",
+      "to_type": "Rule",
+      "to_name": "R-drop-constant-orgtype",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "facility-composition-by-type-operator",
+      "to_type": "Metric",
+      "to_name": "private_share",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "facility-composition-by-type-operator",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "facility-composition-by-type-operator",
+      "to_type": "ChartRecipe",
+      "to_name": "kpi_grid",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-composition-by-type-operator",
+      "to_type": "Question",
+      "to_name": "What kinds of facilities are in the dataset and who runs them?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "facility-supply-concentration-by-state",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "facility-supply-concentration-by-state",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-supply-concentration-by-state",
+      "to_type": "Rule",
+      "to_name": "R-normalize-state",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-supply-concentration-by-state",
+      "to_type": "Rule",
+      "to_name": "R-coverage-not-census",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "facility-supply-concentration-by-state",
+      "to_type": "Metric",
+      "to_name": "facility_supply_concentration",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "facility-supply-concentration-by-state",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar_highlight",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "facility-supply-concentration-by-state",
+      "to_type": "ChartRecipe",
+      "to_name": "lorenz_gini",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "facility-supply-concentration-by-state",
+      "to_type": "ChartRecipe",
+      "to_name": "choropleth",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-supply-concentration-by-state",
+      "to_type": "Question",
+      "to_name": "How concentrated is facility coverage?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-burden-cast-preamble",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-burden-cast-preamble",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-burden-cast-preamble",
+      "to_type": "Rule",
+      "to_name": "R-nfhs-cast",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-burden-cast-preamble",
+      "to_type": "Rule",
+      "to_name": "R-nfhs-suppressed-star",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-burden-cast-preamble",
+      "to_type": "Rule",
+      "to_name": "R-nfhs-parenthesized-estimate",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-burden-cast-preamble",
+      "to_type": "Question",
+      "to_name": "What must be fixed before I can trust this data?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-worst-burden-districts",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-worst-burden-districts",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-worst-burden-districts",
+      "to_type": "Rule",
+      "to_name": "R-nfhs-cast",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-worst-burden-districts",
+      "to_type": "Rule",
+      "to_name": "R-hbi-relative-percentile",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-worst-burden-districts",
+      "to_type": "Rule",
+      "to_name": "R-demand-not-supply",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-worst-burden-districts",
+      "to_type": "Metric",
+      "to_name": "health_burden_index",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-worst-burden-districts",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar_highlight",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-worst-burden-districts",
+      "to_type": "ChartRecipe",
+      "to_name": "choropleth",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-worst-burden-districts",
+      "to_type": "Question",
+      "to_name": "Which districts have the highest health burden?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-state-burden-rollup",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-state-burden-rollup",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-state-burden-rollup",
+      "to_type": "Rule",
+      "to_name": "R-district-state-collision",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-state-burden-rollup",
+      "to_type": "Rule",
+      "to_name": "R-nfhs-cast",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-state-burden-rollup",
+      "to_type": "Metric",
+      "to_name": "health_burden_index",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-state-burden-rollup",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-state-burden-rollup",
+      "to_type": "ChartRecipe",
+      "to_name": "choropleth",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "nfhs-state-burden-rollup",
+      "to_type": "Question",
+      "to_name": "Which states have the best and worst health outcomes?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "care-lottery-spread",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "care-lottery-spread",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "care-lottery-spread",
+      "to_type": "Rule",
+      "to_name": "R-nfhs-cast",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "care-lottery-spread",
+      "to_type": "Rule",
+      "to_name": "R-nfhs-suppressed-star",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "care-lottery-spread",
+      "to_type": "Metric",
+      "to_name": "health_insurance_coverage",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "care-lottery-spread",
+      "to_type": "ChartRecipe",
+      "to_name": "dumbbell",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "care-lottery-spread",
+      "to_type": "ChartRecipe",
+      "to_name": "stat",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "care-lottery-spread",
+      "to_type": "Question",
+      "to_name": "How unequal is healthcare access across India?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "facility-to-district-join",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "facility-to-district-join",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "facility-to-district-join",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "facility-to-district-join",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-to-district-join",
+      "to_type": "Rule",
+      "to_name": "R-pin-fanout-dedup",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-to-district-join",
+      "to_type": "Rule",
+      "to_name": "R-district-name-normalization",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-to-district-join",
+      "to_type": "Rule",
+      "to_name": "R-district-state-collision",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "facility-to-district-join",
+      "to_type": "Metric",
+      "to_name": "facilities_per_district",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "facility-to-district-join",
+      "to_type": "ChartRecipe",
+      "to_name": "kpi_grid",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-to-district-join",
+      "to_type": "Question",
+      "to_name": "How do facilities map to districts?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "zero-facility-districts",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "zero-facility-districts",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "zero-facility-districts",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "zero-facility-districts",
+      "to_type": "Rule",
+      "to_name": "R-coverage-not-census",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "zero-facility-districts",
+      "to_type": "Rule",
+      "to_name": "R-district-name-normalization",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "zero-facility-districts",
+      "to_type": "Metric",
+      "to_name": "facilities_per_district",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "zero-facility-districts",
+      "to_type": "ChartRecipe",
+      "to_name": "stat",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "zero-facility-districts",
+      "to_type": "ChartRecipe",
+      "to_name": "count_up",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "zero-facility-districts",
+      "to_type": "ChartRecipe",
+      "to_name": "choropleth",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "zero-facility-districts",
+      "to_type": "Question",
+      "to_name": "Which districts have zero facilities in the dataset?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "desert-score-ranking",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "desert-score-ranking",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "desert-score-ranking",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "desert-score-ranking",
+      "to_type": "Rule",
+      "to_name": "R-coverage-not-census",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "desert-score-ranking",
+      "to_type": "Rule",
+      "to_name": "R-demand-not-supply",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "desert-score-ranking",
+      "to_type": "Metric",
+      "to_name": "desert_score",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "desert-score-ranking",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar_highlight",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "desert-score-ranking",
+      "to_type": "ChartRecipe",
+      "to_name": "dumbbell",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "desert-score-ranking",
+      "to_type": "Question",
+      "to_name": "Where are India's medical deserts (high need, low coverage)?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "burden-supply-correlation",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "burden-supply-correlation",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "burden-supply-correlation",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "burden-supply-correlation",
+      "to_type": "Rule",
+      "to_name": "R-coverage-not-census",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "burden-supply-correlation",
+      "to_type": "Rule",
+      "to_name": "R-demand-not-supply",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "burden-supply-correlation",
+      "to_type": "Metric",
+      "to_name": "burden_supply_correlation",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "burden-supply-correlation",
+      "to_type": "ChartRecipe",
+      "to_name": "bubble_scatter",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "burden-supply-correlation",
+      "to_type": "ChartRecipe",
+      "to_name": "forest_ci",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "burden-supply-correlation",
+      "to_type": "Question",
+      "to_name": "Does facility supply follow health need across India?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "coverage-concentration-gini",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "coverage-concentration-gini",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "coverage-concentration-gini",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "coverage-concentration-gini",
+      "to_type": "Rule",
+      "to_name": "R-coverage-not-census",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "coverage-concentration-gini",
+      "to_type": "Metric",
+      "to_name": "facility_supply_concentration",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "coverage-concentration-gini",
+      "to_type": "ChartRecipe",
+      "to_name": "lorenz_gini",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "coverage-concentration-gini",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar_highlight",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "coverage-concentration-gini",
+      "to_type": "Question",
+      "to_name": "How concentrated is facility coverage?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "facility-trust-score",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "facility-trust-score",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-trust-score",
+      "to_type": "Rule",
+      "to_name": "R-string-null-sentinel",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-trust-score",
+      "to_type": "Rule",
+      "to_name": "R-cast-facility-numeric",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-trust-score",
+      "to_type": "Rule",
+      "to_name": "R-claims-self-reported",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "facility-trust-score",
+      "to_type": "Metric",
+      "to_name": "facility_trust_score",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "facility-trust-score",
+      "to_type": "ChartRecipe",
+      "to_name": "kpi_grid",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "facility-trust-score",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "facility-trust-score",
+      "to_type": "Question",
+      "to_name": "Can I trust this facility's claims?",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "SqlPattern",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "QUERIES",
+      "from_type": "SqlPattern",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "Rule",
+      "to_name": "R-claims-self-reported",
+      "props": {}
+    },
+    {
+      "type": "HONORS",
+      "from_type": "SqlPattern",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "Rule",
+      "to_name": "R-string-null-sentinel",
+      "props": {}
+    },
+    {
+      "type": "COMPUTES",
+      "from_type": "SqlPattern",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "Metric",
+      "to_name": "unverifiable_claim_rate",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "ChartRecipe",
+      "to_name": "stat",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "SqlPattern",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "ChartRecipe",
+      "to_name": "iceberg",
+      "props": {}
+    },
+    {
+      "type": "ANSWERS",
+      "from_type": "SqlPattern",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "Question",
+      "to_name": "Which facilities claim advanced care they can't back up?",
+      "props": {}
+    },
+    {
+      "type": "APPLIES_TO",
+      "from_type": "Rule",
+      "from_name": "R-facility-dedup",
+      "to_type": "Column",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities.unique_id",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-facility-dedup",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-india-filter",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-string-null-sentinel",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-cast-facility-numeric",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-normalize-state",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-operatortype-null-string",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-drop-constant-orgtype",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-claims-self-reported",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-recency-date-caveat",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-nfhs-cast",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-nfhs-suppressed-star",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-nfhs-parenthesized-estimate",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-nfhs5-vintage",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-hbi-relative-percentile",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-demand-not-supply",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-pin-fanout-dedup",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-district-name-normalization",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-district-state-collision",
+      "to_type": "Table",
+      "to_name": "databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory",
+      "props": {}
+    },
+    {
+      "type": "GOTCHA_FOR",
+      "from_type": "Rule",
+      "from_name": "R-coverage-not-census",
+      "to_type": "Domain",
+      "to_name": "india-healthcare-access",
+      "props": {}
+    },
+    {
+      "type": "APPLIES_TO",
+      "from_type": "Rule",
+      "from_name": "R-coverage-not-census",
+      "to_type": "Domain",
+      "to_name": "india-healthcare-access",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "the-care-lottery",
+      "to_type": "Metric",
+      "to_name": "health_insurance_coverage",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "the-care-lottery",
+      "to_type": "Domain",
+      "to_name": "india-healthcare-access",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "the-care-lottery",
+      "to_type": "SqlPattern",
+      "to_name": "care-lottery-spread",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "the-care-lottery",
+      "to_type": "ChartRecipe",
+      "to_name": "dumbbell",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "the-care-lottery",
+      "to_type": "ChartRecipe",
+      "to_name": "stat",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "medical-deserts-zero-coverage",
+      "to_type": "Metric",
+      "to_name": "facilities_per_district",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "medical-deserts-zero-coverage",
+      "to_type": "Domain",
+      "to_name": "india-healthcare-access",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "medical-deserts-zero-coverage",
+      "to_type": "SqlPattern",
+      "to_name": "zero-facility-districts",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "medical-deserts-zero-coverage",
+      "to_type": "ChartRecipe",
+      "to_name": "choropleth",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "medical-deserts-zero-coverage",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar_highlight",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "medical-deserts-zero-coverage",
+      "to_type": "ChartRecipe",
+      "to_name": "stat",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "supply-does-not-follow-need",
+      "to_type": "Metric",
+      "to_name": "burden_supply_correlation",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "supply-does-not-follow-need",
+      "to_type": "SqlPattern",
+      "to_name": "burden-supply-correlation",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "supply-does-not-follow-need",
+      "to_type": "ChartRecipe",
+      "to_name": "bubble_scatter",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "top-desert-districts-bihar-jharkhand",
+      "to_type": "Metric",
+      "to_name": "desert_score",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "top-desert-districts-bihar-jharkhand",
+      "to_type": "SqlPattern",
+      "to_name": "desert-score-ranking",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "top-desert-districts-bihar-jharkhand",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar_highlight",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "top-desert-districts-bihar-jharkhand",
+      "to_type": "ChartRecipe",
+      "to_name": "dumbbell",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "the-burden-belt",
+      "to_type": "Metric",
+      "to_name": "health_burden_index",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "the-burden-belt",
+      "to_type": "SqlPattern",
+      "to_name": "nfhs-worst-burden-districts",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "the-burden-belt",
+      "to_type": "SqlPattern",
+      "to_name": "nfhs-state-burden-rollup",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "the-burden-belt",
+      "to_type": "ChartRecipe",
+      "to_name": "choropleth",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "the-burden-belt",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar_highlight",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "the-southern-advantage",
+      "to_type": "Metric",
+      "to_name": "health_burden_index",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "the-southern-advantage",
+      "to_type": "SqlPattern",
+      "to_name": "nfhs-worst-burden-districts",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "the-southern-advantage",
+      "to_type": "ChartRecipe",
+      "to_name": "choropleth",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "the-southern-advantage",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar_highlight",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "women-anaemia-majority",
+      "to_type": "Metric",
+      "to_name": "women_anaemia_rate",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "women-anaemia-majority",
+      "to_type": "SqlPattern",
+      "to_name": "nfhs-worst-burden-districts",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "women-anaemia-majority",
+      "to_type": "ChartRecipe",
+      "to_name": "stat",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "women-anaemia-majority",
+      "to_type": "ChartRecipe",
+      "to_name": "choropleth",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "child-malnutrition-stunting",
+      "to_type": "Metric",
+      "to_name": "child_stunting_rate",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "child-malnutrition-stunting",
+      "to_type": "SqlPattern",
+      "to_name": "nfhs-worst-burden-districts",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "child-malnutrition-stunting",
+      "to_type": "ChartRecipe",
+      "to_name": "stat",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "child-malnutrition-stunting",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "private-skew-public-gap",
+      "to_type": "Metric",
+      "to_name": "private_share",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "private-skew-public-gap",
+      "to_type": "SqlPattern",
+      "to_name": "facility-composition-by-type-operator",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "private-skew-public-gap",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "private-skew-public-gap",
+      "to_type": "ChartRecipe",
+      "to_name": "kpi_grid",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "supply-concentration",
+      "to_type": "Metric",
+      "to_name": "facility_supply_concentration",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "supply-concentration",
+      "to_type": "SqlPattern",
+      "to_name": "facility-supply-concentration-by-state",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "supply-concentration",
+      "to_type": "SqlPattern",
+      "to_name": "coverage-concentration-gini",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "supply-concentration",
+      "to_type": "ChartRecipe",
+      "to_name": "lorenz_gini",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "supply-concentration",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar_highlight",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "claims-rich-proof-thin",
+      "to_type": "Metric",
+      "to_name": "facility_trust_score",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "claims-rich-proof-thin",
+      "to_type": "SqlPattern",
+      "to_name": "facility-trust-score",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "claims-rich-proof-thin",
+      "to_type": "ChartRecipe",
+      "to_name": "dumbbell",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "claims-rich-proof-thin",
+      "to_type": "ChartRecipe",
+      "to_name": "ranked_bar",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "Metric",
+      "to_name": "unverifiable_claim_rate",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "SqlPattern",
+      "to_name": "unverifiable-advanced-claims",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "ChartRecipe",
+      "to_name": "stat",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "unverifiable-advanced-claims",
+      "to_type": "ChartRecipe",
+      "to_name": "iceberg",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "the-data-readiness-tax",
+      "to_type": "Domain",
+      "to_name": "india-healthcare-access",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "the-data-readiness-tax",
+      "to_type": "SqlPattern",
+      "to_name": "nfhs-burden-cast-preamble",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "the-data-readiness-tax",
+      "to_type": "SqlPattern",
+      "to_name": "facility-to-district-join",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "the-data-readiness-tax",
+      "to_type": "ChartRecipe",
+      "to_name": "kpi_grid",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "the-data-readiness-tax",
+      "to_type": "ChartRecipe",
+      "to_name": "stat",
+      "props": {}
+    },
+    {
+      "type": "ABOUT",
+      "from_type": "Finding",
+      "from_name": "geocoding-ready-to-map",
+      "to_type": "Metric",
+      "to_name": "facility_geocoding_rate",
+      "props": {}
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from_type": "Finding",
+      "from_name": "geocoding-ready-to-map",
+      "to_type": "SqlPattern",
+      "to_name": "facilities-clean-india-count",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "geocoding-ready-to-map",
+      "to_type": "ChartRecipe",
+      "to_name": "stat",
+      "props": {}
+    },
+    {
+      "type": "VISUALIZED_BY",
+      "from_type": "Finding",
+      "from_name": "geocoding-ready-to-map",
+      "to_type": "ChartRecipe",
+      "to_name": "kpi_grid",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "Where are India's medical deserts (high need, low coverage)?",
+      "to_type": "Finding",
+      "to_name": "top-desert-districts-bihar-jharkhand",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "Where are India's medical deserts (high need, low coverage)?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "Which districts have zero facilities in the dataset?",
+      "to_type": "Finding",
+      "to_name": "medical-deserts-zero-coverage",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "Which districts have zero facilities in the dataset?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "Does facility supply follow health need across India?",
+      "to_type": "Finding",
+      "to_name": "supply-does-not-follow-need",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "Does facility supply follow health need across India?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "Which districts have the highest health burden?",
+      "to_type": "Finding",
+      "to_name": "the-burden-belt",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "Which districts have the highest health burden?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "Which states have the best and worst health outcomes?",
+      "to_type": "Finding",
+      "to_name": "the-southern-advantage",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "Which states have the best and worst health outcomes?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "How unequal is healthcare access across India?",
+      "to_type": "Finding",
+      "to_name": "the-care-lottery",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "How unequal is healthcare access across India?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "Where is anaemia / child malnutrition worst?",
+      "to_type": "Finding",
+      "to_name": "women-anaemia-majority",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "Where is anaemia / child malnutrition worst?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "Can I trust this facility's claims?",
+      "to_type": "Finding",
+      "to_name": "claims-rich-proof-thin",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "Can I trust this facility's claims?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "Which facilities claim advanced care they can't back up?",
+      "to_type": "Finding",
+      "to_name": "unverifiable-advanced-claims",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "Which facilities claim advanced care they can't back up?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "How concentrated is facility coverage?",
+      "to_type": "Finding",
+      "to_name": "supply-concentration",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "How concentrated is facility coverage?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "What kinds of facilities are in the dataset and who runs them?",
+      "to_type": "Finding",
+      "to_name": "private-skew-public-gap",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "What kinds of facilities are in the dataset and who runs them?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "What must be fixed before I can trust this data?",
+      "to_type": "Finding",
+      "to_name": "the-data-readiness-tax",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "What must be fixed before I can trust this data?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "How do facilities map to districts?",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "Brief me on a district",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "ROUTES_TO",
+      "from_type": "Question",
+      "from_name": "Map facility supply against district health burden",
+      "to_type": "GenieSpace",
+      "to_name": "India Healthcare Access Space",
+      "props": {}
+    },
+    {
+      "type": "PRODUCED_BY",
+      "from_type": "Question",
+      "from_name": "Build a data story / infographic on India's medical deserts",
+      "to_type": "Tool",
+      "to_name": "compose_story",
+      "props": {}
+    },
+    {
+      "type": "PRODUCED_BY",
+      "from_type": "Question",
+      "from_name": "Build a data story / infographic on India's medical deserts",
+      "to_type": "Tool",
+      "to_name": "compose_infographic",
+      "props": {}
+    },
+    {
+      "type": "PRODUCED_BY",
+      "from_type": "Question",
+      "from_name": "Build a deck on the medical desert findings",
+      "to_type": "Tool",
+      "to_name": "compose_deck",
+      "props": {}
+    },
+    {
+      "type": "PRODUCED_BY",
+      "from_type": "Question",
+      "from_name": "Map facility supply against district health burden",
+      "to_type": "Tool",
+      "to_name": "render_chart",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "Build a data story / infographic on India's medical deserts",
+      "to_type": "Finding",
+      "to_name": "the-care-lottery",
+      "props": {}
+    },
+    {
+      "type": "SURFACES",
+      "from_type": "Question",
+      "from_name": "Build a deck on the medical desert findings",
+      "to_type": "Finding",
+      "to_name": "medical-deserts-zero-coverage",
+      "props": {}
+    },
+    {
+      "type": "STYLED_BY",
+      "from_type": "ChartRecipe",
+      "from_name": "choropleth",
+      "to_type": "DesignRule",
+      "to_name": "Choropleth shows rates, not totals",
+      "props": {}
+    },
+    {
+      "type": "STYLED_BY",
+      "from_type": "ChartRecipe",
+      "from_name": "choropleth",
+      "to_type": "DesignRule",
+      "to_name": "Sequential ramp for burden; diverging only at a real midpoint",
+      "props": {}
+    },
+    {
+      "type": "STYLED_BY",
+      "from_type": "ChartRecipe",
+      "from_name": "choropleth",
+      "to_type": "DesignRule",
+      "to_name": "Render suppressed and estimated cells honestly",
+      "props": {}
+    },
+    {
+      "type": "STYLED_BY",
+      "from_type": "ChartRecipe",
+      "from_name": "choropleth",
+      "to_type": "DesignRule",
+      "to_name": "Pair a burden choropleth with a companion ranked bar",
+      "props": {}
+    },
+    {
+      "type": "STYLED_BY",
+      "from_type": "ChartRecipe",
+      "from_name": "choropleth",
+      "to_type": "DesignRule",
+      "to_name": "State the choropleth class-binning and show breakpoints",
+      "props": {}
+    },
+    {
+      "type": "STYLED_BY",
+      "from_type": "ChartRecipe",
+      "from_name": "bubble_scatter",
+      "to_type": "DesignRule",
+      "to_name": "Supply-vs-need bubble needs a reference line",
+      "props": {}
+    },
+    {
+      "type": "STYLED_BY",
+      "from_type": "ChartRecipe",
+      "from_name": "bubble_scatter",
+      "to_type": "DesignRule",
+      "to_name": "Lead the bubble scene with the expectation, then break it",
+      "props": {}
+    },
+    {
+      "type": "APPLIES_TO",
+      "from_type": "DesignRule",
+      "from_name": "Always show the denominator",
+      "to_type": "Domain",
+      "to_name": "india-healthcare-access",
+      "props": {}
+    },
+    {
+      "type": "APPLIES_TO",
+      "from_type": "DesignRule",
+      "from_name": "Sample, not census \u2014 label coverage",
+      "to_type": "Domain",
+      "to_name": "india-healthcare-access",
+      "props": {}
+    },
+    {
+      "type": "APPLIES_TO",
+      "from_type": "DesignRule",
+      "from_name": "MAUP & ecological fallacy at the district grain",
+      "to_type": "Domain",
+      "to_name": "india-healthcare-access",
+      "props": {}
+    },
+    {
+      "type": "APPLIES_TO",
+      "from_type": "DesignRule",
+      "from_name": "Hunt confounders before calling a district a desert",
+      "to_type": "Domain",
+      "to_name": "india-healthcare-access",
+      "props": {}
+    },
+    {
+      "type": "APPLIES_TO",
+      "from_type": "DesignRule",
+      "from_name": "Choropleth shows rates, not totals",
+      "to_type": "ChartType",
+      "to_name": "choropleth",
+      "props": {}
+    },
+    {
+      "type": "APPLIES_TO",
+      "from_type": "DesignRule",
+      "from_name": "Facility points are a dot/proportional-symbol layer, not a fill",
+      "to_type": "ChartType",
+      "to_name": "choropleth",
+      "props": {}
+    }
+  ]
+}

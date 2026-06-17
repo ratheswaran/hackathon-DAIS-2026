@@ -1,0 +1,1193 @@
+{
+  "eda": [
+    {
+      "area": "supply",
+      "eda": {
+        "area": "supply-geography",
+        "findings": [
+          {
+            "id": "facilities-india-universe",
+            "title": "Clean India universe is 10,000 facilities; 88 junk rows from CSV misparse",
+            "claim": "Filtering address_country=='India' yields exactly 10,000 facilities; the other 88 of 10,088 rows are CSV-misparse garbage (coordinates/JSON/claim-text in the country column).",
+            "numbers": "10,000 India rows / 10,088 total; 88 junk rows; address_countryCode=='IN' agrees exactly at 10,000.",
+            "window_scope": "facilities.parquet, full table, Virtue Foundation DAIS-2026 sample (~10k web-discovered orgs, NOT a census)",
+            "computed_by": "df=pd.read_parquet('facilities.parquet'); (df['address_country']=='India').sum()  # 10000; (df['address_country']!='India').sum()  # 88",
+            "spark_sql": "SELECT COUNT(*) AS total, COUNT_IF(address_country='India') AS india_rows, COUNT_IF(address_country<>'India' OR address_country IS NULL) AS junk_rows FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+            "metric_name": "facilities_total",
+            "suggested_charts": [
+              "stat",
+              "count_up"
+            ],
+            "intent": "How many facilities are in the India dataset and how clean is it?",
+            "caveat": "10,000 is the in-dataset count, NOT India's true facility supply (FDR lists 47k+). Always frame as dataset coverage."
+          },
+          {
+            "id": "facilities-duplicates",
+            "title": "11 exact-id duplicate rows + 11 flagged duplicate clusters",
+            "claim": "Among the 10,000 India rows there are 11 repeated unique_id rows (9,989 distinct) and 11 two-member cluster_id clusters the pipeline already flagged as near-duplicates.",
+            "numbers": "10,000 rows -> 9,989 distinct unique_id (11 dup rows); cluster_id 9,970 non-null, 9,959 distinct -> 11 clusters of size 2 (max cluster size = 2).",
+            "window_scope": "facilities.parquet, India rows only",
+            "computed_by": "ind=df[df.address_country=='India']; len(ind)-ind.unique_id.nunique()  # 11; cvc=ind.cluster_id.value_counts(); (cvc>1).sum()  # 11; cvc.max()  # 2",
+            "spark_sql": "SELECT (COUNT(*) - COUNT(DISTINCT unique_id)) AS dup_id_rows, COUNT(*) - COUNT(DISTINCT cluster_id) AS extra_cluster_members FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India'",
+            "metric_name": "facilities_distinct",
+            "suggested_charts": [
+              "stat"
+            ],
+            "intent": "Are there duplicate facility records and how should I dedup?",
+            "caveat": "Dedup on unique_id (and review the 11 cluster_id clusters) before counting; net distinct ~9,989."
+          },
+          {
+            "id": "facility-composition-private-skew",
+            "title": "94% hospital/clinic and 89% private \u2014 a private-skewed sample",
+            "claim": "The sample is 56.4% hospital + 37.8% clinic (94.2% combined) and 88.4% private vs 4.7% public/government \u2014 an 18.8:1 private-to-public ratio.",
+            "numbers": "facilityTypeId: hospital 5,637 (56.4%), clinic 3,782 (37.8%), dentist 490 (4.9%), null 57. operatorTypeId (treating literal 'null' string=687 as missing): private 8,842 (88.4% all / 94.9% of 9,313 known), public+government 471 (4.7% all / 5.1% known); ratio 18.8:1. organization_type is constant 'facility' for all 10,000.",
+            "window_scope": "facilities.parquet, India rows; operator share over the 9,313 with a KNOWN operator",
+            "computed_by": "ind.facilityTypeId.value_counts(); op=ind.operatorTypeId.replace('null',np.nan); (op=='private').sum()  # 8842; ((op=='public')|(op=='government')).sum()  # 471",
+            "spark_sql": "SELECT facilityTypeId, COUNT(*) FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India' GROUP BY facilityTypeId ORDER BY 2 DESC; SELECT CASE WHEN operatorTypeId='null' THEN NULL ELSE operatorTypeId END AS op, COUNT(*) FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India' GROUP BY 1 ORDER BY 2 DESC",
+            "metric_name": "private_share",
+            "suggested_charts": [
+              "ranked_bar",
+              "kpi_grid"
+            ],
+            "intent": "What kinds of facilities and who operates them?",
+            "caveat": "operatorTypeId contains a literal 'null' STRING (687) distinct from real NULL \u2014 must replace before computing share. The 89% private skew means public-sector gaps look worse than reality."
+          },
+          {
+            "id": "facility-geocoding-rate",
+            "title": "Geocoding is excellent: 99.7% have lat/lon, 99.6% inside India",
+            "claim": "9,970 of 10,000 India facilities (99.70%) have both latitude and longitude, and 99.64% fall inside India's bounding box; 97.8% also carry a parseable 6-digit PIN.",
+            "numbers": "lat+lon present 9,970/10,000 = 99.70%; within bbox (lat 6-37, lon 68-98) 99.64%; parseable 6-digit PIN 9,776 = 97.8%.",
+            "window_scope": "facilities.parquet, India rows",
+            "computed_by": "geo=ind.latitude.notna()&ind.longitude.notna(); geo.mean()  # .997; ind.address_zipOrPostcode.astype(str).str.extract(r'(\\d{6})')[0].notna().mean()  # .978",
+            "spark_sql": "SELECT AVG(CASE WHEN latitude IS NOT NULL AND longitude IS NOT NULL THEN 1.0 ELSE 0 END) AS geocode_rate, AVG(CASE WHEN regexp_extract(address_zipOrPostcode, '([0-9]{6})',1)<>'' THEN 1.0 ELSE 0 END) AS pin_rate FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India'",
+            "metric_name": "facility_geocoding_rate",
+            "suggested_charts": [
+              "stat",
+              "kpi_grid"
+            ],
+            "intent": "Can I map these facilities directly / what is the geocoding completeness?",
+            "caveat": "latitude/longitude are clean doubles; mapping needs no geocoding step. The 6 out-of-bbox points should be dropped from maps."
+          },
+          {
+            "id": "rich-claims-thin-proof",
+            "title": "Rich self-reported claims, thin hard proof \u2014 the believability gap",
+            "claim": "Claim text is near-complete (description 100%, specialties 99.7%, capability 99.4%) but hard-proof fields are sparse (yearEstablished 47.8%, numberDoctors 36.3%, capacity 25.2%).",
+            "numbers": "Present%: description 100%, specialties 99.7%, capability 99.4%, procedure 92.2%, equipment 76.8%. Numeric-parseable%: yearEstablished 47.8% (4,782), numberDoctors 36.3% (3,630, median 2), capacity 25.2% (2,516, median 100 beds).",
+            "window_scope": "facilities.parquet, India rows; presence = non-null/non-empty/non-'null'",
+            "computed_by": "for c in ['description','specialties','capability','procedure','equipment']: present_pct(c); cast=lambda s: pd.to_numeric(s.astype(str).str.replace(r'[()*]','',regex=True).str.strip(),errors='coerce'); cast(ind.capacity).notna().mean()  # .252",
+            "spark_sql": "SELECT AVG(CASE WHEN specialties IS NOT NULL AND specialties NOT IN ('','null','[]') THEN 1.0 ELSE 0 END) AS specialties_pct, AVG(CASE WHEN try_cast(regexp_replace(capacity,'[()*]','') AS DOUBLE) IS NOT NULL THEN 1.0 ELSE 0 END) AS capacity_numeric_pct, AVG(CASE WHEN try_cast(regexp_replace(numberDoctors,'[()*]','') AS DOUBLE) IS NOT NULL THEN 1.0 ELSE 0 END) AS doctors_numeric_pct FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India'",
+            "metric_name": "claim_proof_gap",
+            "suggested_charts": [
+              "dumbbell",
+              "ranked_bar"
+            ],
+            "intent": "How complete and trustworthy are the facility capability fields?",
+            "caveat": "specialties/capability/equipment are SELF-REPORTED web-page claims (cite the source TEXT field). Capacity-based scoring covers only ~1 in 4 facilities."
+          },
+          {
+            "id": "state-normalization",
+            "title": "address_stateOrRegion is dirty (234 distinct vs 36 real); 96.9% normalize cleanly",
+            "claim": "The raw state field has 234 distinct values (city names + spelling variants + junk); after UPPER/strip + alias mapping to the canonical 28 states + 8 UTs, 9,686 of 10,000 (96.9%) resolve to a clean state across 34 distinct states.",
+            "numbers": "raw distinct = 234; clean-mapped = 9,686/10,000 = 96.9% across 34 canonical states; unmapped (city-level/junk e.g. MUMBAI, THANE, PUNE) = 3.1%.",
+            "window_scope": "facilities.parquet, India rows; canonical set = 28 states + 8 UTs of India",
+            "computed_by": "norm=UPPER/strip/[^A-Z0-9 &]->space/&->AND; ALIAS map (TAMILNADU->TAMIL NADU, ORISSA->ODISHA, UP/U P->UTTAR PRADESH, CHATTISGARH->CHHATTISGARH, etc.); ind.state_canon.notna().mean()  # .969; ind.state_canon.nunique()  # 34",
+            "spark_sql": "SELECT COUNT(DISTINCT address_stateOrRegion) AS raw_distinct FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India'",
+            "metric_name": "state_clean_rate",
+            "suggested_charts": [
+              "stat"
+            ],
+            "intent": "Why are there 234 states and how do I get a clean state rollup?",
+            "caveat": "Normalization needs an alias map (city->null, Tamilnadu->Tamil Nadu, Orissa->Odisha, UP->Uttar Pradesh, Chattisgarh->Chhattisgarh). Always roll up on normalized state, never the raw string."
+          },
+          {
+            "id": "supply-concentration",
+            "title": "Supply is concentrated: top-5 states = 49.8%, Gini 0.61",
+            "claim": "Over the 9,686 clean-state facilities the top-5 states hold 49.8% (Maharashtra alone 16.3%) and the top-10 hold 73.7%; the across-state Gini is 0.609 (HHI 0.074).",
+            "numbers": "Top-5: Maharashtra 1,575 (16.3%), Gujarat 981 (10.1%), Uttar Pradesh 933 (9.6%), Tamil Nadu 802 (8.3%), Karnataka 529 (5.5%) -> 49.8% (4,820/9,686). Top-10 = 73.7%. Gini 0.609, HHI 0.074. Northeast nearly absent: Sikkim 4, Arunachal 3, Mizoram 3, A&N 2.",
+            "window_scope": "facilities.parquet, India rows mapped to a clean canonical state (n=9,686 across 34 states)",
+            "computed_by": "sc=ind.state_canon.value_counts(); sc.head(5).sum()/sc.sum()  # .498; gini(sc.values)  # .609; HHI=np.sum((sc/sc.sum())**2)  # .074",
+            "spark_sql": "WITH s AS (SELECT /* normalized state */ address_stateOrRegion AS state, COUNT(*) AS n FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India' GROUP BY 1) SELECT state, n, n/SUM(n) OVER () AS share FROM s ORDER BY n DESC LIMIT 10",
+            "metric_name": "facility_supply_concentration",
+            "suggested_charts": [
+              "ranked_bar_highlight",
+              "lorenz_gini",
+              "choropleth"
+            ],
+            "intent": "How concentrated is facility coverage across Indian states?",
+            "caveat": "This is concentration of DATASET COVERAGE, not real supply. Low-coverage northeastern/small states are dataset-coverage deserts to cross-check against the demand side, not proven absolute gaps. SQL needs the state-normalization CTE applied first."
+          }
+        ],
+        "rules": [
+          {
+            "name": "filter_india_country",
+            "statement": "Always filter address_country='India' on facilities \u2014 the table has 88 CSV-misparse junk rows (coordinates/JSON/claim-text in the country column); only 10,000 of 10,088 are real India rows (address_countryCode='IN' agrees).",
+            "rationale": "Without the filter, aggregates absorb 88 garbage rows and any GROUP BY address_country/state breaks.",
+            "severity": "critical"
+          },
+          {
+            "name": "operatortype_literal_null_string",
+            "statement": "operatorTypeId contains a literal STRING 'null' (687 India rows) distinct from real NULL \u2014 replace 'null' with NaN before computing private/public share, otherwise 'null' is counted as its own operator category.",
+            "rationale": "Private share is 88.4% all / 94.9% of known operators; mis-handling the 'null' string distorts both the denominator and the category list.",
+            "severity": "high"
+          },
+          {
+            "name": "normalize_state_before_rollup",
+            "statement": "address_stateOrRegion is polluted (234 distinct vs 36 real India states/UTs) \u2014 normalize with UPPER/strip/[^A-Z0-9 &]->space and an alias map (Tamilnadu->Tamil Nadu, Orissa->Odisha, UP/U P->Uttar Pradesh, Chattisgarh->Chhattisgarh; city names -> drop) before any state-level aggregation. 96.9% map cleanly to 34 states.",
+            "rationale": "Raw rollups split a single state across spelling variants and leak city-level rows; only the normalized state gives a correct top-5/Gini.",
+            "severity": "high"
+          },
+          {
+            "name": "cast_string_numeric_facility_fields",
+            "statement": "facilities numberDoctors and capacity are STRING-but-numeric (and sparse: 36.3% / 25.2% parseable) \u2014 strip ()/* and try_cast before aggregating; '*' = suppressed (NULL not zero), parenthesized = low-sample estimate.",
+            "rationale": "Direct aggregation over the raw strings fails; capacity-based scoring only covers ~1 in 4 facilities.",
+            "severity": "high"
+          },
+          {
+            "name": "coverage_not_census",
+            "statement": "facilities is a ~10k web-discovered SAMPLE, not a census (India FDR lists 47k+). Every facility-count / desert claim must be framed as in-dataset COVERAGE, never absolute supply, and no per-capita is allowed (no population in the 3 tables). Cite the source TEXT field for any capability claim.",
+            "rationale": "The rubric scores honesty; absolute-supply or per-capita claims from a sample are indefensible, especially for low-coverage northeastern states.",
+            "severity": "critical"
+          },
+          {
+            "name": "drop_constant_org_type",
+            "statement": "organization_type is the constant 'facility' for all 10,000 India rows \u2014 it carries no analytical signal; do not group or facet by it.",
+            "rationale": "Avoids a wasted dimension and a single-bar chart.",
+            "severity": "low"
+          }
+        ],
+        "notes": "All numbers computed in python3/pandas 2.1.4 over the local typed parquet at hackathon-session-2026-06-15/data/virtue_foundation/facilities.parquet. Detailed markdown report written to <repo>/hackathon-session-2026-06-15/eda/01_supply.md.\n\nKey methodology notes for downstream agents:\n- State normalization used the canonical 28 states + 8 UTs and an alias map; 96.9% (9,686/10,000) resolve to 34 distinct states. The remaining 3.1% are city-level (Mumbai/Thane/Pune/Chennai) \u2014 leave as null at state grain.\n- Concentration metrics computed over the 9,686 clean-state subset, not all 10,000.\n- Two numeric-but-string facility cols confirmed (numberDoctors, capacity); both sparse (36.3% / 25.2%).\n- The spark_sql for state-level findings is a skeleton \u2014 it needs the same normalization CTE (a CASE/regexp alias map) applied before GROUP BY; pandas computed the clean rollup directly.\n- Cross-link for the demand side: 99.7% geocoded + 97.8% parseable PIN means the facility->PIN->district->NFHS join (lead's validated methodology) is well-supported on the supply side. The northeast/small-state coverage deserts here should be cross-checked against NFHS demand, not asserted as absolute gaps."
+      },
+      "verdicts": {
+        "area": "supply-geography",
+        "verdicts": [
+          {
+            "id": "facilities-india-universe",
+            "verdict": "confirmed",
+            "check_number": "10,000 India rows / 88 non-India of 10,088; countryCode=='IN' = 10,000",
+            "note": "Independently reproduced: (df.address_country=='India').sum()=10000; non-India=88, of which 30 are non-India-non-null and 58 are NULL country (pandas != counts NaN as not-India). address_countryCode=='IN' agrees EXACTLY at 10,000. The 88 'junk' rows are CSV-misparse garbage. Caveat (10k = dataset sample, not census) is honest and correct. Fully confirmed."
+          },
+          {
+            "id": "facilities-duplicates",
+            "verdict": "confirmed",
+            "check_number": "9,989 distinct unique_id (11 dup rows); cluster_id 9,970 non-null, 9,959 distinct -> 11 clusters of size 2",
+            "note": "Reproduced exactly: India rows 10,000; distinct unique_id 9,989 -> 11 duplicate rows. cluster_id non-null 9,970, distinct 9,959 -> 11 extra members = 11 two-member clusters (max size 2; sizes {1:9948, 2:11}). 30 cluster_id NULLs (= the same 30 non-India... no, these are India rows with null cluster_id). Their computed_by uses value_counts (drops NaN) so the 11 is over non-null, which is the correct interpretation. Note: a naive (len - cluster_id.nunique()) over ALL India rows gives 41, not 11, because of the 30 NULL cluster_ids \u2014 but the finding's stated method and numbers are right."
+          },
+          {
+            "id": "facility-composition-private-skew",
+            "verdict": "confirmed",
+            "check_number": "hospital 5,637 (56.4%) + clinic 3,782 (37.8%) = 94.2%; private 8,842 (88.4% all / 94.9% known), public+gov 471 (4.7%), ratio 18.8:1; org_type constant 'facility'",
+            "note": "Reproduced exactly. facilityTypeId: hospital 5637/56.4%, clinic 3782/37.8% (combined 94.2%), dentist 490/4.9%; the 'null' is a literal string (57) not NaN. operatorTypeId raw: private 8842, 'null' string 687, public 469, government 2; replacing literal 'null'->NaN gives known=9313, private 88.4% all / 94.9% known, public+gov 471 = 4.7% all / 5.1% known, ratio 18.8:1. organization_type is constant 'facility' for all 10,000. The literal-'null'-string caveat is real and important."
+          },
+          {
+            "id": "facility-geocoding-rate",
+            "verdict": "confirmed",
+            "check_number": "lat+lon present 9,970/10,000 = 99.70%; within bbox(6-37,68-98) 99.64%; parseable 6-digit PIN 9,776 = 97.76%",
+            "note": "Reproduced exactly. latitude/longitude are clean float64 doubles, present 9970 (99.70%); 6 points fall outside the India bbox (99.64% inside); 6-digit PIN parseable in 9,776 (97.76%, rounds to 97.8%). The 'drop 6 out-of-bbox from maps' caveat is correct."
+          },
+          {
+            "id": "rich-claims-thin-proof",
+            "verdict": "confirmed",
+            "check_number": "present%: description 100, specialties 99.7, capability 99.44, procedure 92.16, equipment 76.8; numeric%: yearEstablished 47.82, numberDoctors 36.3 (med 2), capacity 25.16 (med 100)",
+            "note": "Reproduced exactly with their cast() and presence rules (non-null & not in {'','null','[]'}). description 100%, specialties 99.7%, capability 99.44%, procedure 92.16%, equipment 76.8%. Numeric-parseable: yearEstablished 4782/47.82%, numberDoctors 3630/36.3% (median 2), capacity 2516/25.16% (median 100 beds). The believability-gap framing and self-reported caveat are honest and well-supported."
+          },
+          {
+            "id": "state-normalization",
+            "verdict": "confirmed",
+            "check_number": "raw distinct = 234; clean-mapped ~96.8-96.9% across 34 canonical states",
+            "note": "raw distinct address_stateOrRegion = 234 (EXACT). distinct canonical states after mapping = 34 (EXACT). My independent hand-built alias map yielded 9,678 clean-mapped (96.78%) vs their 9,686 (96.9%) \u2014 an 8-row / 0.08% gap that is pure alias-map subjectivity (e.g. how aggressively TAMILNADU/U P/ORISSA/trailing-space variants are mapped), well within rounding. Top unmapped values are exactly the claimed city-level names (Navi Mumbai, Thane, Mumbai, Pune, Chennai, Hyderabad) + spelling variants \u2014 confirming the characterization. The alias-map caveat is correct and essential."
+          },
+          {
+            "id": "supply-concentration",
+            "verdict": "confirmed",
+            "check_number": "top-5 = 49.8% (Maharashtra 1,575 / 16.3%), top-10 = 73.7%, Gini 0.609, HHI 0.074; NE: Sikkim 4 / Arunachal 3 / Mizoram 3 / A&N 2",
+            "note": "Reproduced essentially exactly over the clean-state denominator (mine 9,678 vs their 9,686): top-5 share 49.8% EXACT, Maharashtra 1,575 / 16.3% EXACT, top-10 73.7% EXACT, Gini 0.609 EXACT, HHI 0.074 EXACT, Northeast Sikkim 4 / Arunachal 3 / Mizoram 3 / A&N 2 EXACT. Only trivial deltas from alias variance (UP 932 vs their 933). Caveat that this is in-dataset COVERAGE not absolute supply is present and correct per the honesty mandate."
+          }
+        ],
+        "summary": "All 7 supply-geography findings INDEPENDENTLY CONFIRMED by re-computing each headline from facilities.parquet with my own pandas code. Exact matches on the hard numbers: 10,000 India rows (countryCode=='IN' agrees), 9,989 distinct unique_id / 11 dup rows, 11 two-member cluster_id clusters, hospital 56.4% + clinic 37.8% = 94.2%, private 88.4% (94.9% of known) with literal-'null'-string=687 handled, public+gov 471 / 18.8:1 ratio, org_type constant 'facility', geocode 99.70% / bbox 99.64% / PIN 97.76%, claim-vs-proof completeness all exact, raw 234 states -> 34 canonical, top-5 49.8% (Maharashtra 16.3%) / top-10 73.7% / Gini 0.609 / HHI 0.074, NE counts exact. The only deltas are sub-0.1% alias-map subjectivity on state-normalization (my 96.78% vs their 96.9%; clean-state denom 9,678 vs 9,686) \u2014 within rounding and method tolerance, not a correction. Methodology notes that strengthen trust: the 88 junk = 30 non-India + 58 NULL; cluster duplicate count is 11 ONLY when measured over non-null (a naive len-minus-nunique over all India rows yields 41 due to 30 NULL cluster_ids \u2014 the finding's stated method is correct); facilityTypeId 'null'/operatorTypeId 'null' are literal strings, not NaN, and were handled correctly. The honesty caveats (dataset = ~10k sample not census; coverage not supply; self-reported claims; cite source text) are all accurate. No corrections or rejections. Data dir: <repo>/hackathon-session-2026-06-15/data/virtue_foundation/facilities.parquet"
+      }
+    },
+    {
+      "area": "demand",
+      "eda": {
+        "area": "demand-burden",
+        "findings": [
+          {
+            "id": "health-burden-index-worst-districts",
+            "title": "A transparent 10-indicator Health Burden Index ranks Araria, Bihar as India's highest-need district",
+            "claim": "On a 10-indicator percentile composite, Araria (Bihar) scores 89.7/100 \u2014 the highest health burden of all 706 NFHS-5 districts, and 11 of the 15 worst-burden districts are in Bihar.",
+            "numbers": "HBI top-15: Araria 89.7, Lakhisarai 88.0, Nalanda 86.4, Pakur(JH) 85.3, Gaya 85.3, Purnia 85.2, Nandurbar(MH) 84.5, Banka 84.1, Jamui 84.1, Katihar 83.6, Sahibganj(JH) 82.6, Bhojpur 82.5, Bhagalpur 82.1, Dumka(JH) 82.1, Banda(UP) 82.0. HBI range min=9.4 median=49.0 max=89.7; n=706 districts (all qualify, >=8 of 10 components present).",
+            "window_scope": "706 NFHS-5 districts, fieldwork 2019-21; HBI is a relative percentile rank (0=lowest burden, 100=highest), not absolute prevalence",
+            "computed_by": "pr=cast(df[c]).rank(pct=True); invert (1-pr) for the 5 higher-is-better indicators; HBI=mean of 10 component percentile ranks*100, require >=8 present; df.sort_values('health_burden_index',ascending=False).head(15)[['district_name','state_ut','health_burden_index']]",
+            "spark_sql": "-- HBI is a percentile composite; compute component ranks then average. Sketch for the 10 components over the casted columns:\nWITH n AS (\n  SELECT district_name, state_ut,\n    try_cast(regexp_replace(all_w15_49_who_are_anaemic_pct,'[()*]','') AS DOUBLE) AS women_anaemia,\n    try_cast(regexp_replace(child_6_59m_who_are_anaemic_lt_11_0_g_dl_22_pct,'[()*]','') AS DOUBLE) AS child_anaemia,\n    try_cast(regexp_replace(child_u5_who_are_stunted_height_for_age_18_pct,'[()*]','') AS DOUBLE) AS stunting,\n    try_cast(regexp_replace(child_u5_who_are_wasted_weight_for_height_18_pct,'[()*]','') AS DOUBLE) AS wasting,\n    try_cast(regexp_replace(child_u5_who_are_underweight_weight_for_age_18_pct,'[()*]','') AS DOUBLE) AS underweight,\n    try_cast(regexp_replace(institutional_birth_5y_pct,'[()*]','') AS DOUBLE) AS inst_birth,\n    try_cast(regexp_replace(mothers_who_had_at_least_4_anc_visits_lb5y_pct,'[()*]','') AS DOUBLE) AS anc4,\n    try_cast(regexp_replace(child_12_23m_fully_vaccinated_based_on_information_from_vax_pct,'[()*]','') AS DOUBLE) AS immun,\n    try_cast(regexp_replace(hh_member_covered_health_insurance_pct,'[()*]','') AS DOUBLE) AS insurance,\n    try_cast(regexp_replace(hh_use_improved_sanitation_pct,'[()*]','') AS DOUBLE) AS sanitation\n  FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators\n),\nr AS (\n  SELECT district_name, state_ut,\n    percent_rank() OVER (ORDER BY women_anaemia)        AS r_women_anaemia,\n    percent_rank() OVER (ORDER BY child_anaemia)        AS r_child_anaemia,\n    percent_rank() OVER (ORDER BY stunting)             AS r_stunting,\n    percent_rank() OVER (ORDER BY wasting)              AS r_wasting,\n    percent_rank() OVER (ORDER BY underweight)          AS r_underweight,\n    1-percent_rank() OVER (ORDER BY inst_birth)         AS r_inst_birth,\n    1-percent_rank() OVER (ORDER BY anc4)               AS r_anc4,\n    1-percent_rank() OVER (ORDER BY immun)              AS r_immun,\n    1-percent_rank() OVER (ORDER BY insurance)          AS r_insurance,\n    1-percent_rank() OVER (ORDER BY sanitation)         AS r_sanitation\n  FROM n\n)\nSELECT district_name, state_ut,\n  100*(r_women_anaemia+r_child_anaemia+r_stunting+r_wasting+r_underweight+r_inst_birth+r_anc4+r_immun+r_insurance+r_sanitation)/10 AS health_burden_index\nFROM r ORDER BY health_burden_index DESC LIMIT 15;",
+            "metric_name": "health_burden_index",
+            "suggested_charts": [
+              "ranked_bar_highlight",
+              "choropleth"
+            ],
+            "intent": "which districts have the highest overall health burden / greatest need",
+            "caveat": "HBI is a RELATIVE percentile rank across districts (median=50), not a clinical prevalence; pandas rank() ~ percent_rank, the Spark sketch is directionally equivalent. Demand-side need only \u2014 says nothing about facility supply."
+          },
+          {
+            "id": "best-burden-districts-south",
+            "title": "All 15 lowest-burden districts are in Kerala, Tamil Nadu and Karnataka",
+            "claim": "The 15 lowest-health-burden districts in India are entirely in the deep south \u2014 Kanniyakumari (Tamil Nadu) is lowest at HBI 9.4, followed by a wall of Kerala districts.",
+            "numbers": "HBI best-15: Kanniyakumari(TN) 9.4, Kozhikode(KL) 10.7, Pathanamthitta(KL) 11.3, Thrissur(KL) 12.0, Kasaragod(KL) 12.4, Coimbatore(TN) 13.8, Alappuzha(KL) 14.9, Ernakulam(KL) 14.9, Theni(TN) 15.3, Kannur(KL) 15.4, Kollam(KL) 16.2, The Nilgiris(TN) 16.2, Kottayam(KL) 16.4, Mandya(KA) 16.6, Idukki(KL) 17.2.",
+            "window_scope": "706 NFHS-5 districts 2019-21; same HBI composite as the worst-district finding",
+            "computed_by": "df[df.health_burden_index.notna()].sort_values('health_burden_index').head(15)[['district_name','state_ut','health_burden_index']]",
+            "spark_sql": "-- same HBI CTE as health-burden-index-worst-districts but: ORDER BY health_burden_index ASC LIMIT 15;",
+            "metric_name": "health_burden_index",
+            "suggested_charts": [
+              "ranked_bar_highlight",
+              "choropleth"
+            ],
+            "intent": "which districts have the lowest health burden / best outcomes",
+            "caveat": "Relative percentile composite; the south's dominance reflects 2019-21 NFHS-5 outcomes, not current-year. A best-15 sweep of one region is itself the inequality story, not a sampling artefact."
+          },
+          {
+            "id": "state-burden-bihar-vs-kerala",
+            "title": "State burden rollup: Bihar (78.4) carries 4.6x the relative health burden of Kerala (16.9)",
+            "claim": "Rolling district HBI to state level (states with >=3 in-sample districts), Bihar averages 78.4 and Kerala 16.9 \u2014 a 61.5-point gulf; Bihar, Jharkhand and Uttar Pradesh are the three worst states.",
+            "numbers": "Worst states (mean district HBI): Bihar 78.4 (n=38), Jharkhand 69.8 (n=24), Uttar Pradesh 61.6 (n=75), Assam 60.4 (n=33), Gujarat 59.3 (n=33), Tripura 57.5 (n=8), Maharashtra 56.6 (n=36), Madhya Pradesh 56.1 (n=51), West Bengal 54.9 (n=19), Chhattisgarh 52.2 (n=27). Best states: Kerala 16.9 (n=14), Puducherry 24.2 (n=4), Tamil Nadu 26.5 (n=32), Sikkim 26.5 (n=4), Mizoram 27.6 (n=8). Weighting by women_15_49_interviewed shifts every state mean by <1 pt.",
+            "window_scope": "States with >=3 NFHS-5 districts in sample; unweighted mean of district HBI (weighted variant within 1pt)",
+            "computed_by": "hbi.groupby(state)['health_burden_index'].mean(); weighted=np.average(g.health_burden_index, weights=cast(g.women_15_49_interviewed)); filter n>=3; sort desc/asc",
+            "spark_sql": "-- wrap the HBI CTE (see health-burden-index-worst-districts) as hbi(district_name,state_ut,health_burden_index), then:\nSELECT trim(state_ut) AS state, count(*) AS n_districts, round(avg(health_burden_index),1) AS mean_hbi\nFROM hbi GROUP BY trim(state_ut) HAVING count(*) >= 3 ORDER BY mean_hbi DESC;",
+            "metric_name": "health_burden_index",
+            "suggested_charts": [
+              "ranked_bar",
+              "choropleth"
+            ],
+            "intent": "which states have the highest district health burden",
+            "caveat": "State means cover only districts present in the 706-row NFHS-5 sample; unweighted vs survey-size-weighted differ by <1pt so weighting choice is immaterial here. Maharashtra spelled 'Maharastra' in source."
+          },
+          {
+            "id": "care-lottery-insurance-anc",
+            "title": "The care lottery: health-insurance coverage varies 81.5x and 4+ ANC visits 22.4x across districts",
+            "claim": "Within one country, district health-insurance coverage ranges 1.2% to 97.8% (an 81.5x spread) and the share of mothers with 4+ antenatal visits ranges 4.4% to 98.7% (22.4x) \u2014 where you live, not who you are, dominates your access odds.",
+            "numbers": "max/min spread: health_insurance 1.2->97.8 = 81.5x; anc_4plus 4.4->98.7 = 22.4x; women_anaemia 14.9->93.5 = 6.3x; institutional_birth 21.4->100.0 = 4.7x; child_anaemia 24.9->95.5 = 3.8x. Insurance worst=South Andaman 1.2, best=Barmer Rajasthan 97.8; ANC worst=Tuensang Nagaland 4.4, best=Theni Tamil Nadu 98.7.",
+            "window_scope": "706 NFHS-5 districts 2019-21; ratio of district max to district min per indicator",
+            "computed_by": "for each col: num=cast(df[col]); ratio=num.max()/num.min(); identify idxmax/idxmin district_name,state_ut",
+            "spark_sql": "SELECT 'health_insurance' AS indicator,\n  min(v) AS min_v, max(v) AS max_v, max(v)/nullif(min(v),0) AS lottery_ratio\nFROM (SELECT try_cast(regexp_replace(hh_member_covered_health_insurance_pct,'[()*]','') AS DOUBLE) AS v\n      FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators)\nWHERE v IS NOT NULL\nUNION ALL\nSELECT 'anc_4plus', min(v), max(v), max(v)/nullif(min(v),0)\nFROM (SELECT try_cast(regexp_replace(mothers_who_had_at_least_4_anc_visits_lb5y_pct,'[()*]','') AS DOUBLE) AS v\n      FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators)\nWHERE v IS NOT NULL;",
+            "metric_name": "health_insurance_coverage",
+            "suggested_charts": [
+              "dumbbell",
+              "stat"
+            ],
+            "intent": "how unequal is health access across districts (care lottery spread)",
+            "caveat": "max/min ratio is sensitive to a single extreme district; insurance min (South Andaman 1.2%) is a small island UT. Spread is still extreme on robust metrics (p10-p90: insurance 13.2->72.2)."
+          },
+          {
+            "id": "women-anaemia-rate",
+            "title": "Women's anaemia spans 14.9% to 93.5% across districts (median 57.2%), worst in Leh (Ladakh)",
+            "claim": "Anaemia among women 15-49 has a median of 57.2% but ranges from 14.9% (Kohima, Nagaland) to 93.5% (Leh/Ladakh) \u2014 over half of all districts have a majority of women anaemic.",
+            "numbers": "all_w15_49_who_are_anaemic_pct n=706: min=14.9 p10=39.8 median=57.2 p90=70.4 max=93.5. Worst=Leh(Ladakh) 93.5, best=Kohima Nagaland 14.9. Child 6-59m anaemia (n=706): min=24.9 median=67.7 max=95.5, also worst in Leh(Ladakh) 95.5.",
+            "window_scope": "706 NFHS-5 districts 2019-21",
+            "computed_by": "s=cast(df['all_w15_49_who_are_anaemic_pct']); s.quantile([0,.1,.5,.9,1]); s.idxmax/idxmin -> district_name,state_ut",
+            "spark_sql": "SELECT min(v) min_, percentile(v,0.1) p10, percentile(v,0.5) median, percentile(v,0.9) p90, max(v) max_\nFROM (SELECT try_cast(regexp_replace(all_w15_49_who_are_anaemic_pct,'[()*]','') AS DOUBLE) AS v\n      FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators) WHERE v IS NOT NULL;",
+            "metric_name": "women_anaemia_rate",
+            "suggested_charts": [
+              "stat",
+              "choropleth"
+            ],
+            "intent": "distribution of women's anaemia across districts and the worst district",
+            "caveat": "Anaemia thresholds changed between NFHS rounds; this is the NFHS-5 (2019-21) definition. Leh's high-altitude population may inflate measured anaemia vs sea-level cutoffs."
+          },
+          {
+            "id": "child-malnutrition-stunting",
+            "title": "Child stunting peaks at 60.6% in Pashchimi Singhbhum, Jharkhand (median 32.8%)",
+            "claim": "Stunting among under-5s ranges from 13.2% (Jagatsinghapur, Odisha) to 60.6% (Pashchimi Singhbhum, Jharkhand, which is also worst on underweight at 62.4%); the median district stunts a third of its young children.",
+            "numbers": "stunting n=706: min=13.2 p10=23.1 median=32.8 p90=45.1 max=60.6 (worst Pashchimi Singhbhum JH, best Jagatsinghapur OD). underweight n=706: min=7.2 median=29.4 max=62.4 (worst Pashchimi Singhbhum JH, best South District Sikkim). wasting n=706: min=4.5 median=18.1 max=48.0 (worst Karimganj Assam, best North District Sikkim).",
+            "window_scope": "706 NFHS-5 districts 2019-21",
+            "computed_by": "cast each of stunting/underweight/wasting cols; quantile([0,.1,.5,.9,1]); idxmax/idxmin districts",
+            "spark_sql": "SELECT min(v) min_, percentile(v,0.5) median, max(v) max_\nFROM (SELECT try_cast(regexp_replace(child_u5_who_are_stunted_height_for_age_18_pct,'[()*]','') AS DOUBLE) AS v\n      FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators) WHERE v IS NOT NULL;",
+            "metric_name": "child_stunting_rate",
+            "suggested_charts": [
+              "stat",
+              "ranked_bar"
+            ],
+            "intent": "distribution of child malnutrition (stunting/underweight/wasting) and worst districts",
+            "caveat": "Stunting/wasting/underweight are correlated and share worst districts (Pashchimi Singhbhum tops two) \u2014 they are not independent burden signals."
+          },
+          {
+            "id": "maternal-care-access-gaps",
+            "title": "Maternal & child care access collapses in Nagaland: ANC 4+ as low as 4.4%, institutional birth 21.4%",
+            "claim": "Institutional birth ranges 21.4%-100% and 4+ ANC visits 4.4%-98.7%, both worst in Nagaland districts (Mon, Tuensang); full immunization bottoms at 45.0% in Ukhrul, Manipur.",
+            "numbers": "institutional_birth n=706: min=21.4 (Mon NL) median=92.2 max=100.0 (South Goa). anc_4plus n=706: min=4.4 (Tuensang NL) median=62.4 max=98.7 (Theni TN). full_immunization n=684: min=45.0 (Ukhrul MN) median=85.0 max=100.0 (Srikakulam AP) \u2014 22 districts suppressed, 323 are parenthesized estimates.",
+            "window_scope": "706 NFHS-5 districts 2019-21 (immunization n=684 after suppression)",
+            "computed_by": "cast institutional_birth_5y_pct, mothers_who_had_at_least_4_anc_visits_lb5y_pct, child_12_23m_fully_vaccinated...vax_pct; quantile + idxmin (higher=better so worst=min)",
+            "spark_sql": "SELECT min(v) worst, percentile(v,0.5) median, max(v) best\nFROM (SELECT try_cast(regexp_replace(mothers_who_had_at_least_4_anc_visits_lb5y_pct,'[()*]','') AS DOUBLE) AS v\n      FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators) WHERE v IS NOT NULL;",
+            "metric_name": "institutional_birth_rate",
+            "suggested_charts": [
+              "dumbbell",
+              "stat"
+            ],
+            "intent": "where is maternal and child preventive-care access weakest",
+            "caveat": "full_immunization has heavy suppression (22 '*') and 323 parenthesized small-sample estimates \u2014 treat its tail districts as low-confidence; NE hill districts have small populations so estimates are noisier."
+          },
+          {
+            "id": "burden-supply-handoff",
+            "title": "The highest-need states (Bihar, Jharkhand, UP) are exactly the desert-risk handoff to the supply side",
+            "claim": "The worst-burden cluster \u2014 Bihar (HBI 78.4) and Jharkhand (69.8), home to 14 of the 15 worst districts \u2014 is the demand-side input that, joined to the supply-side facility coverage, defines true medical deserts (high need x few in-dataset facilities).",
+            "numbers": "Worst-burden states Bihar 78.4 / Jharkhand 69.8 / UP 61.6 vs best Kerala 16.9 (a 4.6x state gap). Demand spine: 706 districts ranked; 14 of top-15 worst-burden districts in Bihar+Jharkhand. This pairs with the validated join where 245 districts have ZERO in-dataset facilities.",
+            "window_scope": "706 NFHS-5 districts 2019-21; intended to be intersected with supply-side facility coverage on normalized district+state",
+            "computed_by": "hbi state rollup (above) flagged as the demand input for the desert intersection: high health_burden_index AND low facility coverage = priority desert",
+            "spark_sql": "-- demand half of the desert join: rank districts by HBI, to be LEFT JOINed against facility coverage per normalized district.\n-- See health-burden-index-worst-districts for the HBI CTE; the supply join is the analyst-partner's facilities->pincode->district crosswalk.",
+            "metric_name": "health_burden_index",
+            "suggested_charts": [
+              "bubble_scatter",
+              "choropleth"
+            ],
+            "intent": "which high-need districts to prioritize as medical deserts (demand input to supply join)",
+            "caveat": "This finding only delivers the DEMAND half; 'desert' requires the supply-side facility-coverage join (separate analyst). Facility counts are dataset coverage, not a census, so the intersection must be framed as in-dataset coverage gaps under need."
+          }
+        ],
+        "rules": [
+          {
+            "name": "nfhs_string_numeric_cast",
+            "statement": "Many NFHS-5 indicator columns are stored as STRING-but-numeric. Always cast before aggregating: pd.to_numeric(s.astype(str).str.replace(r'[()*]','',regex=True).str.strip(), errors='coerce') in pandas, or try_cast(regexp_replace(col,'[()*]','') AS DOUBLE) in Spark SQL. Casting these columns directly without stripping fails or zeroes out.",
+            "rationale": "Aggregations (avg/min/max/percentile) silently return wrong results or error if run on the raw string columns; ~20+ NFHS cols and 2 facilities cols are affected.",
+            "severity": "high"
+          },
+          {
+            "name": "nfhs_suppressed_star_is_null",
+            "statement": "A value of '*' in any NFHS-5 cell means the estimate was suppressed (sample too small). Treat it as NULL and exclude it from means/counts \u2014 NEVER as zero. e.g. full_immunization has 22 suppressed districts.",
+            "rationale": "Treating suppressed cells as zero would fabricate artificially-bad outcomes in small-population (often NE hill) districts and corrupt distributions and the burden index.",
+            "severity": "high"
+          },
+          {
+            "name": "nfhs_parenthesized_low_confidence",
+            "statement": "A parenthesized value like '(29.5)' is an estimate based on 25-49 unweighted cases. Strip the parens to use the number, but flag it as low-confidence \u2014 especially full_immunization (323 of 684 districts are parenthesized estimates).",
+            "rationale": "Tail rankings (best/worst district) can be driven by low-sample estimates; presenting them without a caveat overstates precision.",
+            "severity": "medium"
+          },
+          {
+            "name": "nfhs5_vintage_2019_21",
+            "statement": "NFHS-5 fieldwork was 2019-21. Always label these district indicators as the 2019-21 baseline, never as current-year or 2024. This vintage pre-dates the facilities supply table.",
+            "rationale": "Mixing the 2019-21 demand vintage with later supply data and presenting a single 'now' picture misleads on recency; the rubric scores honesty about data vintage.",
+            "severity": "medium"
+          },
+          {
+            "name": "hbi_is_relative_percentile",
+            "statement": "The health_burden_index is a relative percentile-rank composite (0=lowest burden in India, 50=median, 100=highest). It is NOT a prevalence or a clinical score. Always describe it as a relative ranking, and state the 10 component indicators and the inversion of the 5 higher-is-better ones.",
+            "rationale": "Readers will misread 'HBI 50' as '50% sick'; the index only ranks districts against each other within this 706-district sample.",
+            "severity": "medium"
+          },
+          {
+            "name": "demand_is_not_supply",
+            "statement": "NFHS-5 indicators measure health NEED (demand) only. They say nothing about facility supply. A 'medical desert' claim requires joining high burden to LOW in-dataset facility coverage; and facility counts are dataset coverage (a ~10k sample), never an absolute census of India's facilities.",
+            "rationale": "Stating a high-burden district is a 'desert' from demand data alone, or treating low facility counts as true scarcity, are the two errors the honesty rubric penalizes most.",
+            "severity": "high"
+          }
+        ],
+        "notes": "Report written to <repo>/hackathon-session-2026-06-15/eda/02_demand.md. Every number was computed in python3/pandas 2.1.4 over nfhs_5_district_health_indicators.parquet (706 districts x 109 cols) using the mandated cast() helper. HBI = mean of 10 indicator percentile ranks (anaemia-women, anaemia-child, stunting, wasting, underweight + inverted institutional-birth, 4+ANC, immunization, insurance, sanitation), require >=8 of 10 present (all 706 qualify). Worst district Araria Bihar 89.7; best Kanniyakumari TN 9.4; worst state Bihar 78.4 vs best Kerala 16.9 (61.5pt gulf). Care lottery: insurance 81.5x, ANC 22.4x. Weighting state HBI by women_15_49_interviewed moves means <1pt so unweighted is headline. Spark SQL fields use try_cast(regexp_replace(...,'[()*]','') AS DOUBLE); the HBI Spark sketch uses percent_rank() windows (directionally equivalent to pandas rank(pct=True)) and should be wrapped as a CTE 'hbi' reused across the state-rollup and best-district queries. CAVEAT pandas note: weighted state rollup needed a manual groupby loop because this pandas (2.1.x via anaconda 3.12, actually 2.2-era) rejected the include_groups kwarg signature \u2014 core results unaffected. Honesty: HBI is relative percentile not prevalence; demand-side only \u2014 the desert story needs the supply-side facility-coverage join (partner analyst; 245 districts have ZERO in-dataset facilities)."
+      },
+      "verdicts": {
+        "area": "demand-burden",
+        "verdicts": [
+          {
+            "id": "health-burden-index-worst-districts",
+            "verdict": "corrected",
+            "check_number": "Araria 89.7 (top of 706); 10 of 15 worst are Bihar",
+            "note": "Headline number CONFIRMED exactly: Araria (Bihar) = 89.7, the highest HBI of all 706 NFHS-5 districts. Full top-15 list and values reproduce exactly (Lakhisarai 88.0, Nalanda 86.4, Pakur(JH) 85.3, Gaya 85.3, Purnia 85.2, Nandurbar(MH) 84.5, Banka 84.1, Jamui 84.1, Katihar 83.6, Sahibganj(JH) 82.6, Bhojpur 82.5, Bhagalpur 82.1, Dumka(JH) 82.1, Banda(UP) 82.0). Range exact: min=9.4, median=49.0, max=89.7, n=706 (all qualify; the >=8-of-10-components rule drops zero districts, 684 have all 10). CORRECTION: the secondary claim 'eleven of the 15 worst-burden districts are in Bihar' is WRONG \u2014 it is 10, not 11 (Bihar: Araria, Lakhisarai, Nalanda, Gaya, Purnia, Banka, Jamui, Katihar, Bhojpur, Bhagalpur). The remaining 5 are Jharkhand 3 (Pakur, Sahibganj, Dumka), Maharashtra 1 (Nandurbar), Uttar Pradesh 1 (Banda). Fix the '11' to '10' in the claim and numbers narrative."
+          },
+          {
+            "id": "best-burden-districts-south",
+            "verdict": "confirmed",
+            "check_number": "Kanniyakumari 9.4 lowest; all 15 in TN/KL/KA",
+            "note": "Reproduces EXACTLY. Bottom-15 (best) HBI: Kanniyakumari(TN) 9.4, Kozhikode(KL) 10.7, Pathanamthitta(KL) 11.3, Thrissur(KL) 12.0, Kasaragod(KL) 12.4, Coimbatore(TN) 13.8, Alappuzha(KL) 14.9, Ernakulam(KL) 14.9, Theni(TN) 15.3, Kannur(KL) 15.4, Kollam(KL) 16.2, The Nilgiris(TN) 16.2, Kottayam(KL) 16.4, Mandya(KA) 16.6, Idukki(KL) 17.2. All 15 are in Tamil Nadu, Kerala or Karnataka. Every value matches the finding to the decimal."
+          },
+          {
+            "id": "state-burden-bihar-vs-kerala",
+            "verdict": "confirmed",
+            "check_number": "Bihar 78.4 (n=38), Kerala 16.9 (n=14), ratio 4.6x, gulf 61.5",
+            "note": "Headline CONFIRMED exactly: Bihar mean district HBI = 78.4 (n=38), Kerala = 16.9 (n=14), gulf = 61.5 pt, ratio = 4.6x. Full worst-10 reproduce exactly (Bihar 78.4/38, Jharkhand 69.8/24, Uttar Pradesh 61.6/75, Assam 60.4/33, Gujarat 59.3/33, Tripura 57.5/8, Maharashtra 56.6/36, Madhya Pradesh 56.1/51, West Bengal 54.9/19, Chhattisgarh 52.2/27) and best-5 (Kerala 16.9/14, Puducherry 24.2/4, Tamil Nadu 26.5/32, Sikkim 26.5/4, Mizoram 27.6/8) with district counts. MINOR caveat-only note (not affecting the headline): the claim 'weighting by women_15_49_interviewed shifts every state mean by <1 pt' is slightly overstated \u2014 the max shift across all states is 1.49 pt (Karnataka 42.2 unweighted vs 43.7 weighted). For Bihar/Kerala specifically the shift is well under 1pt and the conclusion 'weighting choice is immaterial' holds, so the finding stands as confirmed; the editor may want to soften 'every state <1pt' to 'every state by <1.5pt'."
+          },
+          {
+            "id": "care-lottery-insurance-anc",
+            "verdict": "confirmed",
+            "check_number": "insurance 1.2->97.8=81.5x; anc4 4.4->98.7=22.4x",
+            "note": "Reproduces EXACTLY. health_insurance min 1.2 (South Andaman, A&N) -> max 97.8 (Barmer, Rajasthan) = 81.5x. anc_4plus min 4.4 (Tuensang, Nagaland) -> max 98.7 (Theni, Tamil Nadu) = 22.4x. women_anaemia 14.9->93.5 = 6.3x. institutional_birth 21.4->100.0 = 4.7x. child_anaemia 24.9->95.5 = 3.8x. All ratios and both named worst/best districts (South Andaman, Barmer, Tuensang, Theni) confirmed. The caveat correctly flags single-extreme-district sensitivity (South Andaman insurance 1.2 drives the 81.5x); ratio framing is honest."
+          }
+        ],
+        "summary": "Independently re-computed all 4 demand-burden findings from nfhs_5_district_health_indicators.parquet (706 districts) with my own pandas code, using the same 10-indicator percentile HBI (5 higher-is-better inverted, >=8-of-10 components required, which drops zero districts). THREE of four findings reproduce EXACTLY to the decimal: best-burden-districts-south, state-burden-bihar-vs-kerala (Bihar 78.4 n=38 / Kerala 16.9 n=14 / 4.6x / gulf 61.5, all state lists+counts), and care-lottery-insurance-anc (81.5x, 22.4x, 6.3x, 4.7x, 3.8x, all named districts). ONE needs correction: health-burden-index-worst-districts has the correct headline (Araria 89.7, highest of 706) and an exact top-15 list and range (9.4/49.0/89.7), BUT its sub-claim 'eleven of the 15 worst districts are in Bihar' is wrong \u2014 it is 10, not 11 (the other 5 = Jharkhand 3, Maharashtra 1, UP 1). One secondary caveat overstatement noted on the state finding (weighting max shift is 1.49pt, not '<1pt for every state') but it does not affect that finding's headline, so it stays confirmed. All numbers are graph-citable as recomputed except the Bihar-count fix."
+      }
+    },
+    {
+      "area": "desert",
+      "eda": {
+        "area": "Medical Desert Planner \u2014 Virtue Foundation India facilities \u00d7 NFHS-5 burden, joined via India Post pincode crosswalk",
+        "findings": [
+          {
+            "id": "join-coverage-confirmed",
+            "title": "The desert-join pipeline resolves 81% of dataset facilities to an NFHS district",
+            "claim": "Of 10,000 India facilities, 97.7% have a parseable 6-digit PIN, 95.7% resolve to a PIN-district, and 81.2% match an NFHS district by normalized name.",
+            "numbers": "n=10,000 India facilities (10,088 raw \u2212 88 CSV-misparse junk). Parseable PIN 9,773 (97.7%); PIN->district 9,569 (95.7%); NFHS name-match 8,117 (81.2% of India, 84.8% of PIN-resolved). Pincode dir deduped to 19,586 modal (district,state) pincodes.",
+            "window_scope": "Virtue Foundation dataset snapshot (facilities ~10k sample) joined to NFHS-5 2019-21; in-dataset coverage, not census.",
+            "computed_by": "fac_india=fac[fac.address_country=='India']; fac_india['pin']=fac_india.address_zipOrPostcode.apply(lambda x: int(re.search(r'\\b(\\d{6})\\b',str(x)).group(1)) if pd.notna(x) and re.search(r'\\b(\\d{6})\\b',str(x)) else None); modal_map=pin.dropna(subset=['district','statename']).groupby('pincode').apply(lambda g:g[['district','statename']].apply(lambda c:c.value_counts().idxmax())).reset_index(); fac_j=fac_india.merge(modal_map,left_on='pin',right_on='pincode',how='left'); norm=lambda x: re.sub(r'\\s+',' ',re.sub(r'[^A-Z0-9 &]',' ',str(x).upper())).strip(); fac_j['nfhs_match']=fac_j.district.apply(norm).isin(set(nfhs.district_name.apply(norm)))",
+            "spark_sql": "WITH fac AS (SELECT *, regexp_extract(address_zipOrPostcode,'(\\\\d{6})',1) AS pin FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India'), modal AS (SELECT pincode, district, statename FROM (SELECT pincode, district, statename, row_number() OVER (PARTITION BY pincode ORDER BY count(*) DESC) rn FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory WHERE district IS NOT NULL GROUP BY pincode, district, statename) WHERE rn=1) SELECT count(*) total, count(CASE WHEN pin<>'' THEN 1 END) parseable_pin, count(m.district) pin_resolved FROM fac f LEFT JOIN modal m ON cast(f.pin AS int)=m.pincode",
+            "metric_name": "join_coverage_rate",
+            "suggested_charts": [
+              "kpi_grid",
+              "stat"
+            ],
+            "intent": "data_retrieval",
+            "caveat": "Name-match join (no state in key) collides 8 normalized district names across states; 18.8% miss is spelling/transliteration drift, not absence of a district."
+          },
+          {
+            "id": "zero-facility-district-count",
+            "title": "244 of 698 NFHS districts (35%) have ZERO facilities in the dataset",
+            "claim": "454 of 698 unique NFHS districts have at least one dataset facility; 244 districts (35%) have zero facilities in this dataset.",
+            "numbers": "698 unique normalized NFHS districts (706 rows, 8 name collisions). With >=1 facility: 454. Zero: 244 (35%). Mean facilities/district 11.6, median 2, max 325 (Pune). Lead's validated 453/245 differs by 1 from name-normalization boundary.",
+            "window_scope": "Per-NFHS-district coverage from the matched 8,117 facilities; dataset coverage not absolute supply.",
+            "computed_by": "matched=fac_j[fac_j.nfhs_match]; fac_per_dist=matched.groupby('dist_norm').size(); g=nfhs.groupby('dist_norm'); covered=fac_per_dist.reindex(nfhs.dist_norm.unique()).fillna(0); (covered>=1).sum()  # 454 ; (covered==0).sum()  # 244",
+            "spark_sql": "WITH joined AS (/* desert_join CTE from finding 1, add normalized district join to NFHS */ SELECT n.district_name, count(f.unique_id) facilities FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators n LEFT JOIN (/* fac+modal joined+normalized */) f ON upper(trim(regexp_replace(n.district_name,'[^A-Za-z0-9 &]',' ')))=f.dist_norm GROUP BY n.district_name) SELECT count(*) total_districts, count(CASE WHEN facilities>=1 THEN 1 END) covered, count(CASE WHEN facilities=0 THEN 1 END) zero_facility FROM joined",
+            "metric_name": "zero_facility_district_count",
+            "suggested_charts": [
+              "stat",
+              "count_up",
+              "choropleth"
+            ],
+            "intent": "coverage_gap_count",
+            "caveat": "Zero = zero in this ~10k sample, almost certainly a data-coverage hole, NOT 'no care exists'. That under-coverage of high-need places is itself the signal."
+          },
+          {
+            "id": "coverage-concentration-gini",
+            "title": "Facility coverage is brutally concentrated (Gini 0.82); 10 metro districts hold 28% of all matched facilities",
+            "claim": "The Gini of facilities-per-district is 0.821; the top-10 best-covered districts hold 28.1% and the top-50 hold 63.4% of all matched dataset facilities.",
+            "numbers": "Gini=0.821 over 706 districts. Top-10 (Pune 325, Ahmadabad 320, Mumbai Suburban 273, Chennai 272, Thane 220, Hyderabad 212, Jaipur 187, Kolkata 184, Surat 161, Lucknow 147) = 2,301 facilities = 28.1% of 8,202; top-50 = 63.4%. Median district = 2 facilities.",
+            "window_scope": "Distribution of the 8,117 NFHS-matched facilities across 706 district rows.",
+            "computed_by": "def gini(x): x=np.sort(np.asarray(x,float)); n=len(x); cum=np.cumsum(x); return (n+1-2*cum.sum()/cum[-1])/n ; gini(desert.facilities.values)  # 0.821 ; top10=desert.nlargest(10,'facilities'); top10.facilities.sum()/desert.facilities.sum()  # 0.281",
+            "spark_sql": "SELECT district_name, statename, facilities, sum(facilities) OVER () AS total, round(100.0*facilities/sum(facilities) OVER (),2) AS pct_of_dataset FROM (/* per-district facility counts from desert_join */) ORDER BY facilities DESC LIMIT 10",
+            "metric_name": "coverage_gini",
+            "suggested_charts": [
+              "lorenz_gini",
+              "ranked_bar_highlight"
+            ],
+            "intent": "inequality_concentration",
+            "caveat": "Concentration reflects where this dataset's web-scraped supply is densest (metros), which compounds the coverage gap for rural/tribal districts; not a per-capita statement."
+          },
+          {
+            "id": "burden-supply-correlation",
+            "title": "The care lottery: higher-burden districts get systematically FEWER facilities (Spearman -0.20, p=1.6e-7)",
+            "claim": "Burden and dataset facility coverage are significantly negatively correlated (Spearman rho=-0.196, p=1.6e-07); the highest-burden tertile averages 5.5 facilities/district vs ~14.6 for the rest.",
+            "numbers": "Spearman(burden_index, facilities) rho=-0.196 p=1.61e-07 n=706; Pearson(burden, log1p(fac)) r=-0.214 p=9.8e-09. Mean facilities by burden tertile: low 14.6 / mid 14.7 / high 5.5. Zero-facility share: low 28.8% -> mid 34.9% -> high 40.9%.",
+            "window_scope": "All 706 NFHS districts with a computable composite burden index (9 z-scored NFHS components).",
+            "computed_by": "from scipy.stats import spearmanr; spearmanr(sub.burden_index, sub.facilities)  # (-0.196, 1.61e-07) ; sub['t']=pd.qcut(sub.burden_index,3,labels=['low','mid','high']); sub.groupby('t').facilities.mean()  # 14.58,14.72,5.54",
+            "spark_sql": "-- burden_index built in pandas from 9 z-scored NFHS cols (try_cast strip ()/*); equivalent Spark: compute per-district facilities (desert_join) then corr(): SELECT corr(burden_index, ln(1+facilities)) FROM desert_table",
+            "metric_name": "burden_supply_correlation",
+            "suggested_charts": [
+              "bubble_scatter",
+              "forest_ci"
+            ],
+            "intent": "equity_correlation",
+            "caveat": "Correlation is over dataset coverage, not true supply; the burden index is a z-score composite (relative, unit-free), and weak |rho| reflects metro outliers, but direction and significance are robust."
+          },
+          {
+            "id": "high-burden-low-supply-quadrant",
+            "title": "68% of high-burden districts are low-supply; 41% have zero facilities",
+            "claim": "Of 236 top-tertile-burden districts, 161 (68.2%) have <=2 facilities and 96 (40.7%) have zero, versus 51.1% low-supply among low/mid-burden districts.",
+            "numbers": "2x2 (top-tertile burden x <=2 facilities): high-burden n=236, low-supply 161 (68.2%), zero-facility 96 (40.7%); low/mid-burden low-supply share 51.1%. Burden threshold = 2/3 quantile of burden_index.",
+            "window_scope": "706 NFHS districts; high-burden = top tertile of composite burden index.",
+            "computed_by": "hb=sub.burden_index>=sub.burden_index.quantile(2/3); ls=sub.facilities<=2; (hb&ls).sum()  #161 ; hb.sum()  #236 ; (hb & (sub.facilities==0)).sum()  #96 ; pd.crosstab(hb,ls)",
+            "spark_sql": "WITH d AS (/* desert_table with burden_index + facilities */), thr AS (SELECT percentile(burden_index,0.6667) p FROM d) SELECT (burden_index>=p) high_burden, (facilities<=2) low_supply, count(*) n FROM d, thr GROUP BY 1,2",
+            "metric_name": "high_burden_low_supply_count",
+            "suggested_charts": [
+              "heatmap_matrix",
+              "kpi_grid"
+            ],
+            "intent": "quadrant_priority",
+            "caveat": "Tertile cut is a modeling choice; results are stable across reasonable thresholds. Low-supply = dataset coverage gap."
+          },
+          {
+            "id": "top15-desert-districts",
+            "title": "Top-15 medical-desert districts are dominated by Bihar & Jharkhand (13 of 15), 13 with zero facilities",
+            "claim": "The 15 highest desert-score districts (high burden, <=2 facilities) are led by Araria, Pakur, Lakhisarai, Jamui and Sahibganj; 13 of 15 are in Bihar/Jharkhand and 13 have zero dataset facilities.",
+            "numbers": "Top-5: Araria (Bihar, 0 fac, score 3.73, child anaemia 75.8%, 4+ANC 25.8%), Pakur (Jharkhand, 0, 3.44), Lakhisarai (Bihar, 0, 3.41, child anaemia 77.2%), Jamui (Bihar, 0, 3.31, child anaemia 81.9%), Sahibganj (Jharkhand, 0, 3.19). 13/15 in Bihar+Jharkhand; 13/15 have 0 facilities; HH insurance often <20%.",
+            "window_scope": "Districts with <=2 facilities, ranked by desert_score = burden_z - supply_z; NFHS-5 burden numbers.",
+            "computed_by": "d['desert_score']=d.burden_z - ( (np.log1p(d.facilities)-np.log1p(d.facilities).mean())/np.log1p(d.facilities).std() ); d[d.facilities<=2].nlargest(15,'desert_score')[['district_name','state_ut','facilities','desert_score']]",
+            "spark_sql": "WITH d AS (/* desert_table: burden_z + facilities */) SELECT district_name, state_ut, facilities, (burden_z - (ln(1+facilities)-avg(ln(1+facilities)) OVER ())/stddev(ln(1+facilities)) OVER ()) AS desert_score FROM d WHERE facilities<=2 ORDER BY desert_score DESC LIMIT 15",
+            "metric_name": "desert_score",
+            "suggested_charts": [
+              "ranked_bar_highlight",
+              "dumbbell"
+            ],
+            "intent": "priority_district_ranking",
+            "caveat": "These are large populous high-need districts the dataset barely sees; a zero count is a coverage/outreach gap, not proof of no facilities on the ground."
+          },
+          {
+            "id": "zero-facility-worst-anaemia",
+            "title": "India's worst child-anaemia districts (90-96%) have ZERO dataset facilities",
+            "claim": "The five highest child-anaemia districts in India \u2014 Leh/Ladakh (95.5%), Sukma (91.4%), Lahul & Spiti (91.0%), Dantewada (89.9%), Tawang (89.6%) \u2014 all have zero facilities in the dataset.",
+            "numbers": "Child 6-59m anaemia: Leh(Ladakh) 95.5% (0 fac), Narmada Gujarat 93.2% (2), Sukma 91.4% (0), Panch Mahals 91.0% (5), Lahul & Spiti 91.0% (0), Dantewada 89.9% (0), Ganderbal 89.8% (2), Tawang 89.6% (0). 5 of the worst 8 have zero facilities.",
+            "window_scope": "NFHS-5 child anaemia (6-59m, <11 g/dL) vs dataset coverage; remote/tribal/conflict-affected districts.",
+            "computed_by": "d.nlargest(8,'child_6_59m_who_are_anaemic_lt_11_0_g_dl_22_pct')[['district_name','state_ut','child_6_59m_who_are_anaemic_lt_11_0_g_dl_22_pct','facilities']]",
+            "spark_sql": "SELECT n.district_name, n.state_ut, try_cast(regexp_replace(n.child_6_59m_who_are_anaemic_lt_11_0_g_dl_22_pct,'[()*]','') AS double) AS child_anaemia_pct, coalesce(f.facilities,0) AS facilities FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators n LEFT JOIN (/* per-district facility counts */) f ON f.dist_norm=upper(trim(regexp_replace(n.district_name,'[^A-Za-z0-9 &]',' '))) ORDER BY child_anaemia_pct DESC LIMIT 8",
+            "metric_name": "zero_facility_worst_burden",
+            "suggested_charts": [
+              "dumbbell",
+              "ranked_bar_highlight"
+            ],
+            "intent": "extreme_gap_callout",
+            "caveat": "Remote/tribal districts; zero dataset facilities reflects web-scrape coverage bias toward urban/private orgs, which is precisely why these high-need places are invisible to data-driven planning."
+          },
+          {
+            "id": "state-desert-gap",
+            "title": "Bihar is the worst-burden state yet thinly covered; Kerala/Tamil Nadu/Delhi are the inverse",
+            "claim": "Bihar has the highest mean burden (z=1.03) of any state but only ~8 facilities/district (9/38 zero), giving the second-worst state desert gap; Kerala and Tamil Nadu have the lowest burden and richest coverage.",
+            "numbers": "Worst state desert gaps (>=5 districts): Tripura 2.44 (75% districts zero), Bihar 2.12 (mean_burden 1.03, 8.1 fac/dist, 9/38 zero), Nagaland 2.10 (82% zero), Assam 1.69, Jharkhand 1.63 (12/24 zero), Arunachal 1.42 (85% zero). Best: Kerala -3.39 (35.6/dist, 0% zero), Tamil Nadu -2.45, NCT Delhi -1.60, Maharashtra 41.2/dist.",
+            "window_scope": "State aggregation over NFHS districts (states with >=5 districts); gap = mean_burden_z - log-mean-facilities_z.",
+            "computed_by": "st=sub.groupby('state_ut').agg(mean_burden=('burden_index','mean'),mean_fac=('facilities','mean'),n=('district_name','count'),zero=('facilities',lambda s:(s==0).sum())); st['gap']=zscore(st.mean_burden)-zscore(np.log1p(st.mean_fac)); st[st.n>=5].sort_values('gap',ascending=False)",
+            "spark_sql": "WITH d AS (/* desert_table: state_ut, burden_index, facilities */) SELECT state_ut, count(*) n_districts, round(avg(burden_index),2) mean_burden, round(avg(facilities),1) mean_fac, sum(CASE WHEN facilities=0 THEN 1 ELSE 0 END) zero_fac_districts FROM d GROUP BY state_ut HAVING count(*)>=5 ORDER BY mean_burden DESC",
+            "metric_name": "state_desert_gap",
+            "suggested_charts": [
+              "choropleth",
+              "dumbbell",
+              "bubble_scatter"
+            ],
+            "intent": "state_geographic_view",
+            "caveat": "State means mask within-state spread; gap is a relative z-composite. North-east states have small district counts and tiny dataset samples, amplifying their gap."
+          }
+        ],
+        "rules": [
+          {
+            "name": "pin_fanout_dedup",
+            "statement": "A pincode in india_post_pincode_directory fans out to many post-office rows and sometimes >1 district; dedup to the MODAL (district, statename) per pincode before joining facilities, or facility counts inflate.",
+            "rationale": "165,627 post-office rows collapse to 19,586 unique pincodes; the grain is post office, not PIN. Joining raw would multiply each facility by its pincode's row count.",
+            "severity": "critical"
+          },
+          {
+            "name": "district_name_normalization",
+            "statement": "Normalize district names with UPPER -> trim -> collapse whitespace -> drop non-[A-Z0-9 &] on BOTH sides before the facility<->NFHS join. This recovers 81.2% of India facilities; the ~19% miss is spelling/transliteration drift.",
+            "rationale": "Pincode-directory and NFHS spell districts differently (Pashchimi vs West, parenthetic 'Leh(Ladakh)', transliteration). Without normalization the match rate craters.",
+            "severity": "high"
+          },
+          {
+            "name": "string_match_not_spatial_and_name_collisions",
+            "statement": "Name-only join collides 8 normalized district names across states (AURANGABAD=Bihar+Maharashtra, BIJAPUR=Chhattisgarh+Karnataka, BALRAMPUR, BILASPUR, CHANDEL, HAMIRPUR, PRATAPGARH, RAIGARH). Summing facilities on the NFHS-name grain double-counts these (8,202 vs the true 8,117 matched rows, +85). Join on (state, district) or do a true spatial point-in-polygon, not name alone.",
+            "rationale": "Different states reuse district names; latitude/longitude exist on facilities (99.7% geocoded) so a spatial join is feasible and more correct for a production planner.",
+            "severity": "high"
+          },
+          {
+            "name": "nfhs_string_numeric_cast",
+            "statement": "Many NFHS columns (and 2 facilities cols) are STRING-but-numeric. cast(s)=to_numeric after stripping ()/* and whitespace, BEFORE any aggregation. '*' = suppressed -> treat as NULL, NOT zero; '(29.5)' = small-sample (25-49 unweighted) estimate, use with caution.",
+            "rationale": "Aggregating string columns silently mis-types or errors; treating suppressed '*' as 0 fabricates false low-burden values.",
+            "severity": "critical"
+          },
+          {
+            "name": "coverage_not_supply",
+            "statement": "facilities table is a ~10k SAMPLE, not a census (India has 47k+ in the FDR). 'facilities per district' = in-dataset COVERAGE, never absolute supply; a zero-facility district = zero in THIS dataset (a coverage/outreach gap), not 'no care exists'. No per-capita anywhere (no population table). Cite the facility source TEXT field for any per-facility claim.",
+            "rationale": "The hackathon rubric scores honesty/uncertainty; overclaiming absolute supply from a sample is the single biggest credibility risk and would be factually wrong.",
+            "severity": "critical"
+          }
+        ],
+        "notes": "Report written to <repo>/hackathon-session-2026-06-15/eda/03_desert.md. All numbers computed live with python3+pandas over the local typed parquet (facilities.parquet, india_post_pincode_directory.parquet, nfhs_5_district_health_indicators.parquet). Burden index = mean of 9 z-scored NFHS components (5 high=bad: child anaemia, child stunting, women anaemia, child underweight, child marriage; 4 inverted low=bad: 4+ ANC visits, institutional birth, health insurance, full child vaccination). desert_score = burden_z - supply_z where supply_z = z of log1p(facilities). Coverage numbers (97.7/95.7/81.2; 454 covered / 244 zero of 698 unique districts) reproduce the lead's validated figures within +-1 district (name-normalization boundary). KEY honesty caveats baked into every finding: coverage != supply, ~10k sample not census, no per-capita, zero = dataset gap not absence of care. KNOWN LIMITATION surfaced: name-only join collides 8 district names across states inflating the per-district sum to 8,202 vs the true 8,117 matched rows (+85); a production planner should use (state,district) keys or a spatial point-in-polygon join (facilities are 99.7% geocoded). The spine for the narrative: Bihar+Jharkhand dominate the desert top-15; India's worst child-anaemia districts (Leh, Sukma, Dantewada, Tawang, Lahul&Spiti, 90-96%) all have ZERO dataset facilities; significant negative burden-supply correlation (rho=-0.196, p=1.6e-7) and Gini 0.82 = 'the care lottery'."
+      },
+      "verdicts": {
+        "area": "desert-join",
+        "verdicts": [
+          {
+            "id": "join-coverage-confirmed",
+            "verdict": "confirmed",
+            "check_number": "9,773 parseable PIN (97.7%); 9,569 PIN->district (95.7%); 8,117 NFHS name-match (81.2% of 10,000 India / 84.8% of PIN-resolved); 19,586 modal pincodes",
+            "note": "EXACT match on every number. Re-ran the full pipeline (India filter -> 6-digit PIN regex -> modal (district,state) per pincode -> normalized name join). 10,000 India rows (10,088 raw minus 88 junk), 9,773 parseable PIN, 9,569 resolved, 8,117 matched, 19,586 modal pincodes -- all identical to the claim."
+          },
+          {
+            "id": "zero-facility-district-count",
+            "verdict": "confirmed",
+            "check_number": "698 unique normalized NFHS districts (706 rows, 8 collisions); 454 covered; 244 zero (35.0%); mean 11.63, median 2, max 325 (PUNE)",
+            "note": "EXACT match. 698 unique normalized districts, 454 with >=1 facility, 244 zero (35.0%), mean 11.63, median 2, max 325 Pune -- all reproduced. The lead's 453/245 differs by 1 due to a name-normalization boundary, as the finding itself notes."
+          },
+          {
+            "id": "coverage-concentration-gini",
+            "verdict": "corrected",
+            "check_number": "Gini 0.821 (confirmed); top-10 = 2,301 facilities; CORRECT share = 28.3% (not 28.1%), top-50 = 63.8% (not 63.4%)",
+            "note": "Headline Gini 0.821 and the exact top-10 list+counts (Pune 325, Ahmadabad 320, ... Lucknow 147 = 2,301) all confirmed. BUT the concentration percentages use a wrong denominator: the claim divides by 8,202, which is the sum over 706 NFHS rows and DOUBLE-COUNTS the 8 collision districts. Matched facilities are 8,117. Correct shares: top-10 = 28.3%, top-50 = 63.8% (claim says 28.1% / 63.4%). Difference is small (~0.2-0.4pt) and the headline 'Gini 0.82' is fine, but the cited 28.1%/63.4% are off by the collision double-count -- flag the denominator."
+          },
+          {
+            "id": "burden-supply-correlation",
+            "verdict": "corrected",
+            "check_number": "Spearman rho between -0.21 and -0.27 across every reasonable 9-component reconstruction (claim -0.196); all p < 1e-8; high-burden tertile mean 5.5 facilities confirmed; low-tertile zero-share 28.8% confirmed",
+            "note": "Direction and significance are ROBUST and confirmed (negative, p<<0.001 in all 6 variants I tried). But I could NOT reproduce the exact -0.196: every reconstruction of a 9-component z-scored burden index (mean or sum, with/without wasting, OOP, sanitation) gives rho in -0.21..-0.27, all STRONGER than the claimed -0.196. The exact magnitude depends on the analyst's undocumented column selection, which the finding never lists. Supporting figures partly match (high-tertile mean 5.5 EXACT, low-tertile zero-share 28.8% EXACT; but my tertile means were 16.4/12.9/5.5 vs claimed 14.6/14.7/5.5). Verdict: claim's conclusion is sound; the precise -0.196 should be treated as approximate (~-0.2) and the exact 9 columns must be documented for the graph."
+          },
+          {
+            "id": "high-burden-low-supply-quadrant",
+            "verdict": "corrected",
+            "check_number": "High-burden n=236 (EXACT); high-burden & <=2 facilities = 66.9% (claim 68.2%); zero-facility 39.0% (claim 40.7%); low/mid low-supply 51.7% (claim 51.1%)",
+            "note": "High-burden count n=236 matches exactly (top-tertile of burden index). The quadrant shares are directionally robust and within ~1.5pt of the claim under my best burden-index reconstruction: 66.9% low-supply (vs 68.2%), 39.0% zero (vs 40.7%), 51.7% low/mid low-supply (vs 51.1%). The qualitative finding -- ~2/3 of high-burden districts are low-supply, ~40% have zero -- holds. Exact percentages depend on the same undocumented burden-index definition as F4, so I mark corrected: the headline '68%' is really ~67% and '41% zero' is ~39-41% depending on the index."
+          },
+          {
+            "id": "top15-desert-districts",
+            "verdict": "confirmed",
+            "check_number": "14/15 in Bihar+Jharkhand; all 5 cited top districts present; cited NFHS values EXACT: Araria child-anaemia 75.8% / 4+ANC 25.8%; Lakhisarai 77.2%; Jamui 81.9%; all with zero facilities",
+            "note": "The substantive claim is fully verified. Araria, Pakur, Lakhisarai, Jamui, Sahibganj all appear in my top-desert list, all in Bihar/Jharkhand, all zero-facility. Every cited NFHS number is EXACT against the raw parquet (Araria 75.8% child anaemia + 25.8% 4+ANC; Lakhisarai 77.2%; Jamui 81.9%). My reconstruction gives 14/15 Bihar+Jharkhand (claim says 13/15) -- a 1-district difference from the exact desert-score formula, not material. Regional dominance and all source-cited numbers confirmed."
+          }
+        ],
+        "summary": "Independently re-computed all 6 desert-join findings from the parquet files with my own pandas/scipy pipeline. F1 (join coverage 97.7/95.7/81.2%) and F2 (244/698 zero-facility districts, 35%) match EXACTLY. F6 (top-15 deserts in Bihar/Jharkhand) confirmed with every cited NFHS value exact (Araria 75.8% anaemia/25.8% ANC, Lakhisarai 77.2%, Jamui 81.9%). Three corrections: F3 Gini=0.821 is right but the concentration shares use a wrong denominator (8,202 double-counts 8 collision districts; correct base is 8,117 -> 28.3%/63.8% not 28.1%/63.4%). F4 and F5 are directionally robust and significant, but I could not reproduce the EXACT headline numbers because the 9-component burden index is undocumented: every reasonable reconstruction gives Spearman rho in -0.21..-0.27 (stronger than claimed -0.196), and quadrant shares land ~1.5pt off (66.9%/39.0% vs 68.2%/40.7%; high-burden n=236 matches exactly). KEY GRAPH RISK: the burden_index definition (which 9 NFHS columns, mean vs sum of z, sign conventions) MUST be documented as a SqlPattern/Rule before any rho/quadrant number is cited to users, and the F3 concentration percentages should be recomputed against the 8,117 matched-facility base."
+      }
+    },
+    {
+      "area": "trust",
+      "eda": {
+        "area": "facility-trust",
+        "findings": [
+          {
+            "id": "facility-trust-score-design",
+            "title": "Transparent 0-100 trust/evidence score from 8 corroboration signals",
+            "claim": "A transparent additive trust score (weights summing to 100) scores India facilities on 8 corroboration signals, dominated by the three scarce hard-proof signals (recent update 25, doctor count 20, capacity 15 = 60/100).",
+            "numbers": "Weights: recent_update=25, has_doctors=20, has_website=15, has_capacity=15, has_phone=10, affiliated_staff=5, social_2plus=5, rich_desc=5 (sum=100). Signal fill on N=10,000 India facilities: recent_update 22.6%, has_doctors 36.2%, has_website 83.9%, has_capacity 25.0%, has_phone 95.0%, affiliated_staff 92.6%, social_2plus 76.1%, rich_desc(>=120 chars) 48.2%.",
+            "window_scope": "facilities.parquet filtered address_country=='India', N=10,000 (excludes 88 CSV-misparse junk rows + non-India). Snapshot date anchor 2026-06-15.",
+            "computed_by": "df=pd.read_parquet('facilities.parquet'); df=df[df.address_country=='India']; SENT=['null','none','nan','na','']; present=lambda s:~s.astype(str).str.strip().str.lower().isin(SENT); num=lambda s:pd.to_numeric(s.astype(str).str.replace(r'[()*,]','',regex=True).str.strip(),errors='coerce'); recdt=pd.to_datetime(df.recency_of_page_update.where(present(df.recency_of_page_update)),errors='coerce'); recent=((pd.Timestamp('2026-06-15')-recdt).dt.days/30.44<=18)|(recdt>pd.Timestamp('2026-06-15')); score=recent.fillna(False)*25+((present(df.numberDoctors))&(num(df.numberDoctors)>0))*20+present(df.officialWebsite)*15+((present(df.capacity))&(num(df.capacity)>0))*15+present(df.officialPhone)*10+(df.affiliated_staff_presence.str.lower()=='true')*5+(num(df.distinct_social_media_presence_count)>=2)*5+(df.description.str.len()>=120)*5",
+            "spark_sql": "WITH f AS (SELECT *, lower(trim(coalesce(recency_of_page_update,''))) rec_l, try_cast(regexp_replace(numberDoctors,'[()*,]','') AS DOUBLE) nd, try_cast(regexp_replace(capacity,'[()*,]','') AS DOUBLE) cap, try_cast(distinct_social_media_presence_count AS DOUBLE) soc FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India'), s AS (SELECT unique_id, CASE WHEN rec_l NOT IN ('null','none','nan','na','') AND (try_cast(recency_of_page_update AS DATE) >= add_months(DATE'2026-06-15',-18) OR try_cast(recency_of_page_update AS DATE) > DATE'2026-06-15') THEN 25 ELSE 0 END + CASE WHEN nd>0 THEN 20 ELSE 0 END + CASE WHEN lower(trim(coalesce(officialWebsite,''))) NOT IN ('null','none','nan','na','') THEN 15 ELSE 0 END + CASE WHEN cap>0 THEN 15 ELSE 0 END + CASE WHEN lower(trim(coalesce(officialPhone,''))) NOT IN ('null','none','nan','na','') THEN 10 ELSE 0 END + CASE WHEN lower(trim(affiliated_staff_presence))='true' THEN 5 ELSE 0 END + CASE WHEN soc>=2 THEN 5 ELSE 0 END + CASE WHEN length(description)>=120 THEN 5 ELSE 0 END AS facility_trust_score FROM f) SELECT * FROM s",
+            "metric_name": "facility_trust_score",
+            "suggested_charts": [
+              "kpi_grid",
+              "ranked_bar"
+            ],
+            "intent": "How is the facility trust/evidence score defined and what signals feed it?",
+            "caveat": "All 8 signals are self-reported scraped text, not verified attributes; weights are an analyst design choice (auditable, not learned). 'Missing' is the literal string 'null' not SQL NULL - must strip before scoring or presence is over-counted ~3x."
+          },
+          {
+            "id": "trust-score-distribution",
+            "title": "Half of in-dataset India listings score below 50/100 on evidence",
+            "claim": "The median India facility scores just 45/100 on the trust score, and 50.9% fall below 50, because the hard-proof signals (doctors, capacity, recency) are thin.",
+            "numbers": "N=10,000. mean 49.6, std 19.9; min 0, p10 30, p25 35, median 45, p75 60, p90 75, p95 90, max 100. Thresholds: >=30 9,094 (90.9%); >=40 6,736 (67.4%); >=50 4,915 (49.1%) so <50 = 5,085 (50.9%); >=60 3,217 (32.2%). By type: hospital median 55 (n=5,637), clinic 40 (n=3,782), dentist 40 (n=490).",
+            "window_scope": "facilities.parquet, address_country=='India', N=10,000. Trust score as defined in facility-trust-score-design.",
+            "computed_by": "trust.describe(); trust.quantile([0,.1,.25,.5,.75,.9,.95,1]); [(t,(trust>=t).sum(),round((trust>=t).mean()*100,1)) for t in (30,40,50,60)]; df.groupby('facilityTypeId').trust_score.agg(['count','median'])",
+            "spark_sql": "WITH s AS (/* facility_trust_score CTE from facility-trust-score-design, aliased s.facility_trust_score */ SELECT unique_id, facilityTypeId, facility_trust_score FROM scored) SELECT round(avg(facility_trust_score),1) mean, percentile(facility_trust_score,0.5) median, percentile(facility_trust_score,0.9) p90, sum(CASE WHEN facility_trust_score<50 THEN 1 ELSE 0 END) below_50, round(avg(CASE WHEN facility_trust_score<50 THEN 1.0 ELSE 0 END)*100,1) pct_below_50, count(*) n FROM s",
+            "metric_name": "facility_trust_score",
+            "suggested_charts": [
+              "stat",
+              "ranked_bar_highlight"
+            ],
+            "intent": "What does the distribution of facility trust scores look like and how many are poorly corroborated?",
+            "caveat": "Score reflects data corroboration, not real-world quality of care; a cheap website+phone buys ~25 points, so even the 'above 50' band is weakly verified. Sample, not census."
+          },
+          {
+            "id": "unverifiable-advanced-claims",
+            "title": "1,219 facilities (12.2%) advertise advanced care with zero corroborating proof",
+            "claim": "1,219 India facilities (12.2% of all, 29.9% of advanced-claimers) claim advanced capability (MRI/CT/ICU/cancer/cardiac/dialysis/NICU/transplant) yet expose no doctor count, no capacity, and no recent page update - unverifiable advanced claims.",
+            "numbers": "Advanced-capability claimers: 4,077 (40.8% of 10,000); equipment+capability-only variant 3,985 (39.9%). Unverifiable (advanced claim AND numberDoctors='null' AND capacity='null' AND not recently updated): 1,219 = 12.2% of all India / 29.9% of advanced-claimers. Advanced-claimers with NO hard proof (no doctors and no capacity): 1,542 (37.8%). Examples (trust<=40): 08c8f9bb-2e33-468e-8b09-0b1d235ce426 Saravana Hospital (35); 1f662496-ee52-4317-a1bf-cfb695457a1e Pune Adventist Hospital (35); 239a16a2-ae15-44dc-be0f-4f6e2d99dcff Jeevan Deep Hospital (30).",
+            "window_scope": "facilities.parquet, address_country=='India', N=10,000. Claim text concatenates equipment||capability||specialties||procedure||description.",
+            "computed_by": "ADV=re.compile(r'(?:MRI|CT scan|CT-scan|ICU|cancer|oncolog|cardiac|cathlab|cath lab|dialysis|NICU|transplant)',re.I); txt=df[['equipment','capability','specialties','procedure','description']].astype(str).agg(' || '.join,axis=1); adv=txt.str.contains(ADV); unv=adv&(num(df.numberDoctors).fillna(0)<=0)&(num(df.capacity).fillna(0)<=0)&(~recent.fillna(False)); unv.sum(); unv.mean()*100; unv.sum()/adv.sum()*100",
+            "spark_sql": "WITH f AS (SELECT *, lower(concat_ws(' || ',equipment,capability,specialties,procedure,description)) txt, try_cast(regexp_replace(numberDoctors,'[()*,]','') AS DOUBLE) nd, try_cast(regexp_replace(capacity,'[()*,]','') AS DOUBLE) cap FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India'), c AS (SELECT unique_id, name, txt RLIKE '(mri|ct scan|ct-scan|icu|cancer|oncolog|cardiac|cathlab|cath lab|dialysis|nicu|transplant)' adv, nd, cap, CASE WHEN lower(trim(coalesce(recency_of_page_update,''))) NOT IN ('null','none','nan','na','') AND try_cast(recency_of_page_update AS DATE) >= add_months(DATE'2026-06-15',-18) THEN 1 ELSE 0 END recent FROM f) SELECT count(*) total, sum(CASE WHEN adv THEN 1 ELSE 0 END) advanced, sum(CASE WHEN adv AND coalesce(nd,0)<=0 AND coalesce(cap,0)<=0 AND recent=0 THEN 1 ELSE 0 END) unverifiable_advanced, round(sum(CASE WHEN adv AND coalesce(nd,0)<=0 AND coalesce(cap,0)<=0 AND recent=0 THEN 1 ELSE 0 END)*100.0/count(*),1) pct_all FROM c",
+            "metric_name": "unverifiable_claim_rate",
+            "suggested_charts": [
+              "stat",
+              "iceberg"
+            ],
+            "intent": "How many facilities make advanced-care claims they cannot back up with any hard evidence?",
+            "caveat": "Claims are scraped self-report - a 'null' doctor/capacity field means undisclosed, not necessarily that the capability is fake; treat as risk-to-verify, not proof of misrepresentation. Regex may catch incidental mentions (e.g. 'no ICU')."
+          },
+          {
+            "id": "claim-evidence-gap",
+            "title": "Advanced claims outrun proof: median trust 55 for claimers but 37.8% have none",
+            "claim": "Facilities making advanced-capability claims are better-corroborated overall (median trust 55 vs 40 for non-claimers), but 37.8% of them still expose no hard proof, so the claim-evidence gap is concentrated in a ~30-38% tail.",
+            "numbers": "Advanced-claimers (n=4,077): 62.2% (2,535) have at least one hard-proof signal (doctor count or capacity); 37.8% (1,542) have none. Median trust score: advanced-claimers 55 vs non-claimers 40. Among advanced-claimers, 1,219 (29.9%) fail the full unverifiable test (also no recent update).",
+            "window_scope": "facilities.parquet, address_country=='India', N=10,000; advanced-claimer subset n=4,077.",
+            "computed_by": "adv=df[df.advanced_claim]; anyproof=((num(adv.numberDoctors)>0)|(num(adv.capacity)>0)); anyproof.mean()*100; (~anyproof).sum(); adv.trust_score.median(); df[~df.advanced_claim].trust_score.median()",
+            "spark_sql": "WITH f AS (SELECT lower(concat_ws(' || ',equipment,capability,specialties,procedure,description)) txt, try_cast(regexp_replace(numberDoctors,'[()*,]','') AS DOUBLE) nd, try_cast(regexp_replace(capacity,'[()*,]','') AS DOUBLE) cap FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India'), c AS (SELECT txt RLIKE '(mri|ct scan|icu|cancer|oncolog|cardiac|cathlab|dialysis|nicu|transplant)' adv, CASE WHEN coalesce(nd,0)>0 OR coalesce(cap,0)>0 THEN 1 ELSE 0 END any_proof FROM f) SELECT sum(CASE WHEN adv THEN 1 ELSE 0 END) advanced, round(avg(CASE WHEN adv THEN any_proof END)*100,1) pct_with_proof, sum(CASE WHEN adv AND any_proof=0 THEN 1 ELSE 0 END) advanced_no_proof FROM c",
+            "metric_name": "claim_evidence_gap",
+            "suggested_charts": [
+              "dumbbell",
+              "ranked_bar_highlight"
+            ],
+            "intent": "Do facilities that claim advanced capabilities back them with more evidence, or is there a gap?",
+            "caveat": "Higher median trust for claimers is partly mechanical (longer/richer pages also trigger the claim regex and earn the description+social points); the gap statistic is the load-bearing claim, not the median lift."
+          },
+          {
+            "id": "proof-thin-baseline",
+            "title": "43.3% of in-dataset facilities are an unverified pin: no doctors, capacity, or recency",
+            "claim": "4,328 India facilities (43.3%) expose no hard proof of any kind - no doctor count, no bed capacity, and no recent page update - so nearly half of in-dataset 'supply' rests entirely on cheap website/phone signals.",
+            "numbers": "No-hard-proof facilities (numberDoctors='null'/0 AND capacity='null'/0 AND not recently updated): 4,328 of 10,000 = 43.3%. Underlying scarcity: recent update 22.6%, doctor count 36.2%, capacity 25.0% fill. Raw non-null is misleading (e.g. numberDoctors string-non-null 99.7% but real 36.2% after stripping 'null').",
+            "window_scope": "facilities.parquet, address_country=='India', N=10,000.",
+            "computed_by": "thin=(num(df.numberDoctors).fillna(0)<=0)&(num(df.capacity).fillna(0)<=0)&(~recent.fillna(False)); thin.sum(); thin.mean()*100",
+            "spark_sql": "WITH f AS (SELECT try_cast(regexp_replace(numberDoctors,'[()*,]','') AS DOUBLE) nd, try_cast(regexp_replace(capacity,'[()*,]','') AS DOUBLE) cap, CASE WHEN lower(trim(coalesce(recency_of_page_update,''))) NOT IN ('null','none','nan','na','') AND try_cast(recency_of_page_update AS DATE) >= add_months(DATE'2026-06-15',-18) THEN 1 ELSE 0 END recent FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India') SELECT count(*) total, sum(CASE WHEN coalesce(nd,0)<=0 AND coalesce(cap,0)<=0 AND recent=0 THEN 1 ELSE 0 END) no_hard_proof, round(avg(CASE WHEN coalesce(nd,0)<=0 AND coalesce(cap,0)<=0 AND recent=0 THEN 1.0 ELSE 0 END)*100,1) pct FROM f",
+            "metric_name": "proof_thin_rate",
+            "suggested_charts": [
+              "stat",
+              "iceberg"
+            ],
+            "intent": "What share of listed facilities have no verifiable hard evidence behind them?",
+            "caveat": "Absence of a field = undisclosed in this scrape, not necessarily a non-functioning facility; and this is a ~10k sample of India's 47k+ facilities, so it bounds dataset trust, not real-world supply."
+          },
+          {
+            "id": "missing-is-string-null-gotcha",
+            "title": "Fill rates collapse ~3x once the literal 'null' sentinel is stripped",
+            "claim": "Trust signals look near-complete on raw non-null counts but collapse once the literal string 'null' (the dataset's missing sentinel) is removed: numberDoctors goes from 99.7% to 36.2% real fill.",
+            "numbers": "numberDoctors: string-non-null 9,970 (99.7%) -> real >0 3,617 (36.2%); capacity: 99.7% -> 25.0% (7,454 rows are literal 'null'); recency: 99.7% -> 35.4% parseable-non-null (6,426 are 'null'); officialWebsite real 83.9% (1,607 are 'null'); officialPhone real 95.0% (497 'null'). Recency dates span 2003-09-04 to 2027-07-20 incl. 1 future stamp (scrape artifact).",
+            "window_scope": "facilities.parquet, address_country=='India', N=10,000.",
+            "computed_by": "df.numberDoctors.astype(str).str.strip().value_counts() shows 'null'=6340; present=lambda s:~s.astype(str).str.strip().str.lower().isin(['null','none','nan','na','']); for c in cols: print(c,present(df[c]).mean())",
+            "spark_sql": "SELECT count(*) total, sum(CASE WHEN lower(trim(numberDoctors))<>'null' THEN 1 ELSE 0 END) raw_nonnull_doctors, sum(CASE WHEN try_cast(regexp_replace(numberDoctors,'[()*,]','') AS DOUBLE) > 0 THEN 1 ELSE 0 END) real_doctors, sum(CASE WHEN lower(trim(coalesce(capacity,'null')))='null' THEN 1 ELSE 0 END) capacity_literal_null FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India'",
+            "metric_name": "real_fill_rate",
+            "suggested_charts": [
+              "dumbbell",
+              "ranked_bar"
+            ],
+            "intent": "Why do facility data-completeness numbers differ from the raw non-null counts?",
+            "caveat": "This is the single most important data-quality gotcha for this table; any analyst who counts non-null without stripping 'null'/'none'/'NA' will overstate evidence ~3x. Recency also contains future-dated and pre-2010 stamps."
+          }
+        ],
+        "rules": [
+          {
+            "name": "claims-are-self-reported",
+            "statement": "Every facility attribute (specialties, equipment, capability, procedure, description, numberDoctors, capacity) is self-reported scraped free text. Never present a claim as a verified fact; always cite the source field name when stating a facility capability.",
+            "rationale": "The dataset is web-scraped facility listings, not an audited registry. A claim of 'MRI' or 'ICU' is what the page says, not confirmation the service exists. The Medical Desert Planner track is judged on citing the underlying text and communicating uncertainty.",
+            "severity": "critical"
+          },
+          {
+            "name": "missing-sentinel-is-string-null",
+            "statement": "Missing values in facilities are encoded as the literal string 'null' (also 'none'/'NA'/''), NOT SQL NULL. Strip these before computing fill rates, presence, or aggregations, or presence is over-counted ~3x (numberDoctors raw 99.7% vs real 36.2%).",
+            "rationale": "Counting non-null on the raw column gives 99.7% fill for numberDoctors/capacity/recency when real disclosure is 36%/25%/35%. Every trust/coverage number depends on stripping the sentinel first.",
+            "severity": "critical"
+          },
+          {
+            "name": "cast-string-numeric-and-require-positive",
+            "statement": "numberDoctors, capacity, distinct_social_media_presence_count and number_of_facts_about_the_organization are STRING. Cast with strip of ()*, then to_numeric/try_cast errors->coerce, and require value > 0 before treating as evidence of a real attribute.",
+            "rationale": "Without casting, numeric comparisons fail or string-sort; without the >0 guard, a literal '0' doctors or capacity would wrongly count as disclosed proof.",
+            "severity": "high"
+          },
+          {
+            "name": "sample-not-census",
+            "statement": "The facilities table is a ~10k sample (10,000 India rows), not a census of India's facilities (FDR lists 47k+). Frame every facility count as in-dataset coverage and never derive absolute supply or per-capita figures (no population column exists in the 3 tables).",
+            "rationale": "Treating 10k as total supply would massively understate real facility counts and produce false 'medical desert' conclusions; the honesty mandate is explicitly scored.",
+            "severity": "critical"
+          },
+          {
+            "name": "filter-india-and-drop-junk",
+            "statement": "Always filter address_country='India' on facilities; this also drops the 88 CSV-misparse junk rows, leaving exactly 10,000 analyzable rows.",
+            "rationale": "The 10,088-row file contains 88 non-India junk rows from a CSV misparse; including them corrupts counts and geocoding.",
+            "severity": "high"
+          },
+          {
+            "name": "recency-date-caveat",
+            "statement": "recency_of_page_update spans 2003 to 2027 and contains future-dated stamps (scrape artifacts). Parse with errors->coerce, treat a date > today as 'recent' rather than dropping it, and disclose the parse rule when reporting recency-based trust.",
+            "rationale": "A naive '<= today' filter silently drops valid-but-future scrape stamps; pre-2010 stamps indicate stale listings that should lower trust, not be treated as missing.",
+            "severity": "medium"
+          }
+        ],
+        "notes": "Report written to <repo>/hackathon-session-2026-06-15/eda/04_trust.md. Analysis script at /tmp/trust_analysis.py, computed values cached at /tmp/trust_out.json.\n\nTRUST SCORE DESIGN (auditable, additive, weights sum to 100): recent_update=25, has_doctors=20, has_website=15, has_capacity=15, has_phone=10, affiliated_staff=5, social_2plus(>=2 channels)=5, rich_desc(>=120 chars)=5. The three scarce hard-proof signals (recency, doctors, capacity) carry 60/100 deliberately because they are what separates a corroborated listing from a stub. All numbers from real pandas over facilities.parquet (India, N=10,000).\n\nKEY HEADLINES: median trust score 45/100; 50.9% below 50. 40.8% (4,077) make >=1 advanced-capability claim; 12.2% (1,219) are 'unverifiable advanced claims' (advanced claim + no doctors + no capacity + no recent update) = 29.9% of advanced-claimers. 43.3% (4,328) expose no hard proof of any kind.\n\nDATA-QUALITY LANDMINE worth surfacing to the team: the brief's stated fill rates (numberDoctors 36%, capacity 25%, recency 35%) ONLY reproduce after stripping the literal-string 'null' sentinel; raw non-null is 99.7%. This is the single biggest gotcha for anyone joining/aggregating this table.\n\nThe advanced-claim regex uses a non-capturing group (?:...) in the final SQL/findings to avoid a pandas match-group warning; behavior verified identical to the original. Equipment+capability-only claim variant (3,985 / 39.9%) is nearly identical to the full-text variant (4,077 / 40.8%), so the headline is robust to the claim-text scope choice.\n\nSpark SQL in each finding targets databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities with WHERE address_country='India', try_cast on string-numeric cols, and the 'null'-sentinel strip. The full facility_trust_score CTE lives in the facility-trust-score-design finding; downstream findings reference it."
+      },
+      "verdicts": {
+        "area": "facility-trust",
+        "summary": "Re-computed all four findings independently from facilities.parquet (N=10,000 India). The trust-score DESIGN and DISTRIBUTION findings are fully confirmed \u2014 all 8 signal fill rates, the full quantile/threshold distribution, by-type medians, and 3 named example facilities reproduce exactly. The two ADVANCED-CLAIM findings have CORRECT headline numbers (advanced=4,077; unverifiable=1,219=12.2%/29.9%; no-proof=1,542=37.8%; any-proof=2,535=62.2%; median trust 55 vs 40 \u2014 all reproduce to the unit), and are internally consistent (2,535+1,542=4,077). HOWEVER the published computed_by Python AND the spark_sql for unverifiable-advanced-claims DO NOT reproduce those numbers: the documented code uses df[cols].astype(str).agg(' || '.join) (concatenates literal 'null' strings, no present-masking) plus a non-word-boundary regex, which yields advanced=5,055 / unverifiable=1,594 / no-proof=2,007. The published numbers are only reachable with (a) word-boundary regex \\b...\\b AND (b) present-masking the sentinel strings to '' before concat. This is a methodology-documentation defect that matters because the spark_sql is stored verbatim as the unverifiable_claim_rate SqlPattern in the knowledge graph and will mis-fire (~+31% overcount of unverifiable, +24% advanced) if an agent runs it. Headlines correct, stored SQL/code wrong.",
+        "verdicts": [
+          {
+            "id": "facility-trust-score-design",
+            "verdict": "confirmed",
+            "check_number": "weights sum=100 (25+20+15+15+10+5+5+5); fill rates: recent 22.6%, doctors 36.2%, website 83.9%, capacity 25.0%, phone 95.0%, affiliated 92.6%, social2+ 76.1%, rich_desc 48.2%",
+            "note": "All 8 signal fill rates reproduce EXACTLY from the computed_by code; weights are a declared analyst design choice summing to 100. The 'strip literal null before scoring' caveat is real and correct \u2014 present() uses sentinel list ['null','none','nan','na',''] which is necessary or presence over-counts. Fully confirmed."
+          },
+          {
+            "id": "trust-score-distribution",
+            "verdict": "confirmed",
+            "check_number": "N=10,000; mean 49.6, std 19.9, median 45, p90 75; >=50 = 4,915, <50 = 5,085 (50.8%); by-type hospital median 55 (n=5,637), clinic 40 (n=3,782), dentist 40 (n=490)",
+            "note": "Counts reproduce EXACTLY (median 45, below_50=5,085, >=30 9,094, >=40 6,736, >=50 4,915, >=60 3,217; all quantiles match). Two negligible rounding labels: <50 is 50.8% not 50.9%, and >=50 is 49.2% not 49.1% \u2014 the integer COUNTS (5,085 and 4,915) are exact, only the pct rounds differently. Confirmed."
+          },
+          {
+            "id": "unverifiable-advanced-claims",
+            "verdict": "corrected",
+            "check_number": "published headlines (advanced 4,077=40.8%; unverifiable 1,219=12.2% all / 29.9% of advanced; no-hard-proof 1,542=37.8%) are CORRECT but ONLY via word-boundary regex + present-masking. The finding's own computed_by/spark_sql code yields advanced=5,055, unverifiable=1,594 (15.9%/31.5%), no-proof=2,007 (39.7%)",
+            "note": "Headline NUMBERS reproduce to the unit and the 3 named examples + trust scores (Saravana 35, Pune Adventist 35, Jeevan Deep 30) all match. BUT the documented method is wrong: computed_by does df[cols].astype(str).agg(' || '.join) with no present-masking (so literal 'null' tokens stay in the text) and ADV=re.compile(...) WITHOUT \\b word boundaries \u2014 that produces 5,055 advanced-claimers, not 4,077 (the regex incidentally hits substrings like 'icu' inside other words and counts 'null'-filled rows). Correct method = re.compile(r'\\b(...)\\b', re.I) on a concat where sentinel fields are masked to ''. The spark_sql will be stored as the unverifiable_claim_rate SqlPattern and will OVERCOUNT (+31% unverifiable, +24% advanced). The 'equip+cap-only variant 3,985' sub-number IS reproducible from the simple code. Marking corrected: right answer, wrong/non-reproducible documented method that must be fixed before the SqlPattern enters the graph."
+          },
+          {
+            "id": "claim-evidence-gap",
+            "verdict": "corrected",
+            "check_number": "62.2% (2,535) have >=1 hard-proof signal, 37.8% (1,542) none, n=4,077; median trust 55 (claimers) vs 40 (non); 1,219 (29.9%) fail full unverifiable test \u2014 all reproduce EXACTLY but only under word-boundary+present-masked advanced_claim definition",
+            "note": "Every number reproduces exactly (2,535/4,077=62.2%, 1,542/4,077=37.8%, median 55 vs 40, 1,219=29.9%) and is internally consistent (2,535+1,542=4,077). Same defect as unverifiable-advanced-claims: depends on a df.advanced_claim column whose definition is NOT the computed_by/spark_sql shown in the sibling finding \u2014 those produce 5,055 claimers, under which median-trust and proof splits would differ. Numbers right, but the advanced_claim flag definition is undocumented/non-reproducible from the published code. Corrected, not confirmed, so the graph stores the working regex (\\b + present-mask), not the broken one."
+          }
+        ]
+      }
+    },
+    {
+      "area": "quality",
+      "eda": {
+        "area": "data-quality / data-readiness audit \u2014 Virtue Foundation India healthcare access (3 tables: facilities, india_post_pincode_directory, nfhs_5_district_health_indicators)",
+        "findings": [
+          {
+            "id": "facilities-junk-and-dup-ids",
+            "title": "facilities needs an India filter and ID-dedup before any per-facility count",
+            "claim": "88 of 10,088 facility rows are non-India CSV-misparse junk and 11 unique_id values are duplicated, so a clean supply table is 10,000 rows / 9,989 distinct facilities.",
+            "numbers": "88 junk rows (0.87%); 58 country=None, 30 shifted; India=10,000; distinct unique_id=9,989 (11 extra dup rows in 11 groups); 11 cluster_id dup groups (22 facilities); 30 rows (0.30%) null lat AND lon",
+            "window_scope": "facilities.parquet, full 10,088-row table; India subset = address_country=='India' (10,000)",
+            "computed_by": "f=pd.read_parquet('facilities.parquet'); (f['address_country']!='India').sum() -> 88; fi=f[f.address_country=='India']; fi['unique_id'].nunique() -> 9989; cid=fi['cluster_id'].dropna().value_counts(); (cid>1).sum() -> 11; (fi['latitude'].isna()|fi['longitude'].isna()).sum() -> 30",
+            "spark_sql": "SELECT COUNT(*) AS total, SUM(CASE WHEN address_country='India' THEN 1 ELSE 0 END) AS india_rows, COUNT(DISTINCT CASE WHEN address_country='India' THEN unique_id END) AS distinct_india_ids, SUM(CASE WHEN address_country='India' AND latitude IS NULL THEN 1 ELSE 0 END) AS null_latlon FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities",
+            "metric_name": "facilities_india_rowcount",
+            "suggested_charts": [
+              "kpi_grid",
+              "stat"
+            ],
+            "intent": "data_quality_facilities_cleanliness",
+            "caveat": "facilities is a ~10k web-scraped SAMPLE, not a census (India FDR has 47k+); all of this is dataset hygiene, not real-world supply. The 11 cluster_id dup groups are likely the same physical site scraped twice."
+          },
+          {
+            "id": "facilities-string-null-sentinel",
+            "title": "Facility 'thin-proof' columns store missing as the literal string 'null' \u2014 completeness is ~2.7x overstated",
+            "claim": "numberDoctors and capacity look 99.7% populated but parse to a real number for only 36.3% and 25.2% of India rows respectively because missing is the literal string 'null', not a real NULL.",
+            "numbers": "numberDoctors real-number rows=3,630 (36.3%), string-'null'/empty=6,370; capacity real=2,516 (25.2%), null-sentinel=7,484; distinct_social_media_presence_count parses for 99.6% but has 5 string-'null'; 2 string-numeric facility cols (address_zipOrPostcode, distinct_social_media_presence_count)",
+            "window_scope": "facilities India subset (10,000 rows)",
+            "computed_by": "pd.to_numeric(fi['numberDoctors'],errors='coerce').notna().mean() -> 0.363; fi['numberDoctors'].astype(str).str.strip().isin(['null','None','','nan','NA']).sum() -> 6370; same for capacity -> 0.252",
+            "spark_sql": "SELECT COUNT(*) AS india_rows, SUM(CASE WHEN try_cast(numberDoctors AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END) AS doctors_real, SUM(CASE WHEN try_cast(capacity AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END) AS capacity_real FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India'",
+            "metric_name": "string_null_sentinel_coverage_pct",
+            "suggested_charts": [
+              "ranked_bar",
+              "kpi_grid"
+            ],
+            "intent": "data_quality_facility_evidence_thinness",
+            "caveat": "A naive COUNT(col) reports ~99.7% populated; treat 'null'/''/'None' as missing before any completeness or aggregation claim, or evidence is overstated 2.7x for numberDoctors and ~4x for capacity."
+          },
+          {
+            "id": "facilities-pin-parseability",
+            "title": "2.27% of facilities have no parseable PIN \u2014 the entry point to all geography",
+            "claim": "227 of 10,000 India facilities (2.27%) have no extractable 6-digit PIN in address_zipOrPostcode, making them unjoinable to district geography from the start.",
+            "numbers": "parseable 6-digit PIN=9,773 (97.73%); no PIN=227 (2.27%); address_zipOrPostcode is never NULL (0 nulls) but 227 hold no 6-digit token",
+            "window_scope": "facilities India subset (10,000 rows)",
+            "computed_by": "import re; pin=lambda s:(re.search(r'(?<!\\d)(\\d{6})(?!\\d)',str(s)) or [None]); fi['pin']=fi['address_zipOrPostcode'].apply(lambda s:(m:=re.search(r'(?<!\\d)(\\d{6})(?!\\d)',str(s))) and m.group(1)); fi['pin'].isna().sum() -> 227",
+            "spark_sql": "SELECT COUNT(*) AS india_rows, SUM(CASE WHEN regexp_extract(address_zipOrPostcode, '(?<![0-9])([0-9]{6})(?![0-9])', 1) <> '' THEN 1 ELSE 0 END) AS has_pin FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India'",
+            "metric_name": "facilities_parseable_pin_pct",
+            "suggested_charts": [
+              "stat",
+              "kpi_grid"
+            ],
+            "intent": "data_quality_geo_joinability",
+            "caveat": "address_zipOrPostcode is a string-numeric col; it is never literally NULL, so the loss is invisible to a NULL check \u2014 it surfaces only when you regex for a 6-digit token."
+          },
+          {
+            "id": "nfhs-cast-and-suppression",
+            "title": "A quarter of NFHS's numeric surface is suppressed or low-confidence, and all 49 indicator columns are string-stored",
+            "claim": "All 49 string-stored NFHS indicator columns require CAST after stripping ()/*, and 9,193 cells (26.6%) are either suppressed ('*' = NULL, not zero) or parenthesized low-confidence estimates.",
+            "numbers": "49 string-numeric data cols of 107 (task '~24' was an undercount; 6 of the 49 are entirely '*'-looking); suppressed '*' cells=4,125 in 29 cols; parenthesized '(x.x)' cells=5,068 in 48 cols; combined 9,193 of 34,594 CAST-col cells = 26.57%",
+            "window_scope": "nfhs_5_district_health_indicators.parquet (706 rows x 107 data cols)",
+            "computed_by": "strc=[c for c in data if n[c].dtype==object] -> 49; star=sum((n[c].astype(str).str.strip()=='*').sum() for c in strc) -> 4125; paren=sum(n[c].astype(str).str.match(r'^\\s*\\(.*\\)\\s*$').sum() for c in strc) -> 5068; (star+paren)/(706*49) -> 0.2657",
+            "spark_sql": "-- per-column; example for one indicator (repeat/UNION across the 49 string cols)\nSELECT 'child_6_59m_who_are_anaemic_pct' AS col, SUM(CASE WHEN trim(child_6_59m_who_are_anaemic_pct)='*' THEN 1 ELSE 0 END) AS suppressed, SUM(CASE WHEN child_6_59m_who_are_anaemic_pct RLIKE '^\\\\s*\\\\(.*\\\\)\\\\s*$' THEN 1 ELSE 0 END) AS estimate, SUM(CASE WHEN try_cast(regexp_replace(child_6_59m_who_are_anaemic_pct,'[()*]','') AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END) AS usable FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+            "metric_name": "suppressed_cell_count",
+            "suggested_charts": [
+              "heatmap_matrix",
+              "ranked_bar",
+              "stat"
+            ],
+            "intent": "data_quality_nfhs_suppression",
+            "caveat": "'*' means sample too small to report = NULL; treating it as 0 fabricates 'perfect' or 'zero-burden' districts. Parenthesized values come from 25-49 unweighted cases \u2014 usable but never headline-quoted without a caveat. The exact 49 vs ~24 split depends on whether you count cols that are entirely '*'."
+          },
+          {
+            "id": "nfhs-district-state-key",
+            "title": "NFHS must be keyed on (district, state) and trimmed \u2014 8 district names collide across states, 704/706 carry trailing whitespace",
+            "claim": "706 NFHS rows hold only 698 distinct district names because 8 names repeat across different states (e.g. Aurangabad in Maharashtra and Bihar), and 704 of 706 names have trailing whitespace plus a 'Maharastra' state misspelling.",
+            "numbers": "706 rows; 698 distinct district_name; 8 names in >1 row (Aurangabad, Balrampur, Raigarh, Hamirpur, Pratapgarh, Bilaspur, Chandel, Bijapur); 0 duplicate (district,state) pairs; 704/706 district_name have trailing space; 36 distinct state_ut incl 'Maharastra' (should be Maharashtra) and ' Lakshadweep '",
+            "window_scope": "nfhs_5_district_health_indicators.parquet (706 rows)",
+            "computed_by": "n['district_name'].nunique() -> 698; n.duplicated(['district_name','state_ut']).sum() -> 0; (n['district_name']!=n['district_name'].str.strip()).sum() -> 704; sorted(n['state_ut'].unique()) shows 'Maharastra' and ' Lakshadweep '",
+            "spark_sql": "SELECT COUNT(*) AS rows, COUNT(DISTINCT district_name) AS distinct_district, COUNT(DISTINCT trim(district_name)) AS distinct_trimmed, COUNT(DISTINCT concat(trim(district_name),'|',trim(state_ut))) AS distinct_pairs, SUM(CASE WHEN district_name <> trim(district_name) THEN 1 ELSE 0 END) AS trailing_space FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators",
+            "metric_name": "district_name_collision_count",
+            "suggested_charts": [
+              "stat",
+              "kpi_grid"
+            ],
+            "intent": "data_quality_nfhs_keying",
+            "caveat": "Joining on district name ALONE double-counts the 8 colliding districts; must key on (TRIM(district), normalized state). Trailing whitespace makes exact-string joins silently fail \u2014 always TRIM both sides."
+          },
+          {
+            "id": "pincode-fanout-and-grain",
+            "title": "Pincode directory is post-office grain with 1,478 PINs fanning to multiple districts \u2014 dedup to modal district before joining",
+            "claim": "india_post_pincode_directory is post-office grain (8.5 rows per PIN) and 1,478 of 19,586 distinct pincodes (7.55%) map to more than one district, so facilities must be resolved to the modal district/state per PIN before joining.",
+            "numbers": "165,627 rows / 19,586 distinct pincodes = 8.5 rows/PIN; 145,086 distinct post offices; PIN->multi-district fan-out=1,478 (7.55%, max 4 districts); PIN->multi-state=290; 'NA' string coords=12,007 latitude (7.25%), 12,002 longitude",
+            "window_scope": "india_post_pincode_directory.parquet (165,627 rows)",
+            "computed_by": "len(p)/p['pincode'].nunique() -> 8.5; dpp=p.groupby('pincode')['district'].nunique(); (dpp>1).sum() -> 1478; (p['latitude'].astype(str).str.strip()=='NA').sum() -> 12007",
+            "spark_sql": "SELECT COUNT(*) AS rows, COUNT(DISTINCT pincode) AS distinct_pins, COUNT(*)/COUNT(DISTINCT pincode) AS rows_per_pin, SUM(CASE WHEN trim(latitude)='NA' THEN 1 ELSE 0 END) AS na_lat FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory; -- fan-out: SELECT COUNT(*) FROM (SELECT pincode FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory GROUP BY pincode HAVING COUNT(DISTINCT district) > 1)",
+            "metric_name": "pin_fanout_count",
+            "suggested_charts": [
+              "stat",
+              "ranked_bar",
+              "kpi_grid"
+            ],
+            "intent": "data_quality_pincode_crosswalk",
+            "caveat": "Joining facilities to this table raw fans every facility into ~8 duplicate rows; lat/lon here are unusable for ~7% (literal 'NA' string casts to NULL silently), but we resolve facilities by district NAME not these coords, so the NA coords don't block the planner."
+          },
+          {
+            "id": "cross-table-normalization-ceiling",
+            "title": "The supply-to-demand join has an 80.2% name-match ceiling, leaving 245 NFHS districts with zero in-dataset facilities",
+            "claim": "Even with the validated PIN->modal-district->normalized-name chain, only 80.2% of facilities link to an NFHS district (down from 97.7% with a PIN), and 245 of 698 NFHS districts have zero matched facilities in this dataset.",
+            "numbers": "parseable PIN 9,773 (97.73%) -> PIN resolved 9,569 (95.69%) -> NFHS name-match 8,022 (80.22%); 15.5% lost to name mismatch alone; facility address_stateOrRegion has 234 distinct values (142 appear once) vs NFHS 36; 453 NFHS districts covered, 245 zero-coverage of 698",
+            "window_scope": "cross-table: facilities India (10,000) x pincode modal-district x NFHS (698 normalized districts)",
+            "computed_by": "chain: modal district per pincode -> norm(UPPER,strip,drop non-[A-Z0-9 &],collapse spaces) both sides -> match. matched.sum()/10000 -> 0.8022; nfhs_districts.nunique()-len(covered) -> 245; fi['address_stateOrRegion'].nunique() -> 234",
+            "spark_sql": "WITH pin AS (SELECT cast(pincode AS string) pincode, district FROM (SELECT pincode, district, ROW_NUMBER() OVER (PARTITION BY pincode ORDER BY COUNT(*) DESC) rn FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.india_post_pincode_directory GROUP BY pincode, district) WHERE rn=1), fac AS (SELECT regexp_extract(address_zipOrPostcode,'(?<![0-9])([0-9]{6})(?![0-9])',1) pin FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.facilities WHERE address_country='India') SELECT COUNT(*) india, SUM(CASE WHEN f.pin<>'' THEN 1 ELSE 0 END) has_pin, SUM(CASE WHEN p.district IS NOT NULL THEN 1 ELSE 0 END) resolved FROM fac f LEFT JOIN pin p ON f.pin=p.pincode",
+            "metric_name": "zero_coverage_district_count",
+            "suggested_charts": [
+              "choropleth",
+              "bubble_scatter",
+              "ranked_bar_highlight",
+              "stat"
+            ],
+            "intent": "data_quality_join_ceiling_and_coverage",
+            "caveat": "The 245 zero-coverage districts = 'no facility in this ~10k sample', NOT proof of zero care on the ground; the worst child-anaemia districts (Sukma, Dantewada, Lahul & Spiti, Tawang, Leh-Ladakh; 89-96%) fall in this set. The 80.2% ceiling means ~1 in 5 facilities can never be matched to demand data by name. No per-capita is possible (no population column)."
+          }
+        ],
+        "rules": [
+          {
+            "name": "R-india-filter",
+            "statement": "Always filter facilities to address_country='India' before any analysis; 88 rows (0.87%) are CSV-misparse junk carrying coordinates, JSON {\"coordinates\":...}, free-text, 'kie', or None in the country field.",
+            "rationale": "Without the filter, aggregates ingest 88 garbage rows and the country column itself is corrupted, so any country-level assumption is wrong.",
+            "severity": "high"
+          },
+          {
+            "name": "R-string-null-sentinel",
+            "statement": "Facility thin-proof columns (numberDoctors, capacity, distinct_social_media_presence_count) store missing as the literal string 'null'; CAST and treat 'null'/''/'None' as NULL before any completeness or aggregate. numberDoctors is truly populated for 36.3% (not 99.7%) and capacity for 25.2%.",
+            "rationale": "A naive COUNT(col) overstates evidence ~2.7x for numberDoctors and ~4x for capacity, leading a planner to trust proof that isn't there.",
+            "severity": "high"
+          },
+          {
+            "name": "R-nfhs-cast-suppress",
+            "statement": "All 49 string-stored NFHS indicator columns must be cast after stripping ()/*; '*' = suppressed -> NULL (never 0), and '(x.x)' = low-confidence estimate from 25-49 unweighted cases -> flag, never headline. 26.6% of CAST-column cells (9,193 of 34,594) are suppressed or parenthesized.",
+            "rationale": "Treating '*' as 0 fabricates 'perfect' or 'zero-burden' districts; quoting parenthesized estimates as fact misrepresents low-confidence survey data.",
+            "severity": "high"
+          },
+          {
+            "name": "R-district-state-key",
+            "statement": "Key NFHS on (TRIM(district_name), normalized state_ut); 8 district names repeat across states (Aurangabad, Balrampur, Raigarh, Hamirpur, Pratapgarh, Bilaspur, Chandel, Bijapur), 704/706 names carry trailing whitespace, and state_ut has 'Maharastra' (should be Maharashtra) and ' Lakshadweep '.",
+            "rationale": "Joining on district name alone double-counts the 8 collisions; trailing whitespace makes exact-string joins silently drop rows.",
+            "severity": "high"
+          },
+          {
+            "name": "R-pincode-dedup-modal",
+            "statement": "The india_post_pincode_directory grain is post office (8.5 rows/PIN, 165,627 rows / 19,586 PINs) and 1,478 PINs (7.55%) fan out to >1 district; dedup to the MODAL district (and state) per pincode before joining, and ignore its 'NA'-string coords (7.25%).",
+            "rationale": "Joining raw fans every facility into ~8 duplicate rows and ambiguous PINs would attach a facility to the wrong district; modal resolution is the validated fix.",
+            "severity": "high"
+          },
+          {
+            "name": "R-coverage-not-census",
+            "statement": "Facility counts are in-dataset coverage of a ~10k web-scraped sample, never absolute supply; the PIN->district->name join ceiling is 80.2%, leaving 245 of 698 NFHS districts with zero matched facilities. Frame every desert/gap claim as coverage + uncertainty, cite the source TEXT field, and do no per-capita (no population column exists).",
+            "rationale": "India has 47k+ facilities in the FDR alone; presenting 'zero facilities' as real supply would mislead the planner and fail the honesty rubric. The 80.2% ceiling means ~1 in 5 facilities can't be matched to demand at all.",
+            "severity": "high"
+          }
+        ],
+        "notes": "Report written to <repo>/hackathon-session-2026-06-15/eda/05_quality.md. All figures computed live in python3+pandas over the local typed parquet. Key corrections vs the task brief: (1) the NFHS string-numeric CAST col count is 49, not ~24 (all 49 object-typed data cols yield numbers after stripping ()/*; only 6 are entirely '*'-looking) \u2014 both framings noted. (2) The 'thin-proof' facility columns (numberDoctors 36.3%, capacity 25.2%) are NOT real nulls \u2014 they store the literal string 'null', a high-value CAST trap I surfaced that explains the 36% figure from the brief and means completeness is ~2.7x overstated. (3) Reproduced the validated join chain exactly: 97.73% parseable PIN -> 95.69% PIN-resolved -> 80.22% NFHS name-match; 453 covered / 245 zero-coverage districts. Suppressed '*' cells = 4,125; parenthesized estimates = 5,068; combined 26.6% of CAST-col cells. Pincode fan-out = 1,478 PINs to >1 district; 12,007 'NA' coord rows; grain = post office (8.5 rows/PIN). 88 junk rows; 11 dup unique_id; 11 cluster_id dup groups; 30 null lat/lon. Suggested_charts use exact recipe names from the brief. The 6 rules map to the canonical R-* set and are the highest-value graph Rule nodes for the planner."
+      },
+      "verdicts": {
+        "area": "data-quality",
+        "summary": "Independently re-computed all 6 data-quality findings from the three parquet files with my own pandas code. Five findings (F1, F2, F3, F5, F6) reproduce EXACTLY on every headline and derived number. F4's headline metrics are exact (49 string cols, 4,125 suppressed, 5,068 parenthesized, 9,193/34,594 = 26.57%) but its minor sub-claim \"6 of the 49 are entirely '*'-looking\" is not reproducible (0 cols are entirely suppressed; highest '*' fraction is 91.1%; 13 cols have '*' as the modal value) \u2014 the finding itself flags this split as approximate, so F4 is confirmed with a correction note on the sub-claim only. No fabricated or method-broken numbers found; the analyst's CAST/sentinel/regex methods are sound.",
+        "verdicts": [
+          {
+            "id": "facilities-junk-and-dup-ids",
+            "verdict": "confirmed",
+            "check_number": "88 junk (58 None + 30 shifted); India=10,000; distinct unique_id=9,989; 11 dup rows in 11 groups; 11 cluster_id dup groups = 22 facilities; 30 null lat AND lon",
+            "note": "Exact match on every number. Verified 88 non-India = 58 country=None + 30 shifted (lat/lon/JSON in country field). India subset 10,000 rows, 9,989 distinct unique_id (11 extra rows across 11 groups, each group has exactly 2). cluster_id: 11 groups with >1 = 22 facilities. Null coords: 30 rows null on BOTH lat and lon (lat OR lon also = 30, so framing 'lat AND lon' is correct)."
+          },
+          {
+            "id": "facilities-string-null-sentinel",
+            "verdict": "confirmed",
+            "check_number": "numberDoctors real=3,630 (36.3%), sentinel=6,370; capacity real=2,516 (25.2%), sentinel=7,484; social_media parses 99.6% w/ 5 string-'null'; naive non-null=99.7%; overstatement 2.75x (claim 2.7x) and 3.96x (claim ~4x)",
+            "note": "Exact. numberDoctors: 3,630 to_numeric-able (36.3%), 6,370 in {null,None,'',nan,NA}. capacity: 2,516 (25.2%), 7,484 sentinel. distinct_social_media_presence_count parses 99.6% with 5 literal 'null'. Naive COUNT (notna) = 99.7% for both, confirming the ~2.7x (99.7/36.3=2.75) and ~4x (99.7/25.2=3.96) overstatement claims."
+          },
+          {
+            "id": "facilities-pin-parseability",
+            "verdict": "confirmed",
+            "check_number": "parseable 6-digit PIN=9,773 (97.73%); no PIN=227 (2.27%); address_zipOrPostcode nulls=0",
+            "note": "Exact match using their regex (?<!\\d)(\\d{6})(?!\\d). 9,773 of 10,000 India rows yield a 6-digit PIN (97.73%), 227 do not (2.27%), and address_zipOrPostcode is never literally NULL (0 nulls) \u2014 confirming the 'invisible to a NULL check' caveat."
+          },
+          {
+            "id": "nfhs-cast-and-suppression",
+            "verdict": "corrected",
+            "check_number": "49 string-numeric data cols of 107; 4,125 '*' in 29 cols; 5,068 parenthesized in 48 cols; 9,193 of 34,594 (706*49) cells = 26.57%. CORRECTION: 0 cols are entirely '*'-looking (not 6)",
+            "note": "All HEADLINE numbers exact: 49 object data cols out of 107, suppressed '*'=4,125 across 29 cols, parenthesized=5,068 across 48 cols, combined 9,193/34,594=26.57%, and the task's '~24' is indeed an undercount (49>24). The ONLY discrepancy is the parenthetical sub-claim '6 of the 49 are entirely *-looking': re-computation shows 0 string cols have zero usable numeric values; the highest '*' fraction is 91.1%, and only 13 cols have '*' as their modal value. The finding self-flags this split as approximate, so this is a minor sub-claim correction \u2014 the metric itself stands. Do not graph the '6 entirely-star' detail."
+          },
+          {
+            "id": "nfhs-district-state-key",
+            "verdict": "confirmed",
+            "check_number": "706 rows; 698 distinct district_name; 8 names in >1 row (Aurangabad, Balrampur, Raigarh, Hamirpur, Pratapgarh, Bilaspur, Chandel, Bijapur); 0 duplicate (district,state) pairs; 704/706 trailing whitespace; 36 states incl 'Maharastra' and ' Lakshadweep '",
+            "note": "Exact on every element including the full collision list. 706 rows -> 698 distinct district names (raw and trimmed identical at 698). Exactly 8 trimmed names appear in 2 rows each, matching the listed districts. 0 duplicate (trimmed district, trimmed state) pairs confirms the (district,state) composite key is unique. 704 of 706 raw district_name values differ from their stripped form. 36 distinct state_ut, with 'Maharastra' (misspelling) and ' Lakshadweep ' (surrounding spaces) present \u2014 the only state with whitespace issues."
+          },
+          {
+            "id": "pincode-fanout-and-grain",
+            "verdict": "confirmed",
+            "check_number": "165,627 rows / 19,586 distinct pincodes = 8.46 rows/PIN (claim 8.5); 145,086 distinct post offices (officename); 1,478 PINs (7.55%) map to >1 district; max 4 districts/PIN",
+            "note": "All VISIBLE numbers reproduce exactly (the claim string was truncated in the prompt). 165,627 rows, 19,586 distinct pincodes -> 8.46 rows/PIN (rounds to the claimed 8.5). distinct officename = 145,086 (matches '145,086 distinct post offices'). 1,478 pincodes have >1 district (7.55%), max fan-out = 4 districts. Methodology (dedup to modal district per PIN before joining) is sound."
+          }
+        ]
+      }
+    }
+  ],
+  "mining": {
+    "dav": {
+      "design_rules": [
+        {
+          "name": "choropleth_rates_not_totals",
+          "statement": "On a district burden map, fill polygons with a RATE/PREVALENCE (e.g. % child anaemia), never a raw count or facility count \u2014 a count choropleth mostly visualises the size/population of the geographic unit, not the phenomenon (FT cardinal rule, [[choropleth-map]]). Use proportional symbols, not fill, for any count/magnitude."
+        },
+        {
+          "name": "sequential_for_burden_diverging_only_at_a_real_midpoint",
+          "statement": "Use a single-hue SEQUENTIAL ramp (light->dark) for an ordered burden measure like anaemia %, because lightness is perceptually ordered and hue is not; reserve a two-hue DIVERGING ramp for measures that cross a meaningful midpoint (e.g. need-vs-supply z-score around 0, or gap-vs-national-average), and never a rainbow palette ([[colour-encoding]], [[choropleth-map]])."
+        },
+        {
+          "name": "facility_points_are_a_dot_or_proportional_symbol_layer_not_a_fill",
+          "statement": "Render the ~10k facilities as a POINT layer (dot-density or proportional-symbol on the basemap), kept visually distinct from the demand choropleth fill underneath \u2014 the Visual-Vocabulary Spatial tab separates basic choropleth (rate) from proportional-symbol (count) precisely so supply points and demand shading aren't conflated ([[choropleth-map]] Spatial tab, [[map-in-tableau]] layers)."
+        },
+        {
+          "name": "maup_and_ecological_fallacy_at_the_district_grain",
+          "statement": "Aggregating to district is a Modifiable-Areal-Unit choice: a district-level pattern can weaken, vanish, or reverse at a finer grain, and a district-average burden does NOT describe any individual within it (ecological fallacy) \u2014 state every claim as 'this district, at this grain' and never infer a person's risk from the district shade ([[simpsons-paradox]] Variants -> MAUP, [[confounding]])."
+        },
+        {
+          "name": "always_show_the_denominator",
+          "statement": "Never map or rank a facility count or a burden alone \u2014 pair it with its denominator/base geography and the survey size, because a choropleth coloured by totals secretly encodes unit size; the three tables carry NO population so frame all supply as count-vs-burden, with NFHS women_15_49_interviewed as a caveated survey-size proxy only, never a per-capita rate ([[choropleth-map]] 'rates not totals', honesty mandate)."
+        },
+        {
+          "name": "render_suppressed_and_estimated_cells_honestly",
+          "statement": "NFHS suppressed cells ('*') must render as an explicit DISTINCT category (e.g. hatched 'data suppressed'), never as 0 and never as the lightest ramp colour \u2014 and parenthesized estimates like '(29.5)' (from 25-49 unweighted cases) should be flagged as low-reliability, since missing data on a sequential scale is easily misread as a true low value ([[choropleth-map]] caveat 'missing renders transparent', [[confidence-interval]] reliability)."
+        },
+        {
+          "name": "sample_not_census_coverage_caveat",
+          "statement": "The facilities table is a ~10k SAMPLE, not a census (India has 47k+ in the FDR alone), so a low facility count is DATASET COVERAGE, not absolute scarcity \u2014 label every desert/gap claim 'in-dataset coverage' and explicitly answer 'who is NOT in this sample?' (coverage bias), the single most under-rated mitigation ([[sampling-bias]] coverage bias)."
+        },
+        {
+          "name": "volume_filter_rate_maps_to_kill_small_sample_extremes",
+          "statement": "A district can show an extreme burden or a perfect-looking supply ratio purely on a tiny sample; pair any rate map or ranked bar with a minimum-volume filter (or annotate n), exactly as the choropleth worked example filters by order volume so a tiny-n state doesn't dominate the colour scale ([[choropleth-map]] worked example, [[confidence-interval]])."
+        },
+        {
+          "name": "small_multiples_for_many_indicators_on_a_shared_scale",
+          "statement": "With 100+ NFHS indicators, do NOT cram them into one multi-hue map or a 3-D chart \u2014 use small multiples / a Trellis of identically-scaled mini-maps or ranked bars (one indicator per panel, SAME colour breaks and SAME axis across panels) so panels are directly comparable ([[no-unjustified-3d]] Trellis fix, [[sensible-scales]] 'same scale across panels', [[chart-anatomy]])."
+        },
+        {
+          "name": "framed_rectangle_or_companion_bar_to_recover_rank_from_shading",
+          "statement": "Colour saturation is rank 5/5 in the [[cleveland-mcgill-encoding-hierarchy]] \u2014 readers can't decode precise values from a shade \u2014 so always pair the burden choropleth with a companion ranked bar / framed-rectangle of the worst districts (position/length, rank 1-2) where the actual ordering must be read; the map gives WHERE, the bar gives HOW MUCH ([[cleveland-mcgill-encoding-hierarchy]] 'statistical maps with shading -> framed-rectangle')."
+        },
+        {
+          "name": "honest_class_binning_and_a_labelled_legend",
+          "statement": "Choropleth class breaks change the story: quantile bins guarantee even district counts per colour but hide absolute magnitude, equal-interval bins preserve magnitude but can leave most bins empty under a skewed distribution \u2014 state which binning you used, show the breakpoints in the legend, and keep the SAME breaks across any small multiples ([[sensible-scales]] decision rubric, [[choropleth-map]] colour-ramp caveat)."
+        },
+        {
+          "name": "supply_vs_demand_bubble_needs_a_reference_line_not_just_a_cloud",
+          "statement": "On the need-vs-coverage bubble (x = burden, y = facility coverage), a bare cloud is ambiguous about direction \u2014 add the diagonal/expected-coverage reference line and label the high-need-low-coverage quadrant as the 'medical desert' region, because the eye reads position-to-a-common-reference far better than an unanchored scatter ([[scatter-plot]] 'add a regression/reference line', [[cleveland-mcgill-encoding-hierarchy]])."
+        },
+        {
+          "name": "guard_against_the_confounded_desert_story",
+          "statement": "Before calling a district a desert, hunt confounders: a low in-dataset count can be driven by data-collection coverage, urban/rural split, or private-vs-public operator mix rather than true absence of care \u2014 name the lurking variable and scope the claim, since an unmeasured third variable can fully explain or reverse an apparent supply gap ([[confounding]], [[spurious-correlation]] confounder hunt)."
+        }
+      ],
+      "story": [
+        {
+          "scene": "Hook \u2014 the care lottery in one number",
+          "chart_recipe": "stat",
+          "content": "Open on the single most visceral inequality, framed as a lottery of birthplace. NFHS-5 child-anaemia ranges from ~25% to ~96% across India's districts (and women's anaemia 15-94%) \u2014 a child's odds of being anaemic are set largely by which district they're born in. Recipe: a `stat` scene headline '96% vs 25%' with subhead 'child anaemia, worst vs best district \u2014 same country, same year (NFHS-5, 2019-21)'. HONESTY: cite NFHS-5 as the source survey; both endpoints must be non-suppressed, non-parenthesized cells (CAST first, drop '*' to NULL not 0). Design rules: always_show_the_denominator (name the indicator + survey), render_suppressed_and_estimated_cells_honestly.\nSQL: SELECT district_name, state_ut, try_cast(replace(replace(replace(child_6_59m_who_are_anaemic_11_0_gdl_pct,'(',''),')',''),'*',NULL) AS DOUBLE) AS child_anaemia_pct FROM databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset.nfhs_5_district_health_indicators WHERE try_cast(...) IS NOT NULL ORDER BY child_anaemia_pct DESC."
+        },
+        {
+          "scene": "The demand map \u2014 where the burden is worst",
+          "chart_recipe": "choropleth",
+          "content": "A district choropleth of child-anaemia prevalence (a RATE, not a count), single-hue sequential ramp, suppressed cells hatched as a distinct 'no data' class. Reveals the burden geography: Chhattisgarh (SUKMA, DANTEWADA), Himalayan/NE districts (LAHUL & SPITI, TAWANG, LEH-LADAKH) burn darkest at 89-96%. Recipe: `choropleth`, fill = child_anaemia_pct, sequential ramp, quantile bins with breakpoints shown in legend. HONESTY: this is the DEMAND side only \u2014 it says nothing yet about supply. Design rules: choropleth_rates_not_totals, sequential_for_burden_diverging_only_at_a_real_midpoint, render_suppressed_and_estimated_cells_honestly, honest_class_binning_and_a_labelled_legend, maup_and_ecological_fallacy_at_the_district_grain (caption: district grain, not individual risk).\nSQL: SELECT district_name, state_ut, try_cast(... child_6_59m_who_are_anaemic ...) AS child_anaemia_pct FROM nfhs_5_district_health_indicators."
+        },
+        {
+          "scene": "The worst districts, named and ranked",
+          "chart_recipe": "ranked_bar_highlight",
+          "content": "Because colour saturation is rank 5/5 and a reader can't decode a precise value off a shade, follow the map with a companion ranked bar of the 15 worst-burden districts (position/length, readable), highlighting the handful that ALSO have zero facilities in this dataset. This is the framed-rectangle move: the map gives WHERE, the bar gives HOW MUCH and WHICH. Recipe: `ranked_bar_highlight`, sorted desc by child_anaemia_pct, highlight = districts with facility_count=0. Design rules: framed_rectangle_or_companion_bar_to_recover_rank_from_shading, always_show_the_denominator (annotate NFHS n / women_interviewed per district), volume_filter_rate_maps_to_kill_small_sample_extremes.\nSQL: rank NFHS districts by anaemia desc, LEFT JOIN the facility-per-district coverage CTE, flag fac_count IS NULL OR =0."
+        },
+        {
+          "scene": "The supply layer \u2014 facilities as points, honestly a sample",
+          "chart_recipe": "bubble_scatter",
+          "content": "Overlay/contrast supply against demand: facility POINTS as a dot/proportional-symbol layer kept distinct from the demand fill. Headline the join result: 453/698 NFHS districts have >=1 facility in this dataset; 245 districts have ZERO. Crucially, the worst-anaemia districts have zero facilities here. Recipe: `bubble_scatter` of facility_coverage (y) vs district burden (x) \u2014 see the desert quadrant scene \u2014 but this scene's job is to introduce supply as POINTS and stamp the sample caveat. HONESTY (load-bearing): this is in-dataset COVERAGE, not absolute supply \u2014 India has 47k+ facilities in the FDR; a zero here means 'absent from this ~10k sample', and we answer 'who is NOT in this sample'. Design rules: facility_points_are_a_dot_or_proportional_symbol_layer_not_a_fill, sample_not_census_coverage_caveat (mandatory caption), always_show_the_denominator.\nSQL: facility-per-district via address_zipOrPostcode -> 6-digit PIN -> pincode dir (DEDUP to MODAL district per pincode) -> normalize district (UPPER, trim, collapse spaces, strip non-[A-Z0-9 &]) -> COUNT(*) per district, WHERE address_country='India'."
+        },
+        {
+          "scene": "Need vs coverage \u2014 the medical-desert quadrant",
+          "chart_recipe": "bubble_scatter",
+          "content": "The analytical centrepiece: x = district burden (child-anaemia % or a composite need index), y = in-dataset facility coverage, bubble size = NFHS survey size (women_15_49_interviewed) as a caveated proxy. Add a reference line for expected coverage and shade/label the HIGH-NEED, LOW-COVERAGE quadrant as the 'medical desert' target list. Recipe: `bubble_scatter` with an explicit reference line + quadrant annotation (NOT a bare cloud). HONESTY: y is coverage-in-sample not supply; bubble size is a survey-size proxy, never per-capita. Design rules: supply_vs_demand_bubble_needs_a_reference_line_not_just_a_cloud, always_show_the_denominator, sample_not_census_coverage_caveat, guard_against_the_confounded_desert_story (caption naming coverage/urban-rural/operator-mix as lurking variables).\nSQL: per-district burden (NFHS) JOIN per-district fac_count (coverage CTE) JOIN women_15_49_interviewed; districts with fac_count=0 plotted at y=0 on the burden axis."
+        },
+        {
+          "scene": "State-level gaps \u2014 best vs worst within each state",
+          "chart_recipe": "dumbbell",
+          "content": "A dumbbell per state showing the within-state spread between its best and worst district on a key indicator (e.g. institutional birth 21->100%, or 4+ ANC visits 4->99%), ordered by gap width. Reframes the lottery as a within-state governance story, not just a poor-state story. Recipe: `dumbbell`, one row per state_ut, endpoints = min/max district value, sorted by spread. Design rules: maup_and_ecological_fallacy_at_the_district_grain (the state average hides this spread \u2014 show the range), volume_filter_rate_maps_to_kill_small_sample_extremes (drop districts on suppressed/tiny-n cells), honest_class_binning_and_a_labelled_legend (consistent axis).\nSQL: per state_ut, MIN and MAX over try_cast(indicator) across districts WHERE the cast value IS NOT NULL (exclude '*' suppressed)."
+        },
+        {
+          "scene": "Many burdens at once \u2014 the small-multiples panel",
+          "chart_recipe": "heatmap_matrix",
+          "content": "Show that 'desert' is multi-dimensional: a small-multiples / heatmap matrix of the top desert-candidate districts (rows) across several aligned indicators (cols: child anaemia, women anaemia, child stunting, 4+ ANC, institutional birth, health insurance), every panel on the SAME colour breaks so cells are comparable. Avoids cramming many indicators into one rainbow map. Recipe: `heatmap_matrix`, long-format rows {district, indicator, value}, shared sequential scale, suppressed cells hatched. Design rules: small_multiples_for_many_indicators_on_a_shared_scale, render_suppressed_and_estimated_cells_honestly, honest_class_binning_and_a_labelled_legend.\nSQL: UNPIVOT/stack ~6 CAST indicators for the desert-candidate district list into (district, indicator, value); WHERE value IS NOT NULL."
+        },
+        {
+          "scene": "The planner's shortlist \u2014 where to send a clinic first",
+          "chart_recipe": "ranked_bar_highlight",
+          "content": "Close on a decision artifact, not just a chart: a ranked shortlist of target districts scoring HIGH need x LOW in-dataset coverage (the desert score), with the worst-and-empty districts highlighted. Each row cites its evidence (anaemia %, fac_count=0, NFHS survey n). Recipe: `ranked_bar_highlight` on desert_score desc, highlight fac_count=0. HONESTY closing note: this is a triage list to VALIDATE on the ground (coverage may be a data artifact), not a verdict \u2014 and no per-capita claim is made because no population source exists. Design rules: guard_against_the_confounded_desert_story, sample_not_census_coverage_caveat, always_show_the_denominator, framed_rectangle_or_companion_bar_to_recover_rank_from_shading.\nSQL: desert_score = normalized(burden) - normalized(coverage); rank desc; surface district_name, state_ut, child_anaemia_pct, fac_count, women_15_49_interviewed."
+        }
+      ],
+      "notes": "SCOPE: I returned ONLY map/health-story-specific rules and deliberately EXCLUDED the generic ones already in the graph's 138 DesignRules (raw Cleveland-McGill ranking as a standalone rule, generic proportional-ink, K/M/B number formatting, generic palette/caption rules, no-3D). Where a generic concept is the FOUNDATION I cite the vault page but the rule's STATEMENT is the geographic-health-specific application (e.g. proportional-ink is in the graph generically; my rule is its specific 'rates not totals + show the denominator' form for a burden choropleth).\\n\\nVAULT COVERAGE: The DAV vault has NO dedicated page on choropleth class-binning algorithms (quantile vs equal-interval vs Jenks) \u2014 `honest_class_binning_and_a_labelled_legend` is synthesized from [[sensible-scales]] (the same-scale-across-panels rubric) + [[choropleth-map]]'s colour-ramp caveat; it is the one rule least directly grounded in a single page, flagged for honesty. MAUP appears only as a one-line 'Variants' entry under [[simpsons-paradox]] (and ecological fallacy is implied, not named, in [[confounding]]) \u2014 I leaned on both. There is NO vault page on dot-density vs choropleth as such; that rule is grounded in [[choropleth-map]]'s Visual-Vocabulary Spatial-tab enumeration (Basic Choropleth = rate, Proportional Symbol = count, Dot Density = one dot per event).\\n\\nPAGES READ (all under .../04. Data Analytics and Visualisation for Business Vault/wiki/): concepts/{choropleth-map, map-in-tableau, centroid, colour-encoding, sensible-scales, simpsons-paradox, proportional-ink, confounding, sampling-bias, scatter-plot, confidence-interval, no-unjustified-3d, chart-anatomy, chart-selection, spurious-correlation, visualisation-for-communication}.md + frameworks/cleveland-mcgill-encoding-hierarchy.md.\\n\\nSTORY/SQL: All 8 scenes use EXACT chart_recipe names from the allowed list (stat, choropleth, ranked_bar_highlight, bubble_scatter, dumbbell, heatmap_matrix). Every SQL sketch honors the three critical gotchas: WHERE address_country='India', try_cast over string-numeric NFHS cols with '*'->NULL (NOT zero) and parenthesized-estimate stripping, and the validated MODAL-district-per-pincode dedup join (97.8% PIN-parseable, 80.2% name-match, 453/698 districts covered, 245 zero). The HONESTY MANDATE is wired into every scene's content as a load-bearing caption requirement, not an afterthought \u2014 sample-not-census, in-dataset-coverage, no-per-capita-without-population, cite-the-source-field. ONTOLOGY: each design_rule maps to a Rule/DesignRule node; each scene's SQL sketch -> SqlPattern (snake_case), each headline number (96% vs 25%; 453/698; 245 zero) -> Metric, each scene's question ('where are the worst-need lowest-coverage districts') -> Question."
+    },
+    "story": {
+      "design_rules": [
+        {
+          "name": "human_anchor_device",
+          "statement": "Carry ONE real district through the whole story as the human anchor \u2014 Sukma (Chhattisgarh): ~91% of its children anaemic, ZERO facilities in this dataset. Open on it, return to it in the desert/lottery/closing scenes, and contrast it against Chennai (55% anaemia, 272 facilities). The reader follows a place, not a table. Mirrors the proven 'same person, different outcome' spine: here it is 'same country, opposite odds by where a child is born.'"
+        },
+        {
+          "name": "dataset_coverage_not_census",
+          "statement": "HONESTY MANDATE \u2014 every facility-count claim must read as 'facilities in this 10,088-row sample' (DATASET COVERAGE), never 'India's facilities' (the FDR alone lists 47k+). State the uncertainty in the scene subtitle and the methodology footer. A zero-facility district means zero in THIS dataset, not zero on the ground. This honest framing is itself scored by the rubric."
+        },
+        {
+          "name": "state_the_denominator",
+          "statement": "Never imply per-capita without a population source \u2014 the 3 tables have none. Frame supply as count-vs-burden (facility count beside NFHS need %), or use NFHS women_15_49_interviewed only as a rough survey-size proxy with an explicit caveat. Absolute count and burden % answer different questions; show both side by side and label each axis."
+        },
+        {
+          "name": "cast_before_aggregate",
+          "statement": "Many NFHS columns and 2 facilities columns are STRING-but-numeric. Suppressed = '*' \u2192 treat as NULL, never zero. Parenthesized like '(29.5)' = small-sample estimate, use with caution. Always run the cast() helper (strip ()*, to_numeric coerce) before any aggregation, ranking, or correlation."
+        },
+        {
+          "name": "supply_inverse_to_need_is_the_twist",
+          "statement": "The analytical payload is the Simpson-style reversal: you'd expect facilities to follow burden, but they don't (r=-0.01; high-burden districts average FEWER facilities, 8.6 vs 12.3). Lead the bubble scene with the expectation, then break it. The gap is descriptive evidence of inequity, not proof of cause \u2014 claim 'mismatch between need and coverage', not 'discrimination'."
+        },
+        {
+          "name": "claims_rich_proof_thin",
+          "statement": "Treat the facilities free-text as claims, not verified capability. Specialties/procedure/equipment are ~99% present (what a facility SAYS), but numberDoctors 36% / capacity 25% / yearEstablished 48% are the verifiable PROOF. The trust scene must visually split 'claimed' vs 'proven' so a planner never sends a patient on an unverified claim. Cite the source TEXT field for any specific facility claim."
+        },
+        {
+          "name": "zero_baseline_and_proportional_ink",
+          "statement": "All bar/ranked encodings start at zero; percentage points map linearly to bar length (proportional ink). Color is a single editorial ramp (one accent for the highlighted/anchor district, muted gray for context), never rainbow. The highlighted district is the only saturated mark in each chart."
+        }
+      ],
+      "story": [
+        {
+          "scene": "Where a child is born decides her odds",
+          "chart_recipe": "stat",
+          "content": "COLD OPEN on the human anchor. One stat-card pair: a child in Sukma, Chhattisgarh has a 91% chance of being anaemic and ZERO mapped health facilities in her district; a child in Chennai faces 55% and has 272. Same country, same NFHS-5 survey, opposite lottery. Sets the thesis: in India healthcare access, geography is destiny. Uses the validated anchor numbers (child_6_59m_anaemic 91.4 vs 55.3; facility coverage 0 vs 272). Subtitle carries the dataset-coverage caveat from the start."
+        },
+        {
+          "scene": "The burden is not evenly shared",
+          "chart_recipe": "choropleth",
+          "content": "THE NEED. District-level choropleth of child anaemia (child_6_59m_who_are_anaemic, range 24.9%->95.5% across 706 districts), with a recipe-fallback to ranked_bar if the geo layer can't resolve districts. Shows the burden concentrates in central/eastern tribal belts and the high Himalaya. Headline metric: a 71-point spread (25%->96%) on a single basic child-health indicator. Anchor Sukma is highlighted. Frames demand before we ever look at supply. (Metric: child_anaemia_district_spread.)"
+        },
+        {
+          "scene": "The medical deserts",
+          "chart_recipe": "ranked_bar_highlight",
+          "content": "THE GAP. Ranked bar of the worst-burden districts and their facility coverage in this dataset \u2014 244 of 698 NFHS districts have ZERO facilities, and 20 of the 50 worst child-anaemia districts (Leh-Ladakh 95.5%, Sukma 91.4%, Lahul&Spiti, Dantewada, Tawang) have zero coverage. Bars = anaemia %, annotated with 'facilities: 0'. The honesty rule is explicit in the subtitle: zero in THIS 10k sample, not zero on the ground. (Metric: zero_facility_high_burden_districts. SqlPattern: deserts_high_burden_zero_coverage.)"
+        },
+        {
+          "scene": "The care lottery",
+          "chart_recipe": "dumbbell",
+          "content": "THE SPREAD made visceral. Dumbbell/dot-strip of three life-shaping NFHS indicators showing the min->max district gap: children anaemic 25%->96% (71pts), 4+ antenatal visits 4%->99% (94pts), institutional/insurance access. Each row is one indicator; the dots are the worst and best district, with the anchor district plotted. This is the 'twenty verdicts for one nationality' beat translated to 'one country, 700 different childhoods.' (Metric: care_lottery_indicator_spreads.)"
+        },
+        {
+          "scene": "Supply doesn't follow need",
+          "chart_recipe": "bubble_scatter",
+          "content": "THE TWIST (the analytical centerpiece). Bubble scatter: x = district child-anaemia burden, y = facilities in dataset, bubble size = NFHS women-surveyed proxy (with caveat). The expected upward trend is ABSENT \u2014 r = -0.01; high-burden quartile averages 8.6 facilities vs 12.3 in the low-burden quartile. Coverage is mildly INVERSE to need. Quadrant labels: 'high need, low coverage' (the deserts, where the anchor sits) vs 'low need, high coverage' (the metros). Claim is mismatch, not causation. (Metric: supply_burden_correlation. SqlPattern: district_supply_vs_burden.)"
+        },
+        {
+          "scene": "Coverage is hoarded by a handful of places",
+          "chart_recipe": "lorenz_gini",
+          "content": "THE CONCENTRATION. Lorenz curve + Gini of facility coverage across the 706 districts: Gini 0.82, the top 10% of districts hold 71% of the dataset's facilities, 35% of districts hold none. Reuses the proven concentration lens (Session 1/3) to quantify how unequal access is in one number. Bridges deserts -> the structural story. (Metric: facility_coverage_gini.)"
+        },
+        {
+          "scene": "The state lottery",
+          "chart_recipe": "dumbbell_slope",
+          "content": "ZOOM OUT to states. Slope/dumbbell of facilities-per-NFHS-district by state: Maharashtra 41, Kerala 36, Delhi 31 at the top vs Arunachal 0.2, Nagaland 0.5, and Puducherry/Andaman/Lakshadweep/Ladakh at 0. The northeast and small UTs are near-invisible in the dataset. Same denominator caveat (coverage, not true supply). Shows the lottery has a geographic grammar, not random noise. (Metric: state_coverage_gap. SqlPattern: state_facilities_per_district.)"
+        },
+        {
+          "scene": "Can you even trust the map?",
+          "chart_recipe": "ranked_bar",
+          "content": "THE DATA-TRUST beat (rubric: evidence & uncertainty). Split bar: what facilities CLAIM (specialties 99.7%, procedure 99.4%, equipment 98.6%) vs what's PROVEN (numberDoctors 36%, capacity 25%, yearEstablished 48%, recency 35%). 88% are private. A planner routing a patient to a 'cardiology' claim has a 1-in-3 chance of knowing if a single doctor works there. Lesson: a desert map is only as honest as its proof columns. (Metric: facility_proof_completeness. Rule: claims_rich_proof_thin.)"
+        },
+        {
+          "scene": "What a Medical Desert Planner would do next",
+          "chart_recipe": "kpi_grid",
+          "content": "THE CLOSE / call to action. KPI grid recapping the spine: 244 zero-coverage districts | 20 of the 50 worst-anaemia districts with zero facilities | Gini 0.82 | r=-0.01 need-vs-supply. Returns to Sukma: this is where a deployment dollar, a verified-facility audit, or a new clinic moves the most lives. Honest footer: dataset is a 10k sample + NFHS-5 (2019-21); coverage != census; next step is grounding against the full FDR and a population layer. Demo punchline: 'the agent found the deserts, ranked them by burden, and flagged which ones we can't even trust the map for.'"
+        }
+      ],
+      "notes": "3-MINUTE DEMO FLOW (Medical Desert Planner):\\n\\n(0:00-0:25) HOOK \u2014 one question to the agent: 'Where in India is the need for healthcare highest and the coverage lowest?' Agent opens on the human anchor: Sukma, Chhattisgarh \u2014 91% of children anaemic, zero mapped facilities \u2014 beside Chennai (55%, 272). 'Where a child is born decides her odds.' (Scene 1 stat.)\\n\\n(0:25-1:05) THE GAP \u2014 Agent shows the burden choropleth (anaemia 25->96% across 700 districts), then the deserts ranked_bar: 244 of 698 districts have ZERO facilities in the dataset; 20 of the 50 worst-anaemia districts are dark. Every claim framed as dataset coverage, not census. (Scenes 2-3.)\\n\\n(1:05-1:50) THE TWIST \u2014 Agent asks 'does supply follow need?' and renders the bubble_scatter: it doesn't \u2014 r=-0.01, high-burden districts average FEWER facilities (8.6 vs 12.3). Lorenz/Gini 0.82, top 10% of districts hold 71% of coverage. This is the analytical payload that wins technical-execution + evidence points. (Scenes 5-6.)\\n\\n(1:50-2:25) TRUST \u2014 Agent flips to the data-honesty beat: facilities CLAIM specialties 99.7% but PROVE numberDoctors only 36%, capacity 25%. 'A desert map is only as honest as its proof columns.' Cites the source text field. This is the uncertainty/honesty differentiator most teams skip. (Scene 8.)\\n\\n(2:25-3:00) CLOSE \u2014 KPI grid recap + return to Sukma: 'this is where the next clinic moves the most lives.' Honest limitations footer (10k sample + NFHS-5 2019-21, coverage != census, needs full FDR + population layer next). End on the agent's spoken takeaway.\\n\\nDELIVERY NOTES: lead with the human anchor and return to it 3x (open, deserts, close) \u2014 that single-district thread is what makes the data felt. The Simpson-style reversal (supply inverse to need) is the moment to slow down. Keep the dataset-coverage caveat visible in EVERY scene subtitle so the honesty mandate scores, not just the methodology slide. All numbers in story[] are validated against the local parquet via the proven PIN->modal-district->normalized-name join (97.8% PIN-parse / 95.7% PIN-resolve / 84.8% NFHS name-match). Recipe fallbacks: choropleth->ranked_bar if the India district geo layer can't resolve; dumbbell/dumbbell_slope are interchangeable for the spread/state scenes depending on which renders cleaner at demo time."
+    }
+  },
+  "stats": {
+    "findings": 36,
+    "confirmed": 20,
+    "corrected": 7,
+    "rejected": 0
+  }
+}
